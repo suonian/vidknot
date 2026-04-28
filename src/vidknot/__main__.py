@@ -1,3 +1,13 @@
+"""
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
 #!/usr/bin/env python3
 """
 VidkNot 统一入口
@@ -273,3 +283,16 @@ def process_video(url: str, mode: str, language: str) -> dict:
 
 if __name__ == "__main__":
     main()
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

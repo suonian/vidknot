@@ -1,4 +1,14 @@
 """
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
+"""
 VidkNot Obsidian Vault 写入适配器
 
 将笔记保存到本地 Obsidian Vault
@@ -274,3 +284,16 @@ class ObsidianWriter:
             "total_notes": total_files,
             "total_size_mb": round(total_size / (1024 * 1024), 2),
         }
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

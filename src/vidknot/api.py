@@ -1,4 +1,14 @@
 """
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
+"""
 VidkNot FastAPI 服务
 
 提供 REST API 接口，支持:
@@ -190,3 +200,16 @@ async def root():
         "docs": "/docs",
         "health": "/health",
     }
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

@@ -1,3 +1,13 @@
+"""
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
 """VidkNot 工具模块"""
 
 from .cache_manager import CacheManager
@@ -72,3 +82,16 @@ __all__ = [
     "FFmpegNotFoundError",
     "ConfigError",
 ]
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

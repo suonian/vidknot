@@ -1,5 +1,15 @@
 """
 VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
+"""
+VidkNot - Video Knowledge, Knotted.
 
 Tie your video knowledge together.
 视频知识，结成一网。
@@ -23,3 +33,16 @@ __all__ = [
     "ContentProcessor",
     "VideoKnowledgePipeline",
 ]
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

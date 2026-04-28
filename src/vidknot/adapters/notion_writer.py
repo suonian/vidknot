@@ -1,4 +1,14 @@
 """
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
+"""
 VidkNot Notion 文档写入适配器
 
 使用 Notion API 创建笔记页面
@@ -237,3 +247,16 @@ class NotionWriter:
             markdown_content=markdown_content,
             parent_id=parent_id,
         )
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

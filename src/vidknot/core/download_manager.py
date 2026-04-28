@@ -1,4 +1,14 @@
 """
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
+"""
 VidkNot 智能下载管理器
 
 自动管理多个下载工具，根据 URL 智能选择最优方案
@@ -317,3 +327,16 @@ class SmartDownloadManager:
             }
             for name, tool in self.TOOLS.items()
         }
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

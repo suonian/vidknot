@@ -1,3 +1,13 @@
+"""
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
 # -*- coding: utf-8 -*-
 """
 VidkNot 抖音视频解析器
@@ -218,3 +228,16 @@ def _lst(d: Dict[str, Any], k1: str, k2: str) -> list:
     v = d.get(k1, {})
     v = v.get(k2, [])
     return v if isinstance(v, list) else []
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+

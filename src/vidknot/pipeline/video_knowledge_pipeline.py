@@ -1,4 +1,14 @@
 """
+VidkNot - Video Knowledge, Knotted.
+Copyright (c) 2026 VidkNot Team
+
+This software is licensed under the MIT License.
+See LICENSE file in the project root for details.
+
+https://github.com/suonian/vidknot
+"""
+
+"""
 VidkNot 视频知识管道
 
 统一处理管道：接收 URL → 返回笔记内容 → 根据配置路由到目的地
@@ -247,3 +257,16 @@ class VideoKnowledgePipeline:
         if self._notion is None and self._notion_config:
             self._notion = NotionWriter(**self._notion_config)
         return self._notion
+
+
+# -----------------------------------------------------------------------------
+# VidkNot - Video Knowledge, Knotted.
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 VidkNot Team
+# 
+# This software is licensed under the MIT License.
+# See LICENSE file in the project root for details.
+# 
+# Repository: https://github.com/suonian/vidknot
+# -----------------------------------------------------------------------------
+
