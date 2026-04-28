@@ -1,14 +1,4 @@
 """
-VidkNot - Video Knowledge, Knotted.
-Copyright (c) 2026 VidkNot Team
-
-This software is licensed under the MIT License.
-See LICENSE file in the project root for details.
-
-https://github.com/suonian/vidknot
-"""
-
-"""
 VidkNot 内容处理模块
 
 调用 LLM 生成结构化 Markdown 笔记
@@ -311,16 +301,3 @@ summary: [一句话总结视频内容]
             raise
         except Exception as e:
             raise LLMError(f"LLM 调用失败: {e}", details=f"provider={self.provider}, model={self.model}")
-
-
-# -----------------------------------------------------------------------------
-# VidkNot - Video Knowledge, Knotted.
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 VidkNot Team
-# 
-# This software is licensed under the MIT License.
-# See LICENSE file in the project root for details.
-# 
-# Repository: https://github.com/suonian/vidknot
-# -----------------------------------------------------------------------------
-

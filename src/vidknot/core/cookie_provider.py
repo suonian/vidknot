@@ -1,13 +1,3 @@
-"""
-VidkNot - Video Knowledge, Knotted.
-Copyright (c) 2026 VidkNot Team
-
-This software is licensed under the MIT License.
-See LICENSE file in the project root for details.
-
-https://github.com/suonian/vidknot
-"""
-
 # -*- coding: utf-8 -*-
 """
 VidkNot Cookie 提供者
@@ -354,16 +344,3 @@ def cleanup_temp_cookie(file_path: Optional[str]) -> None:
             logger.debug(f"[CookieProvider] 清理临时 Cookie: {file_path}")
     except Exception as e:
         logger.debug(f"[CookieProvider] 清理临时 Cookie 失败: {e}")
-
-
-# -----------------------------------------------------------------------------
-# VidkNot - Video Knowledge, Knotted.
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 VidkNot Team
-# 
-# This software is licensed under the MIT License.
-# See LICENSE file in the project root for details.
-# 
-# Repository: https://github.com/suonian/vidknot
-# -----------------------------------------------------------------------------
-

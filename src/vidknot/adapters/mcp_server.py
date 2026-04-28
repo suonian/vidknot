@@ -1,14 +1,4 @@
 """
-VidkNot - Video Knowledge, Knotted.
-Copyright (c) 2026 VidkNot Team
-
-This software is licensed under the MIT License.
-See LICENSE file in the project root for details.
-
-https://github.com/suonian/vidknot
-"""
-
-"""
 VidkNot MCP Server
 
 基于 FastMCP 3.0 的 Model Context Protocol 实现
@@ -394,16 +384,3 @@ def run_fastmcp_server():
         return result.get("markdown", result.get("transcription", ""))
 
     mcp.run(transport="stdio")
-
-
-# -----------------------------------------------------------------------------
-# VidkNot - Video Knowledge, Knotted.
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 VidkNot Team
-# 
-# This software is licensed under the MIT License.
-# See LICENSE file in the project root for details.
-# 
-# Repository: https://github.com/suonian/vidknot
-# -----------------------------------------------------------------------------
-

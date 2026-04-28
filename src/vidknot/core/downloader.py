@@ -1,14 +1,4 @@
 """
-VidkNot - Video Knowledge, Knotted.
-Copyright (c) 2026 VidkNot Team
-
-This software is licensed under the MIT License.
-See LICENSE file in the project root for details.
-
-https://github.com/suonian/vidknot
-"""
-
-"""
 VidkNot 视频下载器
 
 多策略下载（三层 Fallback）：
@@ -781,16 +771,3 @@ class VideoDownloader:
         elif "vimeo.com" in url_lower:
             return "vimeo"
         return "unknown"
-
-
-# -----------------------------------------------------------------------------
-# VidkNot - Video Knowledge, Knotted.
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 VidkNot Team
-# 
-# This software is licensed under the MIT License.
-# See LICENSE file in the project root for details.
-# 
-# Repository: https://github.com/suonian/vidknot
-# -----------------------------------------------------------------------------
-

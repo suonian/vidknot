@@ -1,14 +1,4 @@
 """
-VidkNot - Video Knowledge, Knotted.
-Copyright (c) 2026 VidkNot Team
-
-This software is licensed under the MIT License.
-See LICENSE file in the project root for details.
-
-https://github.com/suonian/vidknot
-"""
-
-"""
 VidkNot 统一异常体系
 
 所有模块应从此文件导入异常，禁止抛出裸 Exception。
@@ -160,16 +150,3 @@ class FFmpegNotFoundError(DependencyError):
 class ConfigError(VidkNotError):
     """配置错误"""
     pass
-
-
-# -----------------------------------------------------------------------------
-# VidkNot - Video Knowledge, Knotted.
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 VidkNot Team
-# 
-# This software is licensed under the MIT License.
-# See LICENSE file in the project root for details.
-# 
-# Repository: https://github.com/suonian/vidknot
-# -----------------------------------------------------------------------------
-

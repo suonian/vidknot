@@ -1,14 +1,4 @@
 """
-VidkNot - Video Knowledge, Knotted.
-Copyright (c) 2026 VidkNot Team
-
-This software is licensed under the MIT License.
-See LICENSE file in the project root for details.
-
-https://github.com/suonian/vidknot
-"""
-
-"""
 VidkNot 统一日志模块
 
 使用标准 logging，提供结构化日志输出，支持 CLI/FastAPI/MCP 三种运行模式。
@@ -132,16 +122,3 @@ def log_download_progress(logger: logging.Logger, downloaded: int, total: int, s
     pct = min(100, int(downloaded / total * 100)) if total > 0 else 0
     bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
     logger.info(f"  [{bar}] {pct}%  {speed}")
-
-
-# -----------------------------------------------------------------------------
-# VidkNot - Video Knowledge, Knotted.
-# -----------------------------------------------------------------------------
-# Copyright (c) 2026 VidkNot Team
-# 
-# This software is licensed under the MIT License.
-# See LICENSE file in the project root for details.
-# 
-# Repository: https://github.com/suonian/vidknot
-# -----------------------------------------------------------------------------
-
