@@ -1,0 +1,44 @@
+# VidkNot 配置文件
+# 复制此文件为 config.yaml 并根据需要修改
+
+# 基础设置
+settings:
+  language: "auto"
+  default_destination: "obsidian"
+
+# SiliconFlow 云端转录配置
+siliconflow:
+  api_key: "YOUR_SILICONFLOW_KEY"
+  model: "FunAudioLLM/SenseVoiceSmall"
+
+# LLM 提供商配置
+providers:
+  default_provider: "openai"
+
+  openai:
+    api_key: "YOUR_OPENAI_KEY"
+    base_url: "https://api.openai.com/v1"
+    model: "gpt-4o-mini"
+    max_tokens: 4000
+
+  zhipuai:
+    api_key: "YOUR_ZHIPU_KEY"
+    base_url: "https://open.bigmodel.cn/api/paas/v4/"
+    model: "glm-4-flash"
+    max_tokens: 4000
+
+# 飞书文档配置
+feishu:
+  app_id: "YOUR_FEISHU_APP_ID"
+  app_secret: "YOUR_FEISHU_APP_SECRET"
+  default_folder: "VidkNot"
+
+# Obsidian 配置
+obsidian:
+  vault_path: "./obsidian-vault"
+  default_folder: "视频笔记"
+
+# Notion 配置
+notion:
+  token: "YOUR_NOTION_TOKEN"
+  page_id: "YOUR_NOTION_PAGE_ID"

@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vidknot"
+version = "0.1.0"
+description = "VidkNot — Video Knowledge, Knotted. 一键将视频链接转换为结构化笔记，支持飞书、语雀、Notion、Obsidian 等多平台存储。"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "VidkNot Team"}]
+keywords = ["video", "transcription", "AI", "notes", "knowledge-base", "feishu", "yuque", "notion", "obsidian", "markdown"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "yt-dlp>=2026.3.17",
+    "fastapi>=0.136.0",
+    "uvicorn[standard]>=0.27.0",
+    "httpx>=0.27.0",
+    "pyyaml>=6.0.1",
+    "openai>=1.0.0",
+]
+
+[project.optional-dependencies]
+feishu = ["feishu-docx>=0.1.0"]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.2.0",
+]
+all = [
+    "feishu-docx>=0.1.0",
+    "pytest>=8.0.0",
+    "ruff>=0.2.0",
+]
+
+[project.scripts]
+vidknot = "vidknot.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/suonian/vidknot"
+Repository = "https://github.com/suonian/vidknot"
+Issues = "https://github.com/suonian/vidknot/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+vidknot = ["*.yaml", "*.yml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
