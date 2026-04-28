@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vidknot"
 version = "0.1.0"
-description = "VidkNot — Video Knowledge, Knotted. 一键将视频链接转换为结构化笔记，支持飞书、语雀、Notion、Obsidian 等多平台存储。"
+description = "VidkNot — Video Knowledge, Knotted. Convert video links to structured notes, with multi-platform sync including Notion, Obsidian, Feishu, and Yuque."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "VidkNot Team"}]
-keywords = ["video", "transcription", "AI", "notes", "knowledge-base", "feishu", "yuque", "notion", "obsidian", "markdown"]
+keywords = ["video", "transcription", "AI", "notes", "knowledge-base", "notion", "obsidian", "feishu", "yuque", "markdown"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -20,6 +20,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Natural Language :: English",
+    "Natural Language :: Chinese",
 ]
 requires-python = ">=3.10"
 dependencies = [
