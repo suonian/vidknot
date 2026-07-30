@@ -1,44 +1,39 @@
-# VidkNot 配置文件
-# 复制此文件为 config.yaml 并根据需要修改
-
-# 基础设置
 settings:
-  language: "auto"
-  default_destination: "obsidian"
-
-# SiliconFlow 云端转录配置
+  language: auto
+  default_destination: obsidian
+  # Dual-ASR correction pipeline (added by feature/dual-asr-correction)
+  enable_correction: true
+  correction_version: v4  # v4 = conservative, v3 = aggressive
 siliconflow:
-  api_key: "YOUR_SILICONFLOW_KEY"
-  model: "FunAudioLLM/SenseVoiceSmall"
-
-# LLM 提供商配置
+  api_key: YOUR_SILICONFLOW_KEY
+  model: FunAudioLLM/SenseVoiceSmall
+faster_whisper:
+  model: small
+  device: cpu
+  compute_type: int8
+  beam_size: 5
+  vad_filter: true
 providers:
-  default_provider: "openai"
-
+  default_provider: openai
   openai:
-    api_key: "YOUR_OPENAI_KEY"
-    base_url: "https://api.openai.com/v1"
-    model: "gpt-4o-mini"
+    api_key: YOUR_OPENAI_KEY
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
     max_tokens: 4000
-
   zhipuai:
-    api_key: "YOUR_ZHIPU_KEY"
-    base_url: "https://open.bigmodel.cn/api/paas/v4/"
-    model: "glm-4-flash"
+    api_key: YOUR_ZHIPU_KEY
+    base_url: https://open.bigmodel.cn/api/paas/v4/
+    model: glm-4-flash
     max_tokens: 4000
-
-# 飞书文档配置
+  siliconflow:
+    api_key: YOUR_SILICONFLOW_KEY
 feishu:
-  app_id: "YOUR_FEISHU_APP_ID"
-  app_secret: "YOUR_FEISHU_APP_SECRET"
-  default_folder: "VidkNot"
-
-# Obsidian 配置
+  app_id: YOUR_FEISHU_APP_ID
+  app_secret: YOUR_FEISHU_APP_SECRET
+  default_folder: VidkNot
 obsidian:
-  vault_path: "./obsidian-vault"
-  default_folder: "视频笔记"
-
-# Notion 配置
+  vault_path: ./obsidian-vault
+  default_folder: 视频笔记
 notion:
-  token: "YOUR_NOTION_TOKEN"
-  page_id: "YOUR_NOTION_PAGE_ID"
+  token: YOUR_NOTION_TOKEN
+  page_id: YOUR_NOTION_PAGE_ID

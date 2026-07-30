@@ -32,7 +32,7 @@ VidkNot is an AI-powered video knowledge extraction and management tool. It down
 | Feature | Description |
 |---------|-------------|
 | 🎬 **Multi-Platform Download** | Support for Douyin, YouTube, Bilibili, and more |
-| 🎤 **Cloud Transcription** | High-accuracy speech recognition via SiliconFlow SenseVoice |
+| 🎤 **Dual-ASR Transcription** | High-accuracy speech recognition via SiliconFlow SenseVoice + local faster-whisper cross-validation |
 | 🤖 **AI Note Generation** | Generate structured notes using LLM |
 | 📚 **Multi-Platform Sync** | Notion, Obsidian, Feishu, Yuque, and more |
 | 🔧 **Multiple Interfaces** | CLI, MCP Server, and Python API |
@@ -75,15 +75,50 @@ YUQUE_REPO=your_yuque_repo
 #### 1. CLI Mode
 
 ```bash
-# Process a single video
+# Process a single video (dual-ASR correction enabled by default)
 python -m vidknot "https://www.youtube.com/watch?v=example"
 
 # Specify note destination
 python -m vidknot "https://v.douyin.com/xxx" --destination notion
 
+# Disable dual-ASR correction (use SiliconFlow only)
+python -m vidknot "https://v.douyin.com/xxx" --no-correct
+
+# Use aggressive correction (v3) instead of the default conservative (v4)
+python -m vidknot "https://v.douyin.com/xxx" --correction-version v3
+
 # Check environment configuration
 python -m vidknot --check-env
 ```
+
+### Dual-ASR Correction
+
+By default VidkNot runs two independent ASR systems and uses an LLM to
+cross-validate the transcripts:
+
+1. **SiliconFlow SenseVoice** (cloud, primary source)
+2. **faster-whisper** (local CPU, used as cross-validation source)
+
+When differences are detected, the pipeline asks an LLM to resolve them based
+on the search-backed context. Two strategies are available:
+
+- `v4` (default): conservative — only modify when evidence or idioms confirm the change
+- `v3`: aggressive — broader changes at higher risk of hallucination
+
+Configure in `config.yaml`:
+
+```yaml
+settings:
+  enable_correction: true
+  correction_version: v4  # or v3
+faster_whisper:
+  model: small
+  device: cpu
+  compute_type: int8
+```
+
+When dual-ASR correction fails (e.g. `mmx` is unavailable), VidkNot falls
+back to the SiliconFlow-only output.
 
 #### 2. MCP Server Mode
 
@@ -120,21 +155,29 @@ vidknot/
 ├── src/vidknot/              # Source code
 │   ├── core/                 # Core modules
 │   │   ├── downloader.py     # Video downloader
-│   │   ├── transcriber.py    # Speech transcription
-│   │   └── processor.py      # Content processing
+│   │   ├── transcriber.py    # SiliconFlow + faster-whisper ASR
+│   │   ├── corrector.py      # Dual-ASR correction pipeline (v0.2.0+)
+│   │   ├── processor.py      # Content processing
+│   │   ├── douyin_parser.py  # Douyin video URL parser
+│   │   ├── download_manager.py # Multi-tool smart download
+│   │   └── cookie_provider.py # Multi-strategy cookie loader
 │   ├── adapters/             # Platform adapters
 │   │   ├── notion_writer.py  # Notion integration
 │   │   ├── obsidian_writer.py# Obsidian integration
 │   │   ├── feishu_writer.py  # Feishu integration
-│   │   └── yuque_writer.py   # Yuque integration
-│   └── pipeline/             # Processing pipeline
-│       └── video_knowledge_pipeline.py
-├── tests/                    # Test files
+│   │   ├── yuque_writer.py   # Yuque integration
+│   │   ├── mcp_server.py     # MCP server
+│   │   └── agent_bridge.py   # Agent tool bridge
+│   ├── utils/                # Shared utilities
+│   ├── pipeline/             # Processing pipeline
+│   └── api.py                # FastAPI app
+├── tests/                    # 133 unit tests
 ├── docs/                     # Documentation
 ├── README.md                 # English documentation
 ├── README.zh.md              # Chinese documentation
 ├── LICENSE                   # MIT License
-└── pyproject.toml           # Project configuration
+├── CHANGELOG.md              # Version history
+└── pyproject.toml            # Project configuration
 ```
 
 ---

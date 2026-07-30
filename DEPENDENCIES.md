@@ -48,6 +48,14 @@
 - **文档**: https://github.com/openai/openai-python
 - **许可证**: Apache-2.0
 
+### faster-whisper
+
+- **版本**: `>=1.0.0`
+- **用途**: 本地 CPU ASR（双 ASR 校正的交叉验证源，v0.2.0+）
+- **文档**: https://github.com/SYSTRAN/faster-whisper
+- **许可证**: MIT
+- **首次运行**: 自动下载 `small` 模型（约 500MB）
+
 ---
 
 ## 可选依赖

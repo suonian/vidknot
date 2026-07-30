@@ -7,6 +7,9 @@ httpx>=0.27.0
 pyyaml>=6.0.1
 openai>=1.0.0
 
+# Dual-ASR correction pipeline (v0.2.0+)
+faster-whisper>=1.0.0
+
 # 可选：飞书集成
 # pip install vidknot[feishu]
 

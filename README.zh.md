@@ -32,7 +32,7 @@ VidkNot 是一个基于 AI 的视频知识提取与管理工具。它能够从�
 | 功能 | 说明 |
 |------|------|
 | 🎬 **多平台下载** | 支持抖音、YouTube、Bilibili 等主流视频平台 |
-| 🎤 **云端转录** | 基于 SiliconFlow SenseVoice 的高精度语音识别 |
+| 🎤 **双 ASR 转录** | 基于 SiliconFlow SenseVoice + 本地 faster-whisper 的交叉验证 |
 | 🤖 **AI 笔记生成** | 使用大语言模型自动生成结构化笔记 |
 | 📚 **多平台同步** | 支持 Notion、Obsidian、飞书、语雀等知识管理平台 |
 | 🔧 **多种使用方式** | 提供 CLI 命令行、MCP 服务、Python API 三种接口 |
@@ -75,15 +75,47 @@ YUQUE_REPO=your_yuque_repo
 #### 1. 命令行模式
 
 ```bash
-# 处理单个视频
+# 处理单个视频（默认启用双 ASR 校正）
 python -m vidknot "https://www.youtube.com/watch?v=example"
 
 # 指定笔记保存位置
 python -m vidknot "https://v.douyin.com/xxx" --destination notion
 
+# 禁用双 ASR 校正（只用 SiliconFlow）
+python -m vidknot "https://v.douyin.com/xxx" --no-correct
+
+# 使用激进版校正（v3）替代默认保守版（v4）
+python -m vidknot "https://v.douyin.com/xxx" --correction-version v3
+
 # 检查环境配置
 python -m vidknot --check-env
 ```
+
+### 双 ASR 校正
+
+默认情况下，VidkNot 会跑两个独立的 ASR 系统，并使用大语言模型交叉验证转录结果：
+
+1. **SiliconFlow SenseVoice**（云端，作为主转录源）
+2. **faster-whisper**（本地 CPU，作为交叉验证源）
+
+检测到差异时，会用基于搜索证据的 LLM 来仲裁。两种策略可选：
+
+- `v4`（默认）：保守——只在有证据或成语确认时才修改
+- `v3`：激进——改动更多但产生新错的风险也更高
+
+通过 `config.yaml` 配置：
+
+```yaml
+settings:
+  enable_correction: true
+  correction_version: v4  # 或 v3
+faster_whisper:
+  model: small
+  device: cpu
+  compute_type: int8
+```
+
+当双 ASR 校正失败（例如 `mmx` 不可用），VidkNot 自动回退到 SiliconFlow 单源输出。
 
 #### 2. MCP 服务模式
 
@@ -120,21 +152,29 @@ vidknot/
 ├── src/vidknot/              # 源代码
 │   ├── core/                 # 核心模块
 │   │   ├── downloader.py     # 视频下载器
-│   │   ├── transcriber.py    # 语音转录
-│   │   └── processor.py      # 内容处理
+│   │   ├── transcriber.py    # SiliconFlow + faster-whisper ASR
+│   │   ├── corrector.py      # 双 ASR 校正流水线（v0.2.0+）
+│   │   ├── processor.py      # 内容处理
+│   │   ├── douyin_parser.py  # 抖音视频 URL 解析
+│   │   ├── download_manager.py # 多工具智能下载
+│   │   └── cookie_provider.py # 多策略 Cookie 加载
 │   ├── adapters/             # 平台适配器
 │   │   ├── notion_writer.py  # Notion 集成
 │   │   ├── obsidian_writer.py# Obsidian 集成
 │   │   ├── feishu_writer.py  # 飞书集成
-│   │   └── yuque_writer.py   # 语雀集成
-│   └── pipeline/             # 处理流程
-│       └── video_knowledge_pipeline.py
-├── tests/                    # 测试文件
+│   │   ├── yuque_writer.py   # 语雀集成
+│   │   ├── mcp_server.py     # MCP 服务
+│   │   └── agent_bridge.py   # Agent 工具桥
+│   ├── utils/                # 共享工具
+│   ├── pipeline/             # 处理流水线
+│   └── api.py                # FastAPI 应用
+├── tests/                    # 133 个单元测试
 ├── docs/                     # 文档
 ├── README.md                 # 英文文档
 ├── README.zh.md              # 中文文档
 ├── LICENSE                   # MIT 许可证
-└── pyproject.toml           # 项目配置
+├── CHANGELOG.md              # 版本历史
+└── pyproject.toml            # 项目配置
 ```
 
 ---
