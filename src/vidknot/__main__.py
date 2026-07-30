@@ -13,6 +13,7 @@ import sys
 import argparse
 from pathlib import Path
 
+from ._version import __version__
 from .utils.logger import get_logger
 
 logger = get_logger("vidknot.cli")
@@ -127,7 +128,7 @@ def run_cli(args):
     from .utils.env_check import check_ffmpeg, check_all_requirements
     from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
 
-    logger.info("VidkNot v0.1.0 — Video Knowledge, Knotted.")
+    logger.info("VidkNot v%s — Video Knowledge, Knotted.", __version__)
 
     # 环境检查
     logger.info("检查运行环境...")

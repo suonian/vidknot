@@ -11,6 +11,8 @@ import sys
 import signal
 from typing import Dict, Any, Optional
 
+from .._version import __version__
+
 try:
     from fastmcp import FastMCP
     HAS_FASTMCP = True
@@ -123,7 +125,7 @@ class MCPServer:
                 },
                 "serverInfo": {
                     "name": "vidknot",
-                    "version": "0.1.0",
+                    "version": __version__,
                 },
             },
             "id": req_id,

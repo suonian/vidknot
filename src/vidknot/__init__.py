@@ -7,7 +7,8 @@ Tie your video knowledge together.
 Core module for Agent-driven video knowledge pipeline.
 """
 
-__version__ = "0.1.0"
+from ._version import __version__
+
 __author__ = "VidkNot Team"
 __license__ = "MIT"
 

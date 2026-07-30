@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 
+from ._version import __version__
 from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
 from .utils.env_check import check_ffmpeg, check_all_requirements
 from .utils.logger import get_logger
@@ -21,7 +22,7 @@ logger = get_logger("vidknot.api")
 app = FastAPI(
     title="VidkNot API",
     description="Video Knowledge, Knotted. 将视频链接转换为结构化笔记。",
-    version="0.1.0",
+    version=__version__,
 )
 
 app.add_middleware(
@@ -186,7 +187,7 @@ async def root():
     """根路径"""
     return {
         "name": "VidkNot API",
-        "version": "0.1.0",
+        "version": __version__,
         "docs": "/docs",
         "health": "/health",
     }
