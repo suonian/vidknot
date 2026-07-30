@@ -85,6 +85,71 @@ OPENAI_BASE_URL=https://api.openai.com/v1  # 可选，自定义端点
 ZHIPUAI_API_KEY=xxxxxxxxxxxxxxxx
 ```
 
+### MiniMax（mmx CLI 后端）
+
+`mmx` 是 MiniMax 提供的命令行工具，封装了 MiniMax 平台的对话与联网搜索接口。
+VidkNot 在双 ASR 校正流水线中通过 `mmx` 调用 MiniMax-M3 模型进行差异仲裁，
+并使用 `mmx search query` 进行专有名词搜证（详见 corrector 内部实现）。
+
+如未安装 `mmx`，双 ASR 校正会自动回退到 SiliconFlow 单源输出，不影响主流程。
+
+#### 安装
+
+```bash
+# 一键安装（参考 mmx 官方仓库）
+curl -fsSL https://raw.githubusercontent.com/MiniMax/mmx-cli/main/install.sh | bash
+
+# 或通过 npm
+npm install -g mmx-cli
+
+# 验证安装
+mmx --version
+```
+
+#### 鉴权
+
+```bash
+mmx auth login        # 浏览器 OAuth 登录
+# 或直接配置 API Key
+mmx config set --api-key sk-xxx
+mmx auth status       # 查看当前鉴权状态
+```
+
+#### 验证
+
+```bash
+mmx search query --q "papi酱 网红" --output json
+mmx text chat --model MiniMax-M3 --message "你好"
+```
+
+#### 搜索后端回退链
+
+VidkNot 的搜证按以下优先级尝试（由 corrector 内部实现）：
+
+1. **`mmx search query`**（首选）— MiniMax 自带联网搜索
+2. **Bing via DDGS**（fallback）— `ddgs` Python 包的 Bing backend
+3. **保留 FW 原词**（终极回退）— 搜证失败时不做修改
+
+如果只装 `mmx` 不装 `ddgs`，会自动用 `mmx`；两者都不可用时跳过搜证。
+
+### Bing 搜索（DDGS fallback）
+
+`ddgs` 是一个第三方 DuckDuckGo/Bing 搜索聚合库，提供 Bing backend 给 `mmx`
+不可用时作为兜底。一般不需要单独配置，除非你想强制使用 Bing 而非 `mmx`。
+
+```bash
+pip install ddgs
+```
+
+验证：
+
+```bash
+python -c "from ddgs import DDGS; print(list(DDGS().text('papi酱', backend='bing', max_results=2)))"
+```
+
+注意：Bing backend 偶发超时（特别是 DDGS 默认的 Brave backend）。如遇搜证
+频繁失败，请优先安装 `mmx`，因为 MiniMax 自带搜索更稳。
+
 ---
 
 ## 3. 语雀 Yuque（笔记存储）

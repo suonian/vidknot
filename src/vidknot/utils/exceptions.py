@@ -88,6 +88,13 @@ class NoAPIKeyError(VidkNotError):
     pass
 
 
+# ===== 校正相关 =====
+
+class CorrectionError(VidkNotError):
+    """双 ASR 校正失败"""
+    pass
+
+
 # ===== 存储相关 =====
 
 class StorageError(VidkNotError):

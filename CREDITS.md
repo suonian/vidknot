@@ -21,7 +21,7 @@ VidkNot 项目使用了以下开源项目，特此致谢。
 - **作者**: SYSTRAN
 - **地址**: https://github.com/SYSTRAN/faster-whisper
 - **许可证**: MIT
-- **使用范围**: 本地语音识别（已移除，当前使用云端）
+- **使用范围**: 本地 CPU 语音识别（双 ASR 校正的交叉验证源，v0.2.0+）
 
 ### SiliconFlow
 
@@ -36,6 +36,21 @@ VidkNot 项目使用了以下开源项目，特此致谢。
 - **地址**: https://github.com/openai/openai-python
 - **许可证**: Apache-2.0
 - **使用范围**: LLM API 调用
+
+### MiniMax mmx CLI
+
+- **项目**: mmx (MiniMax CLI)
+- **地址**: https://github.com/MiniMax/mmx-cli
+- **许可证**: 参考 mmx 官方仓库
+- **使用范围**: 双 ASR 校正的对话模型（MiniMax-M3）和搜证后端（v0.2.0+）
+
+### ddgs / Bing
+
+- **项目**: ddgs (DuckDuckGo Search unofficial)
+- **地址**: https://github.com/deedy5/duckduckgo_search
+- **许可证**: MIT
+- **使用范围**: 双 ASR 校正的搜证 fallback（mmx 不可用时）
+- **使用方式**: `DDGS().text(query, backend='bing')`
 
 ---
 
@@ -63,6 +78,8 @@ VidkNot 项目使用了以下开源项目，特此致谢。
 - yt-dlp 团队维护的多平台下载器
 - Faster Whisper 团队的高效语音识别
 - 硅基流动团队提供的 SenseVoice 模型
+- MiniMax 团队提供的 mmx CLI 和 MiniMax-M3 模型
+- DDGS 社区提供的 Bing fallback 搜证
 
 ---
 
@@ -80,6 +97,8 @@ VidkNot 项目本身采用 [MIT License](LICENSE)。
 | OpenAI Client | Apache-2.0 |
 | FastAPI | MIT |
 | PyYAML | MIT |
+| faster-whisper | MIT |
+| ddgs | MIT |
 
 ---
 

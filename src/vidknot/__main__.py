@@ -8,6 +8,7 @@ VidkNot 统一入口
 - FastAPI: uvicorn vidknot.api:app
 """
 
+import os
 import sys
 import argparse
 from pathlib import Path
@@ -73,6 +74,14 @@ def main():
                         help="Obsidian 笔记标签")
     parser.add_argument("--notify", action="store_true", default=True,
                         help="处理完成后发送通知 (通过 OpenClaw 消息回复)")
+
+    # Dual-ASR 校正参数 (added by feature/dual-asr-correction)
+    parser.add_argument("--correct", action="store_true", default=None,
+                        help="启用双 ASR 校正（默认从 config.yaml 读 enable_correction）")
+    parser.add_argument("--no-correct", action="store_true",
+                        help="禁用双 ASR 校正")
+    parser.add_argument("--correction-version", choices=["v3", "v4"], default=None,
+                        help="校正版本: v4 保守（默认）, v3 激进")
 
     args = parser.parse_args()
 
@@ -150,20 +159,29 @@ def run_cli(args):
             logger.info("命中缓存!")
             result = cached
         else:
-            result = process_video(url, mode, args.language)
+            result = process_video(url, mode, args.language, args=args)
             cache.set(url, mode, result)
     else:
-        result = process_video(url, mode, args.language)
+        result = process_video(url, mode, args.language, args=args)
 
     # 根据目的地路由
     if destination != "none":
+        # 从环境变量构建飞书配置
+        feishu_config = None
+        if destination in ("feishu", "both"):
+            feishu_config = {}
+            folder_token = os.getenv("FEISHU_FOLDER_TOKEN") or os.getenv("FEISHU_FOLDER")
+            if folder_token:
+                feishu_config["default_folder"] = folder_token
+
         pipeline = VideoKnowledgePipeline(
             destination=destination,
             format=mode,
             language=args.language,
+            feishu_config=feishu_config,
         )
         saved = pipeline.save(result, {
-            "feishu_folder": args.feishu_folder,
+            "feishu_folder": args.feishu_folder or os.getenv("FEISHU_FOLDER_TOKEN") or os.getenv("FEISHU_FOLDER"),
             "obsidian_tags": args.obsidian_tags,
         })
         logger.info(f"已保存到: {saved}")
@@ -224,10 +242,11 @@ def generate_images_markdown(metadata: dict, image_paths: list) -> str:
     return "\n".join(lines)
 
 
-def process_video(url: str, mode: str, language: str) -> dict:
+def process_video(url: str, mode: str, language: str, args=None) -> dict:
     """处理视频的完整流程（同步）"""
     from .core.downloader import VideoDownloader
-    from .core.transcriber import SiliconFlowASR
+    from .core.transcriber import SiliconFlowASR, FasterWhisperASR
+    from .core.corrector import DualASRCorrector
     from .core.processor import ContentProcessor
 
     logger.info("正在下载...")
@@ -253,22 +272,102 @@ def process_video(url: str, mode: str, language: str) -> dict:
         logger.info(f"纯图片笔记: {image_count} 张图片")
         return result
 
-    logger.info("正在转录...")
-    transcriber = SiliconFlowASR()
-    transcription = transcriber.transcribe(file_path, language=language)
-    logger.info(f"转录完成: {len(transcription)} 字符")
-    result["transcription"] = transcription
+    # 是否启用双 ASR 校正
+    enable_correction = _should_correct(args)
+    correction_version = _get_correction_version(args)
+    corrected_text = None
+    correction_meta = None
+
+    # Step 1: 云端 SiliconFlow 转录（始终跑，主转录源）
+    logger.info("正在转录 (SiliconFlow)...")
+    sf_transcriber = SiliconFlowASR()
+    sf_transcription = sf_transcriber.transcribe(file_path, language=language)
+    logger.info(f"SiliconFlow 转录完成: {len(sf_transcription)} 字符")
+
+    if enable_correction:
+        # Step 2: 本地 faster-whisper 转录（用作对照）
+        logger.info("正在转录 (FasterWhisper, 用于交叉验证)...")
+        try:
+            fw_transcriber = FasterWhisperASR()
+            fw_transcription = fw_transcriber.transcribe(file_path, language=language or "zh")
+            logger.info(f"FasterWhisper 转录完成: {len(fw_transcription)} 字符")
+
+            # Step 3: 双 ASR 校正
+            logger.info(f"开始双 ASR 校正 ({correction_version})...")
+            corrector = DualASRCorrector(version=correction_version)
+            correction_result = corrector.correct(
+                fw_text=fw_transcription,
+                sf_text=sf_transcription,
+                video_title=metadata.get("title", ""),
+            )
+            corrected_text = correction_result["corrected_text"]
+            correction_meta = {
+                "version": correction_version,
+                "diff_count": correction_result["diff_count"],
+                "n_segments": correction_result["n_segments"],
+                "decision_table": correction_result["decision_table"],
+                "search_evidence": correction_result["search_evidence"],
+            }
+            logger.info(
+                f"校正完成: {correction_result['n_segments']} 段, "
+                f"{correction_result['diff_count']} 处差异"
+            )
+        except Exception as e:
+            logger.warning(f"双 ASR 校正失败，回退到 SiliconFlow 单源: {e}")
+            corrected_text = None
+            correction_meta = {"error": str(e)}
+
+    # 选择最终转录文本
+    if corrected_text:
+        # 校正版优先（保留时间戳结构）
+        result["transcription"] = corrected_text
+        result["transcription_siliconflow"] = sf_transcription
+        result["correction"] = correction_meta
+    else:
+        result["transcription"] = sf_transcription
 
     if mode == "summary":
         logger.info("正在生成结构化笔记...")
         processor = ContentProcessor()
-        processed = processor.summarize(transcription, metadata)
+        processed = processor.summarize(result["transcription"], metadata)
         result["markdown"] = processed["markdown"]
+        # 把校正信息附加到元数据，供 feishu_writer 等适配器使用
+        if correction_meta:
+            processed.setdefault("metadata", {}).setdefault("correction", correction_meta)
+            result["markdown"] = processed["markdown"]
         logger.info("笔记生成完成")
     else:
-        result["markdown"] = transcription
+        result["markdown"] = result["transcription"]
 
     return result
+
+
+def _should_correct(args) -> bool:
+    """决定是否启用双 ASR 校正"""
+    from .utils.config_manager import ConfigManager
+    config = ConfigManager()
+    cfg_default = config.get("settings", "enable_correction", default=True)
+
+    if args is None:
+        return cfg_default
+    if args.no_correct:
+        return False
+    if args.correct:
+        return True
+    return cfg_default
+
+
+def _get_correction_version(args) -> str:
+    """获取校正版本"""
+    from .utils.config_manager import ConfigManager
+    config = ConfigManager()
+    cfg_version = config.get("settings", "correction_version", default="v4")
+
+    if args is None:
+        return cfg_version
+    if args.correction_version:
+        return args.correction_version
+    return cfg_version
 
 
 if __name__ == "__main__":
