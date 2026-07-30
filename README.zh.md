@@ -1,272 +1,165 @@
-# VidkNot - 视频知识，结成一网
+# VidkNot
 
-<div align="center">
+视频知识提取与笔记沉淀工具。给 VidkNot 一个视频链接，它会下载音频、转写内容、生成结构化笔记，并保存到 Obsidian、飞书、Notion 或语雀。
 
-**视频知识，结成一网。**
-
-[![PyPI 版本](https://img.shields.io/pypi/v/vidknot.svg)](https://pypi.org/project/vidknot/)
-[![Python 版本](https://img.shields.io/pypi/pyversions/vidknot.svg)](https://pypi.org/project/vidknot/)
-[![许可证](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/suonian/vidknot.svg)](https://github.com/suonian/vidknot/stargazers)
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
-[![下载量](https://img.shields.io/pypi/dm/vidknot)](https://pypi.org/project/vidknot/)
+[![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 
-</div>
+| [English](README.md) | 中文 |
 
----
+## 适合什么场景
 
-## 🌍 语言
+- 把课程、访谈、播客、行业分析视频整理成可检索的文字笔记
+- 将短视频平台上的有效内容沉淀到个人知识库
+- 给 Agent / MCP 客户端提供“视频转笔记”工具能力
+- 对转写结果做双 ASR 交叉校验，减少专有名词和口播误识别
 
-| [English](README.md) | [中文](README.zh.md) |
+## 核心能力
 
----
+| 能力 | 说明 |
+| --- | --- |
+| 视频解析与下载 | 支持抖音、Bilibili、YouTube 等 yt-dlp 可处理的平台，并包含抖音短链解析 |
+| 双 ASR 转写 | SiliconFlow SenseVoice + 本地 faster-whisper，默认启用交叉校正 |
+| 结构化笔记 | 生成主题、要点、细节、引用、术语和完整转写 |
+| 多端保存 | 支持 Obsidian、飞书、Notion、语雀，也可只输出 Markdown |
+| Agent 集成 | 支持 CLI、FastAPI、MCP 和 Python API |
 
-## 📖 项目介绍
+## 安装
 
-VidkNot 是一个基于 AI 的视频知识提取与管理工具。它能够从抖音、YouTube、Bilibili 等主流视频平台下载视频，自动进行语音转文字，并通过 LLM 生成结构化笔记，最终支持将笔记同步到多种知识管理平台。
-
----
-
-## ✨ 核心功能
-
-| 功能 | 说明 |
-|------|------|
-| 🎬 **多平台下载** | 支持抖音、YouTube、Bilibili 等主流视频平台 |
-| 🎤 **双 ASR 转录** | 基于 SiliconFlow SenseVoice + 本地 faster-whisper 的交叉验证 |
-| 🤖 **AI 笔记生成** | 使用大语言模型自动生成结构化笔记 |
-| 📚 **多平台同步** | 支持 Notion、Obsidian、飞书、语雀等知识管理平台 |
-| 🔧 **多种使用方式** | 提供 CLI 命令行、MCP 服务、Python API 三种接口 |
-
----
-
-## 🚀 快速开始
-
-### 安装
+当前 GitHub 版本为 `v0.2.1`。如果需要最新仓库代码，请从 GitHub 安装：
 
 ```bash
-pip install vidknot
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.2.1"
 ```
 
-### 环境配置
-
-VidkNot 需要以下环境变量，请在 `.env` 文件中配置：
+开发安装：
 
 ```bash
-# 必需
+git clone https://github.com/suonian/vidknot.git
+cd vidknot
+pip install -e ".[all]"
+```
+
+运行前需要本机安装 FFmpeg：
+
+```bash
+ffmpeg -version
+```
+
+## 配置
+
+复制 `.env.example` 为 `.env`，至少配置转写和笔记生成所需的 API Key：
+
+```bash
 SILICONFLOW_API_KEY=your_siliconflow_api_key
+OPENAI_API_KEY=your_openai_compatible_api_key
 
-# 可选 - 视频平台 Cookie（用于需要登录的视频）
-DOUBIN_COOKIE=your_douyin_cookie
-YOUTUBE_COOKIE=your_youtube_cookie
-
-# 可选 - 笔记发布平台
-NOTION_TOKEN=your_notion_token
-NOTION_PAGE_ID=your_notion_page_id
-OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
+# 可选：飞书
 FEISHU_APP_ID=your_feishu_app_id
 FEISHU_APP_SECRET=your_feishu_app_secret
 FEISHU_FOLDER_TOKEN=your_feishu_folder_token
+
+# 可选：Obsidian
+OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
+
+# 可选：Notion
+NOTION_TOKEN=your_notion_token
+NOTION_PAGE_ID=your_notion_page_id
+
+# 可选：语雀
 YUQUE_TOKEN=your_yuque_token
-YUQUE_REPO=your_yuque_repo
+YUQUE_LOGIN=your_yuque_login
+
+# 可选：抖音 Cookie 文件
+VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
 ```
 
-### 基本使用
-
-#### 1. 命令行模式
-
-```bash
-# 处理单个视频（默认启用双 ASR 校正）
-python -m vidknot "https://www.youtube.com/watch?v=example"
-
-# 指定笔记保存位置
-python -m vidknot "https://v.douyin.com/xxx" --destination notion
-
-# 禁用双 ASR 校正（只用 SiliconFlow）
-python -m vidknot "https://v.douyin.com/xxx" --no-correct
-
-# 使用激进版校正（v3）替代默认保守版（v4）
-python -m vidknot "https://v.douyin.com/xxx" --correction-version v3
-
-# 检查环境配置
-python -m vidknot --check-env
-```
-
-### 双 ASR 校正
-
-默认情况下，VidkNot 会跑两个独立的 ASR 系统，并使用大语言模型交叉验证转录结果：
-
-1. **SiliconFlow SenseVoice**（云端，作为主转录源）
-2. **faster-whisper**（本地 CPU，作为交叉验证源）
-
-检测到差异时，会用基于搜索证据的 LLM 来仲裁。两种策略可选：
-
-- `v4`（默认）：保守——只在有证据或成语确认时才修改
-- `v3`：激进——改动更多但产生新错的风险也更高
-
-通过 `config.yaml` 配置：
+默认配置在 [config.yaml](config.yaml) 中。双 ASR 校正默认开启：
 
 ```yaml
 settings:
   enable_correction: true
-  correction_version: v4  # 或 v3
+  correction_version: v4
 faster_whisper:
   model: small
   device: cpu
   compute_type: int8
 ```
 
-当双 ASR 校正失败（例如 `mmx` 不可用），VidkNot 自动回退到 SiliconFlow 单源输出。
+`v4` 是默认保守策略，只在证据充分时修改；`v3` 更激进，适合愿意承担更高误改风险的场景。
 
-#### 2. MCP 服务模式
+## 使用
+
+命令行：
 
 ```bash
-# 启动 MCP 服务器
-python -m vidknot mcp
+# 生成笔记并保存到默认目的地 Obsidian
+python -m vidknot "https://v.douyin.com/example/"
 
-# 或使用 API 模式
-python -m vidknot api
+# 只输出结果，不保存
+python -m vidknot "https://v.douyin.com/example/" --destination none
+
+# 保存到飞书
+python -m vidknot "https://v.douyin.com/example/" --destination feishu
+
+# 禁用双 ASR 校正
+python -m vidknot "https://v.douyin.com/example/" --no-correct
+
+# 检查运行环境
+python -m vidknot --check-env
 ```
 
-#### 3. Python API
+MCP：
+
+```bash
+python -m vidknot --mcp
+```
+
+FastAPI：
+
+```bash
+uvicorn vidknot.api:app --reload
+```
+
+Python API：
 
 ```python
 from vidknot import VideoKnowledgePipeline
 
-pipeline = VideoKnowledgePipeline()
+pipeline = VideoKnowledgePipeline(destination="none")
+result = pipeline.run("https://v.douyin.com/example/")
 
-# 处理视频并生成笔记
-result = pipeline.process(
-    video_url="https://www.youtube.com/watch?v=example",
-    destination="notion"  # notion, obsidian, feishu, yuque, both, none
-)
-
-print(result["notes"])
+print(result["markdown"])
 ```
 
----
+## 输出内容
 
-## 📁 项目结构
+VidkNot 默认生成 Markdown 笔记，包含：
 
-```
-vidknot/
-├── src/vidknot/              # 源代码
-│   ├── core/                 # 核心模块
-│   │   ├── downloader.py     # 视频下载器
-│   │   ├── transcriber.py    # SiliconFlow + faster-whisper ASR
-│   │   ├── corrector.py      # 双 ASR 校正流水线（v0.2.0+）
-│   │   ├── processor.py      # 内容处理
-│   │   ├── douyin_parser.py  # 抖音视频 URL 解析
-│   │   ├── download_manager.py # 多工具智能下载
-│   │   └── cookie_provider.py # 多策略 Cookie 加载
-│   ├── adapters/             # 平台适配器
-│   │   ├── notion_writer.py  # Notion 集成
-│   │   ├── obsidian_writer.py# Obsidian 集成
-│   │   ├── feishu_writer.py  # 飞书集成
-│   │   ├── yuque_writer.py   # 语雀集成
-│   │   ├── mcp_server.py     # MCP 服务
-│   │   └── agent_bridge.py   # Agent 工具桥
-│   ├── utils/                # 共享工具
-│   ├── pipeline/             # 处理流水线
-│   └── api.py                # FastAPI 应用
-├── tests/                    # 133 个单元测试
-├── docs/                     # 文档
-├── README.md                 # 英文文档
-├── README.zh.md              # 中文文档
-├── LICENSE                   # MIT 许可证
-├── CHANGELOG.md              # 版本历史
-└── pyproject.toml            # 项目配置
-```
+- 视频标题、来源链接和处理时间
+- 核心主题与摘要
+- 结构化要点和细节
+- 重要原文引用
+- 术语解释
+- 带时间戳的完整转写
 
----
+## 更多文档
 
-## 🔧 开发
+| 文档 | 用途 |
+| --- | --- |
+| [INSTALL.md](INSTALL.md) | 本地安装和环境检查 |
+| [API_GUIDE.md](API_GUIDE.md) | 第三方 API 配置 |
+| [COOKIE_GUIDE.md](COOKIE_GUIDE.md) | Cookie 获取与安全说明 |
+| [DEPENDENCIES.md](DEPENDENCIES.md) | 直接依赖清单 |
+| [CHANGELOG.md](CHANGELOG.md) | 版本历史 |
 
-### 克隆项目
+## 安全与合规
 
-```bash
-git clone https://github.com/suonian/vidknot.git
-cd vidknot
-```
+- 不要提交 `.env`、Cookie 文件或任何 API Key
+- 只处理你有权访问和使用的视频内容
+- 遵守视频平台、云服务和笔记平台的服务条款
+- 第三方服务的稳定性、价格和权限策略以各平台官方说明为准
 
-### 安装开发依赖
+## License
 
-```bash
-pip install -e ".[dev]"
-```
-
-### 运行测试
-
-```bash
-pytest tests/
-```
-
----
-
-## 📚 文档
-
-| 文档 | 说明 |
-|------|------|
-| [INSTALL.md](INSTALL.md) | 详细安装指南 |
-| [API_GUIDE.md](API_GUIDE.md) | API 使用指南 |
-| [COOKIE_GUIDE.md](COOKIE_GUIDE.md) | Cookie 获取教程 |
-| [DEPENDENCIES.md](DEPENDENCIES.md) | 依赖说明 |
-| [CREDITS.md](CREDITS.md) | 致谢列表 |
-
----
-
-## 🛡️ 安全
-
-- 请勿将包含敏感信息的 `.env` 文件提交到版本控制
-- API Key 和 Token 仅用于本地配置，不会被上传到任何服务器
-- 建议使用环境变量而非硬编码方式配置敏感信息
-
----
-
-## ⚠️ 免责声明
-
-**使用本项目即表示您理解并同意以下条款：**
-
-1. **视频版权**：本工具仅用于个人学习、研究和教育目的。请勿使用本工具下载或处理受版权保护的视频内容，除非您拥有该视频的合法使用权或已获得版权持有人的明确授权。
-
-2. **服务条款**：使用本工具下载视频时，请遵守各视频平台（如抖音、YouTube、Bilibili）的服务条款。使用本工具即表示您同意不会将其用于任何非法目的或违反平台政策。
-
-3. **风险自担**：本工具按"原样"提供，不提供任何明示或暗示的保证。对于因使用本工具而导致的任何直接或间接损失，包括但不限于法律后果、数据丢失或设备损坏，我们不承担任何责任。
-
-4. **第三方服务**：本工具依赖第三方 API 服务（SiliconFlow、OpenAI 等），这些服务的可用性、政策和条款由各自提供商负责。
-
-5. **用户责任**：用户应确保其使用本工具的行为符合当地法律法规，并承担全部责任。
-
----
-
-## 📄 许可证
-
-本项目采用 [MIT License](LICENSE) 开源。
-
----
-
-## 🙏 致谢
-
-本项目使用了以下开源项目：
-
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - 视频下载
-- [SiliconFlow](https://siliconflow.cn/) - 语音识别 API
-- [OpenAI](https://openai.com/) - LLM API
-- [Notion API](https://developers.notion.com/) - Notion 集成
-- [Obsidian](https://obsidian.md/) - 本地知识库
-- [Feishu SDK](https://github.com/larksuite/oapi-sdk-python) - 飞书 API
-- [httpx](https://github.com/encode/httpx) - HTTP 客户端
-
----
-
-## 📬 联系方式
-
-- **GitHub Issues**: https://github.com/suonian/vidknot/issues
-- **PyPI**: https://pypi.org/project/vidknot/
-
----
-
-<div align="center">
-
-**Made with ❤️ by VidkNot Team**
-
-</div>
+[MIT](LICENSE)

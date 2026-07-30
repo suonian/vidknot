@@ -1,7 +1,7 @@
 settings:
   language: auto
   default_destination: obsidian
-  # Dual-ASR correction pipeline (added by feature/dual-asr-correction)
+  # Dual-ASR correction pipeline
   enable_correction: true
   correction_version: v4  # v4 = conservative, v3 = aggressive
 siliconflow:

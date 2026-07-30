@@ -1,275 +1,165 @@
-# VidkNot - Video Knowledge, Knotted
+# VidkNot
 
-<div align="center">
+VidkNot turns video links into structured knowledge notes. It downloads audio, transcribes speech, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque.
 
-**Tie your video knowledge together.**
-
-[![PyPI Version](https://img.shields.io/pypi/v/vidknot.svg)](https://pypi.org/project/vidknot/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/vidknot.svg)](https://pypi.org/project/vidknot/)
-[![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/suonian/vidknot.svg)](https://github.com/suonian/vidknot/stargazers)
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
-[![Downloads](https://img.shields.io/pypi/dm/vidknot)](https://pypi.org/project/vidknot/)
+[![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 
-</div>
+| English | [中文](README.zh.md) |
 
----
+## Use Cases
 
-## 🌍 Language
+- Convert courses, interviews, podcasts, and industry videos into searchable notes
+- Save useful short-video content into a personal knowledge base
+- Expose video-to-note capability to agents through MCP
+- Reduce transcription mistakes with dual-ASR cross-validation
 
-| [English](README.md) | [中文](README.zh.md) |
+## Capabilities
 
----
+| Capability | Description |
+| --- | --- |
+| Video parsing and download | Supports Douyin, Bilibili, YouTube, and other yt-dlp-compatible platforms |
+| Dual-ASR transcription | SiliconFlow SenseVoice + local faster-whisper correction, enabled by default |
+| Structured notes | Generates topic, summary, key points, details, quotes, terms, and full transcript |
+| Storage targets | Obsidian, Feishu, Notion, Yuque, or Markdown-only output |
+| Agent integration | CLI, FastAPI, MCP, and Python API |
 
-## 📖 Project Overview
+## Installation
 
-VidkNot is an AI-powered video knowledge extraction and management tool. It downloads videos from major platforms like Douyin, YouTube, and Bilibili, automatically transcribes speech to text, generates structured notes via LLM, and supports syncing notes to multiple knowledge management platforms.
-
----
-
-## ✨ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| 🎬 **Multi-Platform Download** | Support for Douyin, YouTube, Bilibili, and more |
-| 🎤 **Dual-ASR Transcription** | High-accuracy speech recognition via SiliconFlow SenseVoice + local faster-whisper cross-validation |
-| 🤖 **AI Note Generation** | Generate structured notes using LLM |
-| 📚 **Multi-Platform Sync** | Notion, Obsidian, Feishu, Yuque, and more |
-| 🔧 **Multiple Interfaces** | CLI, MCP Server, and Python API |
-
----
-
-## 🚀 Quick Start
-
-### Installation
+The current GitHub release is `v0.2.1`. Install this repository version from GitHub:
 
 ```bash
-pip install vidknot
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.2.1"
 ```
 
-### Environment Setup
-
-VidkNot requires the following environment variables. Please configure them in your `.env` file:
+For development:
 
 ```bash
-# Required
+git clone https://github.com/suonian/vidknot.git
+cd vidknot
+pip install -e ".[all]"
+```
+
+FFmpeg must be available locally:
+
+```bash
+ffmpeg -version
+```
+
+## Configuration
+
+Copy `.env.example` to `.env` and configure the keys you need:
+
+```bash
 SILICONFLOW_API_KEY=your_siliconflow_api_key
+OPENAI_API_KEY=your_openai_compatible_api_key
 
-# Optional - Video Platform Cookies
-DOUBIN_COOKIE=your_douyin_cookie
-YOUTUBE_COOKIE=your_youtube_cookie
-
-# Optional - Note Publishing Platforms
-NOTION_TOKEN=your_notion_token
-NOTION_PAGE_ID=your_notion_page_id
-OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
+# Optional: Feishu
 FEISHU_APP_ID=your_feishu_app_id
 FEISHU_APP_SECRET=your_feishu_app_secret
 FEISHU_FOLDER_TOKEN=your_feishu_folder_token
+
+# Optional: Obsidian
+OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
+
+# Optional: Notion
+NOTION_TOKEN=your_notion_token
+NOTION_PAGE_ID=your_notion_page_id
+
+# Optional: Yuque
 YUQUE_TOKEN=your_yuque_token
-YUQUE_REPO=your_yuque_repo
+YUQUE_LOGIN=your_yuque_login
+
+# Optional: Douyin cookie file
+VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
 ```
 
-### Basic Usage
-
-#### 1. CLI Mode
-
-```bash
-# Process a single video (dual-ASR correction enabled by default)
-python -m vidknot "https://www.youtube.com/watch?v=example"
-
-# Specify note destination
-python -m vidknot "https://v.douyin.com/xxx" --destination notion
-
-# Disable dual-ASR correction (use SiliconFlow only)
-python -m vidknot "https://v.douyin.com/xxx" --no-correct
-
-# Use aggressive correction (v3) instead of the default conservative (v4)
-python -m vidknot "https://v.douyin.com/xxx" --correction-version v3
-
-# Check environment configuration
-python -m vidknot --check-env
-```
-
-### Dual-ASR Correction
-
-By default VidkNot runs two independent ASR systems and uses an LLM to
-cross-validate the transcripts:
-
-1. **SiliconFlow SenseVoice** (cloud, primary source)
-2. **faster-whisper** (local CPU, used as cross-validation source)
-
-When differences are detected, the pipeline asks an LLM to resolve them based
-on the search-backed context. Two strategies are available:
-
-- `v4` (default): conservative — only modify when evidence or idioms confirm the change
-- `v3`: aggressive — broader changes at higher risk of hallucination
-
-Configure in `config.yaml`:
+Default settings live in [config.yaml](config.yaml). Dual-ASR correction is enabled by default:
 
 ```yaml
 settings:
   enable_correction: true
-  correction_version: v4  # or v3
+  correction_version: v4
 faster_whisper:
   model: small
   device: cpu
   compute_type: int8
 ```
 
-When dual-ASR correction fails (e.g. `mmx` is unavailable), VidkNot falls
-back to the SiliconFlow-only output.
+`v4` is the conservative default. `v3` makes broader corrections and carries a higher risk of changing valid text.
 
-#### 2. MCP Server Mode
+## Usage
+
+CLI:
 
 ```bash
-# Start MCP server
-python -m vidknot mcp
+# Generate a note and save to the default destination, Obsidian
+python -m vidknot "https://v.douyin.com/example/"
 
-# Or use API mode
-python -m vidknot api
+# Print output only
+python -m vidknot "https://v.douyin.com/example/" --destination none
+
+# Save to Feishu
+python -m vidknot "https://v.douyin.com/example/" --destination feishu
+
+# Disable dual-ASR correction
+python -m vidknot "https://v.douyin.com/example/" --no-correct
+
+# Check local requirements
+python -m vidknot --check-env
 ```
 
-#### 3. Python API
+MCP:
+
+```bash
+python -m vidknot --mcp
+```
+
+FastAPI:
+
+```bash
+uvicorn vidknot.api:app --reload
+```
+
+Python API:
 
 ```python
 from vidknot import VideoKnowledgePipeline
 
-pipeline = VideoKnowledgePipeline()
+pipeline = VideoKnowledgePipeline(destination="none")
+result = pipeline.run("https://v.douyin.com/example/")
 
-# Process video and generate notes
-result = pipeline.process(
-    video_url="https://www.youtube.com/watch?v=example",
-    destination="notion"  # notion, obsidian, feishu, yuque, both, none
-)
-
-print(result["notes"])
+print(result["markdown"])
 ```
 
----
+## Output
 
-## 📁 Project Structure
+VidkNot writes Markdown notes with:
 
-```
-vidknot/
-├── src/vidknot/              # Source code
-│   ├── core/                 # Core modules
-│   │   ├── downloader.py     # Video downloader
-│   │   ├── transcriber.py    # SiliconFlow + faster-whisper ASR
-│   │   ├── corrector.py      # Dual-ASR correction pipeline (v0.2.0+)
-│   │   ├── processor.py      # Content processing
-│   │   ├── douyin_parser.py  # Douyin video URL parser
-│   │   ├── download_manager.py # Multi-tool smart download
-│   │   └── cookie_provider.py # Multi-strategy cookie loader
-│   ├── adapters/             # Platform adapters
-│   │   ├── notion_writer.py  # Notion integration
-│   │   ├── obsidian_writer.py# Obsidian integration
-│   │   ├── feishu_writer.py  # Feishu integration
-│   │   ├── yuque_writer.py   # Yuque integration
-│   │   ├── mcp_server.py     # MCP server
-│   │   └── agent_bridge.py   # Agent tool bridge
-│   ├── utils/                # Shared utilities
-│   ├── pipeline/             # Processing pipeline
-│   └── api.py                # FastAPI app
-├── tests/                    # 133 unit tests
-├── docs/                     # Documentation
-├── README.md                 # English documentation
-├── README.zh.md              # Chinese documentation
-├── LICENSE                   # MIT License
-├── CHANGELOG.md              # Version history
-└── pyproject.toml            # Project configuration
-```
+- Video title, source URL, and processing metadata
+- Topic and summary
+- Structured key points and details
+- Important quotes
+- Terms and explanations
+- Timestamped transcript
 
----
+## Documentation
 
-## 🔧 Development
+| Document | Purpose |
+| --- | --- |
+| [INSTALL.md](INSTALL.md) | Local installation and environment checks |
+| [API_GUIDE.md](API_GUIDE.md) | Third-party API configuration |
+| [COOKIE_GUIDE.md](COOKIE_GUIDE.md) | Cookie setup and security |
+| [DEPENDENCIES.md](DEPENDENCIES.md) | Direct dependencies |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
 
-### Clone Project
+## Security And Compliance
 
-```bash
-git clone https://github.com/suonian/vidknot.git
-cd vidknot
-```
+- Do not commit `.env`, cookie files, or API keys
+- Only process video content you are allowed to access and use
+- Follow the terms of video platforms, cloud services, and note platforms
+- Third-party service availability, pricing, and permissions are controlled by their providers
 
-### Install Dev Dependencies
+## License
 
-```bash
-pip install -e ".[dev]"
-```
-
-### Run Tests
-
-```bash
-pytest tests/
-```
-
----
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [INSTALL.md](INSTALL.md) | Detailed installation guide |
-| [API_GUIDE.md](API_GUIDE.md) | API usage guide |
-| [COOKIE_GUIDE.md](COOKIE_GUIDE.md) | Cookie tutorial |
-| [DEPENDENCIES.md](DEPENDENCIES.md) | Dependencies reference |
-| [CREDITS.md](CREDITS.md) | Credits and acknowledgments |
-
----
-
-## 🛡️ Security
-
-- Do not commit `.env` files containing sensitive information
-- API Keys and Tokens are used for local configuration only and are never uploaded to any server
-- Use environment variables instead of hardcoded credentials
-
----
-
-## ⚠️ Disclaimer
-
-**By using this project, you agree to the following terms:**
-
-1. **Video Copyright**: This tool is for personal learning, research, and educational purposes only. Please do not use this tool to download or process copyrighted video content without proper authorization from the copyright holder.
-
-2. **Terms of Service**: Please comply with the terms of service of video platforms (Douyin, YouTube, Bilibili, etc.) when using this tool. You agree not to use this tool for any illegal purposes or in violation of platform policies.
-
-3. **Risk Disclaimer**: This tool is provided "as is" without any express or implied warranties. We are not liable for any direct or indirect losses, including but not limited to legal consequences, data loss, or device damage resulting from the use of this tool.
-
-4. **Third-Party Services**: This tool relies on third-party API services (SiliconFlow, OpenAI, etc.). The availability, policies, and terms of these services are the responsibility of their respective providers.
-
-5. **User Responsibility**: Users are responsible for ensuring their use of this tool complies with local laws and regulations.
-
----
-
-## 📄 License
-
-This project is open source under the [MIT License](LICENSE).
-
----
-
-## 🙏 Acknowledgments
-
-This project uses the following open-source projects:
-
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Video downloading
-- [SiliconFlow](https://siliconflow.cn/) - Speech recognition API
-- [OpenAI](https://openai.com/) - LLM API
-- [Notion API](https://developers.notion.com/) - Notion integration
-- [Obsidian](https://obsidian.md/) - Local knowledge base
-- [Feishu SDK](https://github.com/larksuite/oapi-sdk-python) - Feishu API
-- [httpx](https://github.com/encode/httpx) - HTTP client
-
----
-
-## 📬 Contact
-
-- **GitHub Issues**: https://github.com/suonian/vidknot/issues
-- **PyPI**: https://pypi.org/project/vidknot/
-
----
-
-<div align="center">
-
-**Made with ❤️ by VidkNot Team**
-
-</div>
+[MIT](LICENSE)

@@ -76,7 +76,7 @@ def main():
     parser.add_argument("--notify", action="store_true", default=True,
                         help="处理完成后发送通知 (通过 OpenClaw 消息回复)")
 
-    # Dual-ASR 校正参数 (added by feature/dual-asr-correction)
+    # Dual-ASR 校正参数
     parser.add_argument("--correct", action="store_true", default=None,
                         help="启用双 ASR 校正（默认从 config.yaml 读 enable_correction）")
     parser.add_argument("--no-correct", action="store_true",

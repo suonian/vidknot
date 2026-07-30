@@ -1,263 +1,160 @@
 # VidkNot 安装指南
 
-本文档提供详细的安装步骤。
+本文档只覆盖当前仓库版本 `v0.2.1` 的本地安装和验证。
 
----
+## 环境要求
 
-## 系统要求
+- Python `>=3.10`
+- FFmpeg
+- 可用的 `SILICONFLOW_API_KEY`
+- 用于生成笔记的 OpenAI 兼容 API Key，例如 `OPENAI_API_KEY`
+- 首次使用本地 faster-whisper 时需要下载模型，默认 `small` 模型约 500MB
 
-| 要求 | 最低版本 |
-|------|----------|
-| Python | 3.10 |
-| FFmpeg | 任意版本 |
-| 磁盘空间 | 500MB+ |
-| 内存 | 4GB+ |
+## 安装 FFmpeg
 
-### 支持的操作系统
-
-- Windows 10/11 ✅
-- macOS 10.15+ ✅
-- Linux (Ubuntu 20.04+) ✅
-
----
-
-## 安装步骤
-
-### 1. 安装 Python
-
-#### Windows
-
-1. 下载 Python 3.10+: https://www.python.org/downloads/
-2. 安装时勾选 **Add Python to PATH**
-3. 验证安装：
-   ```powershell
-   python --version
-   ```
-
-#### macOS
-
-```bash
-brew install python@3.11
-```
-
-#### Linux
-
-```bash
-sudo apt update
-sudo apt install python3.10 python3-pip
-```
-
-### 2. 安装 FFmpeg
-
-#### Windows
-
-**方法一：winget（推荐**
-
-```powershell
-winget install Gyan.FFmpeg
-```
-
-**方法二：手动安装**
-
-1. 下载: https://ffmpeg.org/download.html
-2. 解压到 `C:\ffmpeg\bin`
-3. 添加到 PATH 环境变量
-
-#### macOS
+macOS:
 
 ```bash
 brew install ffmpeg
 ```
 
-#### Linux
+Ubuntu/Debian:
 
 ```bash
-sudo apt install ffmpeg  # Ubuntu/Debian
-sudo yum install ffmpeg    # CentOS/RHEL
+sudo apt update
+sudo apt install ffmpeg
 ```
 
-### 3. 验证 FFmpeg
+Windows:
+
+```powershell
+winget install Gyan.FFmpeg
+```
+
+验证：
 
 ```bash
 ffmpeg -version
 ```
 
-### 4. 安装 VidkNot
+## 安装 VidkNot
 
-#### 稳定版
+当前 GitHub Release 是 `v0.2.1`。推荐直接安装该版本：
 
 ```bash
-pip install vidknot
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.2.1"
 ```
 
-#### 开发版
+如需飞书写入支持：
 
 ```bash
-git clone https://github.com/yourusername/vidknot.git
+pip install "vidknot[feishu] @ git+https://github.com/suonian/vidknot.git@v0.2.1"
+```
+
+开发安装：
+
+```bash
+git clone https://github.com/suonian/vidknot.git
 cd vidknot
-pip install -e .
+pip install -e ".[all]"
 ```
 
-#### 包含飞书支持
+如果下载 Python 包较慢，可以临时使用清华源：
 
 ```bash
-pip install vidknot[feishu]
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "vidknot @ git+https://github.com/suonian/vidknot.git@v0.2.1"
 ```
 
-#### 完整安装
+## 配置
+
+复制环境变量模板：
 
 ```bash
-pip install vidknot[all]
+cp .env.example .env
 ```
 
-### 5. 验证安装
-
-```bash
-python -m vidknot --version
-```
-
-### 6. 双 ASR 校正依赖（v0.2.0+）
-
-VidkNot 默认会跑双 ASR 校正（SiliconFlow + 本地 faster-whisper）。
-首次启用时会自动下载 faster-whisper 模型（约 500MB）。
-
-如需手动预下载模型或更换更大的模型：
-
-```bash
-# 预下载 small 模型（默认，~500MB）
-python -c "from faster_whisper import WhisperModel; WhisperModel('small')"
-
-# 或更大的 medium 模型（~1.5GB，精度更高）
-python -c "from faster_whisper import WhisperModel; WhisperModel('medium')"
-```
-
-如不需要双 ASR 校正，安装时自动安装的 faster-whisper 也可以忽略；
-要彻底禁用，运行 `python -m vidknot <url> --no-correct` 即可。
-
----
-
-## 配置 API Key
-
-### 1. 获取 API Key
-
-#### SiliconFlow（语音转录）
-
-1. 注册: https://cloud.siliconflow.cn/
-2. 控制台 → API Keys → 创建
-3. 复制 Key
-
-#### OpenAI（LLM）
-
-1. 注册: https://platform.openai.com/
-2. API Keys → 创建
-3. 复制 Key
-
-### 2. 配置环境变量
-
-创建 `.env` 文件：
-
-```bash
-# Windows PowerShell
-notepad $env:USERPROFILE\.env
-
-# macOS/Linux
-nano ~/.env
-```
-
-内容：
+最小配置：
 
 ```bash
 SILICONFLOW_API_KEY=sk-xxx
 OPENAI_API_KEY=sk-xxx
 ```
 
-### 3. 验证配置
+常用可选配置：
 
 ```bash
-python -c "from vidknot import VideoKnowledgePipeline; print('OK')"
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+
+OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
+
+FEISHU_APP_ID=cli_xxx
+FEISHU_APP_SECRET=xxx
+FEISHU_FOLDER_TOKEN=xxx
+
+NOTION_TOKEN=secret_xxx
+NOTION_PAGE_ID=xxx
+
+YUQUE_TOKEN=xxx
+YUQUE_LOGIN=your-login
+
+VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
 ```
 
----
+## 双 ASR 校正
 
-## 测试运行
+VidkNot 默认启用双 ASR 校正：
+
+- SiliconFlow SenseVoice：主转写源
+- faster-whisper：本地交叉验证源
+- `mmx`：可选搜证与差异仲裁工具，不可用时自动回退
+
+预下载默认模型：
 
 ```bash
-# 测试下载
-python -m vidknot "https://b23.tv/0G1ohFb" --destination none --no-cache
+python -c "from faster_whisper import WhisperModel; WhisperModel('small')"
 ```
 
-预期输出：
-```
-正在下载...
-下载完成
-正在转录...
-转录完成
-正在生成笔记...
-笔记生成完成
+禁用校正：
+
+```bash
+python -m vidknot "URL" --no-correct
 ```
 
----
+## 验证
+
+检查本地依赖：
+
+```bash
+python -m vidknot --check-env
+```
+
+只输出笔记，不写入任何平台：
+
+```bash
+python -m vidknot "https://v.douyin.com/example/" --destination none --no-cache
+```
+
+运行测试：
+
+```bash
+pytest
+```
 
 ## 常见问题
 
-### 1. pip 找不到包
+### `ffmpeg` 找不到
 
-```bash
-# 升级 pip
-python -m pip install --upgrade pip
+确认 `ffmpeg -version` 可以在同一个终端中执行。Windows 安装后可能需要重启终端。
 
-# 使用国内镜像
-pip install vidknot -i https://pypi.tuna.tsinghua.edu.cn/simple
-```
+### GitHub 或 PyPI 下载慢
 
-### 2. FFmpeg 未找到
+非中国大陆资源建议使用本地代理；Python 包可优先尝试清华源。
 
-```powershell
-# Windows 添加环境变量
-$env:PATH = "$env:PATH;C:\ffmpeg\bin"
-```
+### 飞书写入失败
 
-### 3. 权限错误
+确认飞书应用已经开通文档创建/写入权限，并且 `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、目标文件夹权限配置正确。
 
-```bash
-# Linux/macOS
-sudo pip install vidknot
-```
+### 抖音解析不稳定
 
-### 4. SSL 错误
-
-```bash
-pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org vidknot
-```
-
----
-
-## 卸载
-
-```bash
-pip uninstall vidknot
-```
-
----
-
-## Docker 安装（可选）
-
-```dockerfile
-FROM python:3.11-slim
-
-RUN apt-get update && apt-get install -y ffmpeg
-
-RUN pip install vidknot
-
-WORKDIR /app
-COPY . .
-
-CMD ["vidknot", "--help"]
-```
-
-构建：
-
-```bash
-docker build -t vidknot .
-docker run -v $(pwd):/app vidknot "URL"
-```
+优先配置 `VIDKNOT_DOUYIN_COOKIE_FILE`，或在 `config.yaml` 中启用第三方解析后端并配置 `TIKHUB_API_KEY`。

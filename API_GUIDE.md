@@ -1,330 +1,150 @@
-# VidkNot API 使用指南
+# VidkNot API 配置指南
 
-本文档详细说明 VidkNot 使用的各个 API 及其申请流程。
+VidkNot 需要两类服务：转写服务和笔记生成服务。存储平台按需配置。
 
----
+## 必需配置
 
-## 1. SiliconFlow（语音转录）
+### SiliconFlow
 
-### 服务介绍
-
-SiliconFlow 提供云端语音识别服务，使用阿里 SenseVoice 模型。
-
-### 申请流程
-
-1. 访问 [SiliconFlow 官网](https://cloud.siliconflow.cn/)
-2. 注册账号（支持 GitHub/微信登录）
-3. 进入控制台 → API Keys → 创建新密钥
-4. 复制密钥并设置环境变量
-
-### 费用说明
-
-| 套餐 | 价格 | 免费额度 |
-|------|------|----------|
-| SenseVoiceSmall | ¥0.001/分钟 | 每月 10 小时免费 |
-
-### 环境变量
+用于语音转文字。当前默认模型为 `FunAudioLLM/SenseVoiceSmall`。
 
 ```bash
-SILICONFLOW_API_KEY=sk-xxxxxxxxxxxxxxxx
+SILICONFLOW_API_KEY=sk-xxx
 ```
 
-### 支持的文件格式
+获取方式：
 
-| 格式 | 支持 | 说明 |
-|------|------|------|
-| MP3 | ✅ | 推荐 |
-| WAV | ✅ | 无损格式 |
-| M4A | ✅ | AAC 编码 |
-| FLAC | ✅ | 无损格式 |
-| OGG | ✅ | |
-| WebM | ✅ | |
-| AMR | ✅ | |
+1. 打开 [SiliconFlow 控制台](https://cloud.siliconflow.cn/)
+2. 创建 API Key
+3. 写入 `.env`
 
----
+### OpenAI 兼容 LLM
 
-## 2. OpenAI 兼容 API（LLM 笔记生成）
-
-### 支持的服务商
-
-| 服务商 | API 地址 | 备注 |
-|--------|----------|------|
-| OpenAI | https://api.openai.com/v1 | 官方服务 |
-| 智谱 AI | https://open.bigmodel.cn/api/paas/v4/ | 国内镜像 |
-| 自建服务 | 任意 OpenAI 兼容地址 | 支持本地部署 |
-
-### 申请流程（以 OpenAI 为例）
-
-1. 访问 [OpenAI 官网](https://platform.openai.com/)
-2. 注册账号并完成充值
-3. 创建 API Key
-4. 设置环境变量
-
-### 环境变量
+用于生成结构化笔记。默认按 OpenAI 兼容接口调用，因此也可以配置兼容网关或国内模型服务。
 
 ```bash
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
-OPENAI_BASE_URL=https://api.openai.com/v1  # 可选，自定义端点
+OPENAI_API_KEY=sk-xxx
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-### 推荐模型
-
-| 模型 | 用途 | 费用 | 推荐度 |
-|------|------|------|--------|
-| gpt-4o-mini | 笔记生成 | 低 | ⭐⭐⭐⭐⭐ |
-| gpt-4o | 笔记生成 | 中 | ⭐⭐⭐⭐ |
-| gpt-3.5-turbo | 笔记生成 | 低 | ⭐⭐⭐ |
-
-### 智谱 AI（国内用户推荐）
-
-1. 访问 [智谱 AI 大模型开放平台](https://open.bigmodel.cn/)
-2. 注册账号
-3. 创建 API Key
+如果使用智谱：
 
 ```bash
-ZHIPUAI_API_KEY=xxxxxxxxxxxxxxxx
+ZHIPUAI_API_KEY=xxx
+ZHIPUAI_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
+ZHIPUAI_MODEL=glm-4-flash
 ```
 
-### MiniMax（mmx CLI 后端）
+## 可选：双 ASR 搜证
 
-`mmx` 是 MiniMax 提供的命令行工具，封装了 MiniMax 平台的对话与联网搜索接口。
-VidkNot 在双 ASR 校正流水线中通过 `mmx` 调用 MiniMax-M3 模型进行差异仲裁，
-并使用 `mmx search query` 进行专有名词搜证（详见 corrector 内部实现）。
+VidkNot 默认使用 SiliconFlow + faster-whisper 做双 ASR 交叉验证。`mmx` CLI 可作为搜证和差异仲裁后端；未安装时会自动回退，不影响主流程。
 
-如未安装 `mmx`，双 ASR 校正会自动回退到 SiliconFlow 单源输出，不影响主流程。
-
-#### 安装
+常用验证命令：
 
 ```bash
-# 一键安装（参考 mmx 官方仓库）
-curl -fsSL https://raw.githubusercontent.com/MiniMax/mmx-cli/main/install.sh | bash
-
-# 或通过 npm
-npm install -g mmx-cli
-
-# 验证安装
-mmx --version
-```
-
-#### 鉴权
-
-```bash
-mmx auth login        # 浏览器 OAuth 登录
-# 或直接配置 API Key
-mmx config set --api-key sk-xxx
-mmx auth status       # 查看当前鉴权状态
-```
-
-#### 验证
-
-```bash
+mmx auth status
 mmx search query --q "papi酱 网红" --output json
 mmx text chat --model MiniMax-M3 --message "你好"
 ```
 
-#### 搜索后端回退链
+## 可选：飞书
 
-VidkNot 的搜证按以下优先级尝试（由 corrector 内部实现）：
-
-1. **`mmx search query`**（首选）— MiniMax 自带联网搜索
-2. **Bing via DDGS**（fallback）— `ddgs` Python 包的 Bing backend
-3. **保留 FW 原词**（终极回退）— 搜证失败时不做修改
-
-如果只装 `mmx` 不装 `ddgs`，会自动用 `mmx`；两者都不可用时跳过搜证。
-
-### Bing 搜索（DDGS fallback）
-
-`ddgs` 是一个第三方 DuckDuckGo/Bing 搜索聚合库，提供 Bing backend 给 `mmx`
-不可用时作为兜底。一般不需要单独配置，除非你想强制使用 Bing 而非 `mmx`。
+用于将笔记写入飞书文档。
 
 ```bash
-pip install ddgs
+FEISHU_APP_ID=cli_xxx
+FEISHU_APP_SECRET=xxx
+FEISHU_FOLDER_TOKEN=xxx
 ```
 
-验证：
+需要在飞书开放平台给应用开通文档创建和写入权限，并确保目标文件夹对应用可用。
+
+## 可选：Obsidian
+
+用于将 Markdown 写入本地知识库。
 
 ```bash
-python -c "from ddgs import DDGS; print(list(DDGS().text('papi酱', backend='bing', max_results=2)))"
+OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
+OBSIDIAN_FOLDER=视频笔记
 ```
 
-注意：Bing backend 偶发超时（特别是 DDGS 默认的 Brave backend）。如遇搜证
-频繁失败，请优先安装 `mmx`，因为 MiniMax 自带搜索更稳。
+## 可选：Notion
 
----
-
-## 3. 语雀 Yuque（笔记存储）
-
-### 服务介绍
-
-语雀是阿里巴巴旗下的知识库工具，支持 Markdown 文档。
-
-### 申请流程
-
-1. 访问 [语雀官网](https://www.yuque.com/)
-2. 注册并登录
-3. 进入个人设置 → 开发者 → 访问令牌
-4. 创建个人访问令牌
-5. 获取个人登录名（yuque.com/你的登录名）
-
-### 环境变量
+用于将笔记写入指定 Notion 页面。
 
 ```bash
-YUQUE_TOKEN=xxxxxxxxxxxxxxxx
-YUQUE_LOGIN=your-login-name
+NOTION_TOKEN=secret_xxx
+NOTION_PAGE_ID=xxx
 ```
 
-### 权限说明
+配置要点：
 
-- 个人访问令牌仅能访问你的个人文档
-- 无法访问团队或他人的文档
-- 令牌不会在代码中明文存储
+1. 在 [Notion Integrations](https://www.notion.so/my-integrations) 创建集成
+2. 复制 Integration Token
+3. 在目标页面中添加该集成为 connection
+4. 从页面 URL 中取最后的页面 ID
 
----
+## 可选：语雀
 
-## 4. 飞书 Feishu（笔记存储）
-
-### 服务介绍
-
-飞书文档，支持企业/个人文档存储。
-
-### 申请流程
-
-1. 访问 [飞书开放平台](https://open.feishu.cn/)
-2. 创建应用并获取 App ID 和 App Secret
-3. 配置权限（文档写入权限）
-4. 发布应用
-
-### 环境变量
+用于将笔记写入语雀。
 
 ```bash
-FEISHU_APP_ID=cli_xxxxxxxx
-FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
+YUQUE_TOKEN=xxx
+YUQUE_LOGIN=your-login
+YUQUE_PATH=VidkNot
 ```
 
-### 权限申请
+## 可选：抖音 Cookie
 
-在飞书开放平台控制台申请以下权限：
-
-- `docx:document:create` - 创建文档
-- `docx:document:write` - 写入文档
-
----
-
-## 5. Obsidian（本地存储）
-
-### 服务介绍
-
-Obsidian 是本地知识库工具，通过文件系统存储。
-
-### 环境变量
+公开视频通常可以直接解析；遇到登录态、风控或短链解析失败时，配置 Cookie 文件：
 
 ```bash
-OBSIDIAN_VAULT_PATH=/path/to/your/vault
+VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
 ```
 
-### 说明
+也可以在 `config.yaml` 中配置第三方解析后端：
 
-- 无需申请账号
-- 数据存储在本地
-- 完全离线可用
+```yaml
+douyin:
+  enable_third_party: true
+  tikhub:
+    api_key: YOUR_TIKHUB_API_KEY
+```
 
----
-
-## 6. Notion（云端存储）
-
-### 服务介绍
-
-Notion 是云端笔记工具，支持富文本和数据库。
-
-### 申请流程
-
-1. 访问 [Notion 官网](https://www.notion.so/)
-2. 注册账号并登录
-3. 访问 [Notion Developers](https://www.notion.so/my-integrations)
-4. 点击 "New integration" 创建集成
-5. 设置集成名称和关联工作区
-6. 复制 Integration Token
-
-### 配置步骤
-
-1. 创建集成后，复制 Token：
-   ```
-   secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-   ```
-
-2. 在 Notion 中创建或选择一个页面作为父页面
-
-3. 分享页面给集成：
-   - 打开目标页面
-   - 点击右上角 "..."
-   - 选择 "Add connections"
-   - 添加你的集成
-
-### 环境变量
+对应环境变量：
 
 ```bash
-NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-NOTION_PAGE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TIKHUB_API_KEY=xxx
 ```
 
-### 页面 ID 获取方式
-
-在 Notion 页面 URL 中获取：
-```
-https://notion.so/你的页面名-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-最后的 32 位字符即为页面 ID。
-
-### 权限说明
-
-- 每个集成需要手动授权页面访问
-- 集成只能访问被明确分享的页面
-- 集成 Token 不要泄露给他人
-
----
-
-## 环境变量配置示例
-
-创建 `.env` 文件：
+## 完整 `.env` 示例
 
 ```bash
-# 必填
-SILICONFLOW_API_KEY=sk-xxxxxxxx
-OPENAI_API_KEY=sk-xxxxxxxx
+SILICONFLOW_API_KEY=sk-xxx
+OPENAI_API_KEY=sk-xxx
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
 
-# 选填（存储）
-# 语雀
-YUQUE_TOKEN=xxxxxxxx
+FEISHU_APP_ID=cli_xxx
+FEISHU_APP_SECRET=xxx
+FEISHU_FOLDER_TOKEN=xxx
+
+OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
+
+NOTION_TOKEN=secret_xxx
+NOTION_PAGE_ID=xxx
+
+YUQUE_TOKEN=xxx
 YUQUE_LOGIN=your-login
 
-# 飞书
-FEISHU_APP_ID=cli_xxxxx
-FEISHU_APP_SECRET=xxxxx
-
-# Obsidian
-OBSIDIAN_VAULT_PATH=./obsidian-vault
-
-# Notion
-NOTION_TOKEN=secret_xxxxxxxx
-NOTION_PAGE_ID=xxxxxxxxxxxxxxxx
+VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
+TIKHUB_API_KEY=xxx
 ```
 
----
+## 安全要求
 
-## 安全建议
-
-1. **不要提交 .env 文件到 Git**
-   ```bash
-   # .gitignore 中已排除 .env 文件
-   ```
-
-2. **定期轮换 API Key**
-
-3. **使用环境变量而非硬编码**
-   ```python
-   # ✅ 正确
-   api_key = os.getenv("OPENAI_API_KEY")
-
-   # ❌ 错误
-   api_key = "sk-xxx"  # 不要硬编码
-   ```
+- 不要把 `.env`、Cookie 文件或 API Key 提交到 Git
+- 不要在代码中硬编码密钥
+- 发现密钥泄露后立即吊销并重新生成
+- 第三方平台的价格、权限和可用性以官方控制台为准
