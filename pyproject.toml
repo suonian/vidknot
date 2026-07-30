@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vidknot"
-version = "0.1.0"
-description = "VidkNot — Video Knowledge, Knotted. Convert video links to structured notes, with multi-platform sync including Notion, Obsidian, Feishu, and Yuque."
+version = "0.2.0"
+description = "VidkNot — Video Knowledge, Knotted. Convert video links to structured notes with dual-ASR cross-validation correction, and sync to Notion/Obsidian/Feishu/Yuque."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "VidkNot Team"}]
@@ -31,6 +31,8 @@ dependencies = [
     "httpx>=0.27.0",
     "pyyaml>=6.0.1",
     "openai>=1.0.0",
+    # Dual-ASR correction pipeline (v0.2.0+)
+    "faster-whisper>=1.0.0",
 ]
 
 [project.optional-dependencies]

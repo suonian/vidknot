@@ -21,7 +21,7 @@ VidkNot 项目使用了以下开源项目，特此致谢。
 - **作者**: SYSTRAN
 - **地址**: https://github.com/SYSTRAN/faster-whisper
 - **许可证**: MIT
-- **使用范围**: 本地语音识别（已移除，当前使用云端）
+- **使用范围**: 本地 CPU 语音识别（双 ASR 校正的交叉验证源，v0.2.0+）
 
 ### SiliconFlow
 

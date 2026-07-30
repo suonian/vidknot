@@ -116,6 +116,24 @@ pip install vidknot[all]
 python -m vidknot --version
 ```
 
+### 6. 双 ASR 校正依赖（v0.2.0+）
+
+VidkNot 默认会跑双 ASR 校正（SiliconFlow + 本地 faster-whisper）。
+首次启用时会自动下载 faster-whisper 模型（约 500MB）。
+
+如需手动预下载模型或更换更大的模型：
+
+```bash
+# 预下载 small 模型（默认，~500MB）
+python -c "from faster_whisper import WhisperModel; WhisperModel('small')"
+
+# 或更大的 medium 模型（~1.5GB，精度更高）
+python -c "from faster_whisper import WhisperModel; WhisperModel('medium')"
+```
+
+如不需要双 ASR 校正，安装时自动安装的 faster-whisper 也可以忽略；
+要彻底禁用，运行 `python -m vidknot <url> --no-correct` 即可。
+
 ---
 
 ## 配置 API Key
