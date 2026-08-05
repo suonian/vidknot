@@ -20,7 +20,7 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Speech",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Natural Language :: English",
-    "Natural Language :: Chinese",
+    "Natural Language :: Chinese (Simplified)",
 ]
 requires-python = ">=3.10"
 dependencies = [
