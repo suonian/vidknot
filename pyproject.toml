@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vidknot"
-version = "0.3.0"
+version = "0.3.1"
 description = "VidkNot — Video Knowledge, Knotted. Convert video links to structured notes with dual-ASR cross-validation correction, and sync to Notion/Obsidian/Feishu/Yuque."
 readme = "README.md"
 license = "MIT"

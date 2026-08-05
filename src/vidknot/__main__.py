@@ -46,6 +46,8 @@ def main():
     )
 
     # 运行模式参数
+    parser.add_argument("--version", action="version", version=f"vidknot {__version__}",
+                        help="显示版本号并退出")
     parser.add_argument("--mcp", action="store_true",
                         help="启动 MCP Stdio 模式 (用于 OpenClaw / Claude Desktop)")
     parser.add_argument("--cli", action="store_true",

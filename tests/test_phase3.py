@@ -383,12 +383,76 @@ class TestRunBatch:
         pipeline = self._make_pipeline()
         assert pipeline.run_batch([]) == []
 
+    def test_pipeline_run_includes_structured(self):
+        """pipeline.run() 在 structured 格式下应输出 result['structured']"""
+        from vidknot.pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+
+        pipeline = VideoKnowledgePipeline.__new__(VideoKnowledgePipeline)
+        pipeline.destination = "none"
+        pipeline.format = "structured"
+        pipeline.language = "auto"
+        pipeline.use_cache = False
+        pipeline.cache = None
+        pipeline.downloader = MagicMock()
+        pipeline.downloader.download_audio_with_metadata.return_value = (
+            None,
+            {"title": "t", "uploader": "u", "platform": "youtube",
+             "subtitle_text": "字幕文本",
+             "subtitle_segments": [{"start": 0.0, "end": 1.0, "text": "字幕文本"}]},
+        )
+        pipeline.processor = MagicMock()
+        pipeline.processor.summarize.return_value = {"markdown": "# md"}
+        pipeline.processor.extract_structured.return_value = {
+            "topics": ["a"], "entities": [], "key_points": [],
+            "summary_one_line": "s", "tags": [],
+        }
+
+        result = pipeline.run("https://youtube.com/watch?v=x")
+        assert result["transcription"] == "字幕文本"
+        assert result["structured"]["topics"] == ["a"]
+        assert result["structured"]["segments"][0]["text"] == "字幕文本"
+
+    def test_pipeline_run_structured_fallback_on_llm_error(self):
+        """extract_structured 失败时 pipeline.run 回退最小结构"""
+        from vidknot.pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+
+        pipeline = VideoKnowledgePipeline.__new__(VideoKnowledgePipeline)
+        pipeline.destination = "none"
+        pipeline.format = "structured"
+        pipeline.language = "auto"
+        pipeline.use_cache = False
+        pipeline.cache = None
+        pipeline.downloader = MagicMock()
+        pipeline.downloader.download_audio_with_metadata.return_value = (
+            None,
+            {"title": "t", "subtitle_text": "字幕"},
+        )
+        pipeline.processor = MagicMock()
+        pipeline.processor.summarize.return_value = {"markdown": "# md"}
+        pipeline.processor.extract_structured.side_effect = RuntimeError("LLM down")
+
+        result = pipeline.run("https://youtube.com/watch?v=x")
+        assert result["structured"]["topics"] == []
+        assert result["structured"]["segments"] == []
+
 
 # ============================================================
 # CLI 批量辅助
 # ============================================================
 
 class TestBatchCLIHelpers:
+    def test_version_flag(self):
+        """--version 标志应输出版本号并退出"""
+        import subprocess
+        import sys
+
+        proc = subprocess.run(
+            [sys.executable, "-m", "vidknot", "--version"],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert proc.returncode == 0
+        assert "vidknot" in proc.stdout
+
     def test_local_media_extensions(self):
         from vidknot.__main__ import LOCAL_MEDIA_EXTENSIONS
 

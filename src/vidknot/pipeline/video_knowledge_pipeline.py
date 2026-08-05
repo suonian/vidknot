@@ -141,6 +141,22 @@ class VideoKnowledgePipeline:
         if self.format == "structured":
             processed = self.processor.summarize(transcription, metadata)
             result["markdown"] = processed["markdown"]
+            # 结构化 JSON（供下游 Agent 消费；LLM 失败时回退最小结构）
+            try:
+                result["structured"] = self.processor.extract_structured(
+                    transcription, metadata
+                )
+                result["structured"]["segments"] = metadata.get("subtitle_segments", [])
+            except Exception as e:
+                logger.warning(f"结构化 JSON 提取失败: {e}")
+                result["structured"] = {
+                    "segments": metadata.get("subtitle_segments", []),
+                    "topics": [],
+                    "entities": [],
+                    "key_points": [],
+                    "summary_one_line": "",
+                    "tags": [],
+                }
         else:
             result["markdown"] = transcription
 
