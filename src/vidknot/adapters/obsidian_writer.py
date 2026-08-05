@@ -9,12 +9,11 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from ..utils.exceptions import (
     ObsidianVaultNotFoundError,
     ObsidianWriteError,
-    StorageError,
 )
 from ..utils.logger import get_logger
 
@@ -35,7 +34,7 @@ class ObsidianWriter:
 
     def __init__(
         self,
-        vault_path: Optional[str] = None,
+        vault_path: str | None = None,
         default_folder: str = "视频笔记",
         auto_create_folders: bool = True,
     ):
@@ -46,10 +45,10 @@ class ObsidianWriter:
     def save_note(
         self,
         markdown_content: str,
-        metadata: Dict[str, Any],
-        folder: Optional[str] = None,
-        filename: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        metadata: dict[str, Any],
+        folder: str | None = None,
+        filename: str | None = None,
+        tags: list[str] | None = None,
         add_timestamp: bool = True,
     ) -> Path:
         """
@@ -109,7 +108,7 @@ class ObsidianWriter:
 
         return file_path
 
-    def _build_frontmatter(self, metadata: Dict[str, Any], tags: Optional[List[str]] = None) -> str:
+    def _build_frontmatter(self, metadata: dict[str, Any], tags: list[str] | None = None) -> str:
         """
         构建 YAML Frontmatter
 
@@ -152,7 +151,7 @@ class ObsidianWriter:
         frontmatter_lines.append(f"date: {datetime.now().strftime('%Y-%m-%d')}")
 
         # tags — Obsidian 规范：不带 #，纯字符串数组
-        all_tags: List[str] = list(tags) if tags else []
+        all_tags: list[str] = list(tags) if tags else []
         all_tags.extend(metadata.get("tags", []))
         all_tags.extend(["视频笔记", "VidkNot"])
 
@@ -173,7 +172,7 @@ class ObsidianWriter:
         frontmatter_lines.append("---")
         return "\n".join(frontmatter_lines)
 
-    def _generate_filename(self, metadata: Dict[str, Any], add_timestamp: bool = True) -> str:
+    def _generate_filename(self, metadata: dict[str, Any], add_timestamp: bool = True) -> str:
         """生成文件名"""
         title = metadata.get("title", "视频笔记")
         clean_title = self._sanitize_filename(title)
@@ -225,9 +224,9 @@ class ObsidianWriter:
 
     def _update_index(
         self,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         file_path: Path,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
     ):
         """更新 Obsidian 索引文件"""
         if not self.vault.exists():
@@ -259,7 +258,7 @@ class ObsidianWriter:
         except OSError:
             logger.warning(f"索引更新失败（非阻塞）: {index_path}")
 
-    def get_vault_stats(self) -> Dict[str, Any]:
+    def get_vault_stats(self) -> dict[str, Any]:
         """获取 Vault 统计信息"""
         if not self.vault.exists():
             return {"exists": False}

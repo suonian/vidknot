@@ -1,3 +1,6 @@
+# Qoder IDE 缓存
+.qoder/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -6,7 +6,7 @@ VidkNot 配置管理器
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -25,13 +25,13 @@ class ConfigManager:
 
     _instance = None
 
-    def __new__(cls, config_path: Optional[str] = None):
+    def __new__(cls, config_path: str | None = None):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         if self._initialized:
             return
 
@@ -43,7 +43,7 @@ class ConfigManager:
             self._config_path = self._find_config_path()
         self._config = self._load_config()
 
-    def _find_config_path(self) -> Optional[Path]:
+    def _find_config_path(self) -> Path | None:
         """
         按优先级查找配置文件
 
@@ -62,7 +62,7 @@ class ConfigManager:
 
         return None
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """加载并合并配置"""
         config = self._default_config()
 
@@ -87,7 +87,7 @@ class ConfigManager:
 
         return config
 
-    def _default_config(self) -> Dict[str, Any]:
+    def _default_config(self) -> dict[str, Any]:
         """默认配置"""
         return {
             "settings": {
@@ -149,7 +149,7 @@ class ConfigManager:
             },
         }
 
-    def _deep_merge(self, default: Dict, user: Dict) -> Dict:
+    def _deep_merge(self, default: dict, user: dict) -> dict:
         """深度合并配置（user 覆盖 default）"""
         result = default.copy()
         for key, value in user.items():
@@ -159,7 +159,7 @@ class ConfigManager:
                 result[key] = value
         return result
 
-    def _apply_env_overrides(self, config: Dict) -> Dict:
+    def _apply_env_overrides(self, config: dict) -> dict:
         """应用环境变量覆盖（最高优先级）"""
         env_mappings = {
             # OpenAI
@@ -189,6 +189,9 @@ class ConfigManager:
             "VIDKNOT_STT_PREFERENCE": ("settings", "stt_preference"),
             # 硅基流动
             "SILICONFLOW_API_KEY": ("providers", "siliconflow", "api_key"),
+            # SiliconFlow 作为 OpenAI 兼容 LLM 时，复用同一 API Key
+            # 仅在 OPENAI_API_KEY 未设置时生效
+            "LLM_API_KEY": ("providers", "openai", "api_key"),
             # 抖音
             "VIDKNOT_DOUYIN_COOKIE_FILE": ("douyin", "cookie_file"),
             "VIDKNOT_DOUYIN_ENABLE_THIRD_PARTY": ("douyin", "enable_third_party"),
@@ -226,20 +229,20 @@ class ConfigManager:
                 return default
         return value
 
-    def get_provider(self, name: Optional[str] = None) -> Dict[str, Any]:
+    def get_provider(self, name: str | None = None) -> dict[str, Any]:
         """获取 LLM 提供商配置"""
         name = name or self.get("providers", "default_provider")
         return self.get("providers", name) or {}
 
-    def get_feishu_config(self) -> Dict[str, Any]:
+    def get_feishu_config(self) -> dict[str, Any]:
         """获取飞书配置"""
         return self.get("feishu") or {}
 
-    def get_obsidian_config(self) -> Dict[str, Any]:
+    def get_obsidian_config(self) -> dict[str, Any]:
         """获取 Obsidian 配置"""
         return self.get("obsidian") or {}
 
-    def get_douyin_config(self) -> Dict[str, Any]:
+    def get_douyin_config(self) -> dict[str, Any]:
         """获取抖音下载配置（含布尔值转换）"""
         raw = self.get("douyin") or {}
         # 环境变量传入的都是字符串，需要转换布尔值
@@ -252,7 +255,7 @@ class ConfigManager:
         """重新加载配置（从文件重新读取 + 应用环境变量）"""
         self._config = self._load_config()
 
-    def save(self, save_path: Optional[str] = None) -> Path:
+    def save(self, save_path: str | None = None) -> Path:
         """
         保存当前配置到文件
 
@@ -286,7 +289,7 @@ class ConfigManager:
         self._config_path = path
         return path
 
-    def validate_required(self, *required_keys) -> List[str]:
+    def validate_required(self, *required_keys) -> list[str]:
         """
         验证必填配置
 

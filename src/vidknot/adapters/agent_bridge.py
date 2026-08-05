@@ -3,14 +3,18 @@ VidkNot Agent 桥接模块
 
 提供 OpenAI Function Calling Schema 定义
 用于 OpenAI / Claude 等 AI Agent 集成
+
+工具清单:
+- video_knowledge / video_to_notes: 单视频转笔记
+- batch_process: 批量处理多个视频
+- platform_status: 平台支持状态查询
+- search_video: 平台内搜索（预留）
 """
 
-import asyncio
-import json
-from typing import Dict, Any, Optional
+from typing import Any
 
 
-def get_tool_metadata() -> Dict[str, Any]:
+def get_tool_metadata() -> dict[str, Any]:
     """
     获取 VidkNot 工具的 OpenAI Function Calling Schema
 
@@ -76,9 +80,203 @@ def get_tool_metadata() -> Dict[str, Any]:
     }
 
 
-def execute_tool(arguments: Dict[str, Any]) -> Dict[str, Any]:
+def get_all_tools_metadata() -> list[dict[str, Any]]:
     """
-    执行 video_knowledge 工具
+    获取所有 VidkNot 工具的 OpenAI Function Calling Schema 列表
+
+    Returns:
+        OpenAI tool schema 列表（video_knowledge / batch_process /
+        platform_status / search_video）
+    """
+    return [
+        get_tool_metadata(),
+        {
+            "type": "function",
+            "function": {
+                "name": "batch_process",
+                "description": "批量处理多个视频链接，并发执行（默认 3 并发），返回每个 URL 的处理结果摘要。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "urls": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "视频链接列表",
+                        },
+                        "destination": {
+                            "type": "string",
+                            "enum": ["feishu", "obsidian", "both", "none"],
+                            "description": "笔记保存目的地",
+                            "default": "none",
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["structured", "raw"],
+                            "default": "structured",
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "视频语言：auto/zh/en/ja/ko",
+                            "default": "auto",
+                        },
+                        "max_workers": {
+                            "type": "integer",
+                            "description": "并发数（1-8，默认 3）",
+                            "default": 3,
+                        },
+                    },
+                    "required": ["urls"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "platform_status",
+                "description": "查询各视频平台的支持状态（域名、字幕支持、Cookie 配置、转录策略）。",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_video",
+                "description": "在平台内搜索视频（预留接口，当前未实现）。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "搜索关键词",
+                        },
+                        "platform": {
+                            "type": "string",
+                            "description": "目标平台（如 youtube/bilibili/douyin）",
+                        },
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+    ]
+
+
+def execute_tool(arguments: dict[str, Any], tool: str = "video_knowledge") -> dict[str, Any]:
+    """
+    执行指定工具（按工具名路由）
+
+    Args:
+        arguments: 工具参数
+        tool: 工具名（video_knowledge/video_to_notes/batch_process/
+              platform_status/search_video）
+
+    Returns:
+        工具执行结果
+    """
+    if tool == "batch_process":
+        return _execute_batch_process(arguments)
+    if tool == "platform_status":
+        return _execute_platform_status()
+    if tool == "search_video":
+        return _execute_search_video(arguments)
+    # video_knowledge / video_to_notes
+    return _execute_video_knowledge(arguments)
+
+
+def _execute_batch_process(arguments: dict[str, Any]) -> dict[str, Any]:
+    """执行 batch_process 工具"""
+    from ..pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+
+    urls = arguments.get("urls") or []
+    if not urls or not isinstance(urls, list):
+        return {"success": False, "error": "urls 参数必填（URL 数组）"}
+
+    destination = arguments.get("destination", "none")
+    format_mode = arguments.get("format", "structured")
+    language = arguments.get("language", "auto")
+    max_workers = min(int(arguments.get("max_workers", 3)), 8)
+
+    try:
+        pipeline = VideoKnowledgePipeline(
+            destination=destination,
+            format=format_mode,
+            language=language,
+        )
+        save_options = None if destination == "none" else {}
+        results = pipeline.run_batch(urls, max_workers=max_workers, save_options=save_options)
+        summary = [
+            {
+                "url": r.get("url", ""),
+                "success": r.get("success", False),
+                "title": r.get("title", ""),
+                "error": r.get("error"),
+            }
+            for r in results
+        ]
+        return {
+            "success": True,
+            "total": len(summary),
+            "success_count": sum(1 for s in summary if s["success"]),
+            "results": summary,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "error_type": e.__class__.__name__}
+
+
+def _execute_platform_status() -> dict[str, Any]:
+    """执行 platform_status 工具"""
+    try:
+        from pathlib import Path
+
+        from ..core.platforms import PlatformRegistry
+        from ..core.platforms.base import BasePlatform
+        from ..utils.config_manager import ConfigManager
+
+        project_root = Path(__file__).parent.parent.parent.parent
+        cookie_dir = project_root / "cookies"
+        config = ConfigManager()
+        strategy = config.get("platforms", "transcription", "strategy") or "subtitle_first"
+
+        platforms: list[dict[str, Any]] = []
+        for name in PlatformRegistry.list_platforms():
+            platform = PlatformRegistry.get(name)
+            if platform is None:
+                continue
+            subtitle_supported = type(platform).fetch_subtitle is not BasePlatform.fetch_subtitle
+            browser_cookie = bool(getattr(platform, "use_browser_cookie", False))
+            platforms.append({
+                "name": name,
+                "domains": list(platform.domains),
+                "subtitle_support": subtitle_supported,
+                "cookie_configured": browser_cookie or (cookie_dir / f"{name}.txt").exists(),
+                "browser_cookie": browser_cookie,
+            })
+
+        return {
+            "success": True,
+            "transcription_strategy": strategy,
+            "platform_count": len(platforms),
+            "platforms": platforms,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "error_type": e.__class__.__name__}
+
+
+def _execute_search_video(arguments: dict[str, Any]) -> dict[str, Any]:
+    """执行 search_video 工具（预留）"""
+    query = arguments.get("query", "")
+    if not query:
+        return {"success": False, "error": "query 参数必填"}
+    return {
+        "success": False,
+        "error": "search_video 尚未实现（预留接口），请直接提供视频 URL 使用 video_to_notes / batch_process。",
+        "implemented": False,
+    }
+
+
+def _execute_video_knowledge(arguments: dict[str, Any]) -> dict[str, Any]:
+    """
+    执行 video_knowledge / video_to_notes 工具（同步）
 
     Args:
         arguments: 工具参数
@@ -109,15 +307,13 @@ def execute_tool(arguments: Dict[str, Any]) -> Dict[str, Any]:
             language=language,
         )
 
-        result = asyncio.run(pipeline.run(url))
+        result = pipeline.run(url)
 
         if destination != "none":
-            saved = asyncio.run(
-                pipeline.save(result, {
-                    "feishu_folder": feishu_folder,
-                    "obsidian_tags": obsidian_tags,
-                })
-            )
+            saved = pipeline.save(result, {
+                "feishu_folder": feishu_folder,
+                "obsidian_tags": obsidian_tags,
+            })
             result["saved_to"] = saved
 
         if notify:

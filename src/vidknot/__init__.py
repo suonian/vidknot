@@ -13,11 +13,12 @@ __author__ = "VidkNot Team"
 __license__ = "MIT"
 
 from .core.downloader import VideoDownloader
-from .core.transcriber import SiliconFlowASR, get_transcriber
 from .core.processor import ContentProcessor
+from .core.transcriber import SiliconFlowASR, get_transcriber
 from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
 
 __all__ = [
+    "__version__",
     "VideoDownloader",
     "SiliconFlowASR",
     "get_transcriber",

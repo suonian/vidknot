@@ -1,16 +1,18 @@
 """
 VidkNot 内容处理模块
 
-调用 LLM 生成结构化 Markdown 笔记
+调用 LLM 生成结构化 Markdown 笔记 + 结构化 JSON
 支持: OpenAI / ZhipuAI / 兼容 OpenAI 格式的 API
 """
 
+import json
 import os
+import re
 from datetime import date
-from typing import Dict, Any, Optional
+from typing import Any
 
 from ..utils.config_manager import ConfigManager
-from ..utils.exceptions import LLMError, LLMAPIError, LLMTimeoutError, NoAPIKeyError
+from ..utils.exceptions import LLMError, NoAPIKeyError
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -106,8 +108,34 @@ summary: [一句话总结视频内容]
 
 请直接输出 Markdown，不要有其他说明。"""
 
-    def __init__(self, provider: Optional[str] = None, model: Optional[str] = None,
-                 max_tokens: Optional[int] = None):
+    STRUCTURED_PROMPT = """你是一个视频内容结构化提取器。请从以下视频转录中提取结构化信息。
+
+严格输出 JSON（不要 Markdown 代码块、不要任何额外说明），格式如下：
+{{
+  "topics": ["核心主题1", "核心主题2"],
+  "entities": [
+    {{"name": "实体名称", "type": "person|tool|concept|organization|product"}}
+  ],
+  "key_points": ["要点1", "要点2", "要点3"],
+  "summary_one_line": "一句话总结",
+  "tags": ["标签1", "标签2"]
+}}
+
+要求：
+- topics: 3-6 个核心主题
+- entities: 提取人物/工具/概念/组织，不超过 15 个
+- key_points: 5-10 个关键要点
+- summary_one_line: 不超过 50 字
+- tags: 5-10 个标签
+
+视频标题: {title}
+作者: {uploader}
+
+转录内容：
+{transcription}"""
+
+    def __init__(self, provider: str | None = None, model: str | None = None,
+                 max_tokens: int | None = None):
         """
         初始化处理器
 
@@ -121,7 +149,7 @@ summary: [一句话总结视频内容]
         self._max_tokens = self._resolve_max_tokens(max_tokens)
         self._client = None
 
-    def _resolve_max_tokens(self, explicit: Optional[int]) -> int:
+    def _resolve_max_tokens(self, explicit: int | None) -> int:
         """从优先级: explicit > env > config > 默认值 解析 max_tokens"""
         if explicit is not None:
             return explicit
@@ -194,9 +222,9 @@ summary: [一句话总结视频内容]
     def summarize(
         self,
         transcription: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         max_transcription_length: int = 8000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成结构化笔记（同步）
 
@@ -223,7 +251,72 @@ summary: [一句话总结视频内容]
             "transcription": transcription,
         }
 
-    def _build_prompt(self, transcription: str, metadata: Dict[str, Any]) -> str:
+    def extract_structured(
+        self,
+        transcription: str,
+        metadata: dict[str, Any],
+        max_transcription_length: int = 8000,
+    ) -> dict[str, Any]:
+        """
+        提取结构化 JSON（供下游 Agent 消费）
+
+        Args:
+            transcription: 转录文本
+            metadata: 视频元数据
+            max_transcription_length: 最大输入长度
+
+        Returns:
+            {"topics": [...], "entities": [...], "key_points": [...],
+             "summary_one_line": str, "tags": [...]}
+        """
+        if len(transcription) > max_transcription_length:
+            transcription = transcription[:max_transcription_length] + "\n[内容已截断...]"
+
+        prompt = self.STRUCTURED_PROMPT.format(
+            title=metadata.get("title", "未知标题"),
+            uploader=metadata.get("uploader", "未知作者"),
+            transcription=transcription,
+        )
+
+        raw = self._call_llm(prompt)
+        parsed = self._parse_json(raw)
+
+        # 字段兼容与默认值
+        return {
+            "topics": parsed.get("topics", []),
+            "entities": parsed.get("entities", []),
+            "key_points": parsed.get("key_points", []),
+            "summary_one_line": parsed.get("summary_one_line", ""),
+            "tags": parsed.get("tags", []),
+        }
+
+    @staticmethod
+    def _parse_json(raw: str) -> dict[str, Any]:
+        """从 LLM 输出中解析 JSON（容忍 Markdown 代码块包裹）"""
+        text = raw.strip()
+        # 去除 ```json ... ``` 包裹
+        fence_match = re.search(r"```(?:json)?\s*(.+?)```", text, re.DOTALL)
+        if fence_match:
+            text = fence_match.group(1).strip()
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            pass
+        # 尝试提取第一个 { ... } 块
+        brace_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if brace_match:
+            try:
+                data = json.loads(brace_match.group(0))
+                if isinstance(data, dict):
+                    return data
+            except json.JSONDecodeError:
+                pass
+        logger.warning("结构化 JSON 解析失败，返回空结构")
+        return {}
+
+    def _build_prompt(self, transcription: str, metadata: dict[str, Any]) -> str:
         """构建 prompt"""
         prompt = self.SYSTEM_PROMPT
 

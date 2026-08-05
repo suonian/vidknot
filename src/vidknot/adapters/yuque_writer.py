@@ -7,11 +7,11 @@ VidkNot 语雀文档写入适配器
 
 import os
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 
 from ..utils.exceptions import (
-    StorageError,
     NoAPIKeyError,
+    StorageError,
 )
 from ..utils.logger import get_logger
 
@@ -31,9 +31,9 @@ class YuqueWriter:
 
     def __init__(
         self,
-        token: Optional[str] = None,
-        login: Optional[str] = None,
-        default_path: Optional[str] = None,
+        token: str | None = None,
+        login: str | None = None,
+        default_path: str | None = None,
     ):
         self.token = token or os.getenv("YUQUE_TOKEN")
         self.login = login or os.getenv("YUQUE_LOGIN")
@@ -63,8 +63,8 @@ class YuqueWriter:
         self,
         title: str,
         markdown_content: str,
-        path: Optional[str] = None,
-        description: Optional[str] = None,
+        path: str | None = None,
+        description: str | None = None,
     ) -> str:
         """
         在语雀创建文档
@@ -124,7 +124,7 @@ class YuqueWriter:
         self,
         title: str,
         markdown_content: str,
-        options: Optional[Dict[str, Any]] = None,
+        options: dict[str, Any] | None = None,
     ) -> str:
         """
         保存文档（兼容接口）

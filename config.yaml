@@ -13,6 +13,20 @@ faster_whisper:
   compute_type: int8
   beam_size: 5
   vad_filter: true
+platforms:
+  youtube:
+    prefer_subtitles: true  # 优先使用官方字幕
+    subtitle_languages: [zh, en, ja, ko]
+  bilibili:
+    prefer_subtitles: true  # 优先使用 CC 字幕
+    subtitle_languages: [zh-CN, zh, en]
+  douyin:
+    enable_cdp: true
+    enable_third_party: false
+    # api_base_url: http://localhost:80  # 可选：Evil0ctal/Douyin_TikTok_Download_API 自部署实例
+  transcription:
+    strategy: subtitle_first  # subtitle_first | siliconflow_only | faster_whisper_only | dual_asr
+    fallback_provider: openai_whisper  # 兜底转录 provider
 providers:
   default_provider: openai
   openai:

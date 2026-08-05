@@ -26,16 +26,13 @@ VidkNot 双 ASR 校正模块
 """
 
 import json
-import os
 import re
 import subprocess
 from difflib import SequenceMatcher
-from pathlib import Path
-from typing import Optional
 
-from .transcriber import SiliconFlowASR, FasterWhisperASR
 from ..utils.exceptions import CorrectionError, LLMError
 from ..utils.logger import get_logger
+from .transcriber import FasterWhisperASR, SiliconFlowASR
 
 logger = get_logger(__name__)
 
@@ -151,8 +148,8 @@ def _extract_corrected_transcript(llm_output: str) -> str:
     lines = llm_output.split("\n")
     ts_lines = [
         i
-        for i, l in enumerate(lines)
-        if re.match(r"^\s*\[\s*\d+\.\d+s\s*-\s*\d+\.\d+s\]", l)
+        for i, line in enumerate(lines)
+        if re.match(r"^\s*\[\s*\d+\.\d+s\s*-\s*\d+\.\d+s\]", line)
     ]
     if not ts_lines:
         return llm_output
@@ -380,7 +377,7 @@ class DualASRCorrector:
         )
 
         n_segments = len(
-            [l for l in corrected_text.split("\n") if re.match(r"^\s*\[\s*\d+\.\d+s", l)]
+            [line for line in corrected_text.split("\n") if re.match(r"^\s*\[\s*\d+\.\d+s", line)]
         )
         logger.info(
             f"[Corrector] ✅ 校正完成：{len(corrected_text)} 字符, {n_segments} 段"

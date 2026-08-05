@@ -7,11 +7,9 @@ VidkNot 统一日志模块
 import logging
 import os
 import sys
-from pathlib import Path
-from typing import Optional
 
 # 全局 logger 实例
-_logger: Optional[logging.Logger] = None
+_logger: logging.Logger | None = None
 
 
 def get_logger(name: str = "vidknot") -> logging.Logger:
@@ -44,7 +42,6 @@ def get_logger(name: str = "vidknot") -> logging.Logger:
     # 检测运行模式
     is_mcp = "--mcp" in sys.argv
     is_api = "uvicorn" in sys.argv[0] if sys.argv else False
-    is_cli = not is_mcp and not is_api
 
     if is_mcp:
         # MCP 模式：抑制日志，避免干扰 JSON-RPC 协议

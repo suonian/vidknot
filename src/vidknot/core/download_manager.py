@@ -7,39 +7,32 @@ VidkNot 智能下载管理器
 
 import asyncio
 import hashlib
-import json
-import shutil
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Callable
-
-import aiohttp
-import requests
 
 
 @dataclass
 class DownloadTool:
     """下载工具配置"""
     name: str
-    platforms: List[str]  # 支持的平台域名
+    platforms: list[str]  # 支持的平台域名
     install_cmd: str
     update_cmd: str
     version_cmd: str
     download_template: str
     priority: int = 100
-    fallback_tools: List[str] = field(default_factory=list)
+    fallback_tools: list[str] = field(default_factory=list)
 
 
 @dataclass
 class DownloadResult:
     """下载结果"""
     success: bool
-    file_path: Optional[Path]
+    file_path: Path | None
     tool_used: str
     message: str
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
 
 class SmartDownloadManager:
@@ -101,8 +94,8 @@ class SmartDownloadManager:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.auto_update = auto_update
-        self._tool_availability: Dict[str, bool] = {}
-        self._tool_versions: Dict[str, str] = {}
+        self._tool_availability: dict[str, bool] = {}
+        self._tool_versions: dict[str, str] = {}
 
     async def initialize(self):
         """初始化: 检测工具并自动更新"""
@@ -143,7 +136,7 @@ class SmartDownloadManager:
                 except Exception:
                     pass
 
-    def detect_platform(self, url: str) -> Tuple[str, List[str]]:
+    def detect_platform(self, url: str) -> tuple[str, list[str]]:
         """检测 URL 所属平台"""
         from urllib.parse import urlparse
         domain = urlparse(url).netloc.lower()
@@ -164,7 +157,7 @@ class SmartDownloadManager:
 
         return 'unknown', ['yt-dlp', 'gallery-dl', 'you-get']
 
-    def select_best_tool(self, url: str) -> Optional[str]:
+    def select_best_tool(self, url: str) -> str | None:
         """选择最佳下载工具"""
         platform, candidates = self.detect_platform(url)
 
@@ -180,7 +173,7 @@ class SmartDownloadManager:
     async def download(
         self,
         url: str,
-        output_name: Optional[str] = None,
+        output_name: str | None = None,
     ) -> DownloadResult:
         """智能下载视频"""
         tool_name = self.select_best_tool(url)
@@ -210,7 +203,7 @@ class SmartDownloadManager:
         self,
         url: str,
         tool_name: str,
-        output_name: Optional[str] = None,
+        output_name: str | None = None,
     ) -> DownloadResult:
         """使用指定工具下载"""
         tool = self.TOOLS.get(tool_name)
@@ -295,7 +288,7 @@ class SmartDownloadManager:
             return 'xhs'
         return 'auto'
 
-    def _find_downloaded_file(self) -> Optional[Path]:
+    def _find_downloaded_file(self) -> Path | None:
         """查找最新下载的文件"""
         extensions = ['.mp4', '.mp3', '.webm', '.mkv', '.m4a', '.wav', '.flac']
         files = []
@@ -307,7 +300,7 @@ class SmartDownloadManager:
 
         return max(files, key=lambda p: p.stat().st_mtime)
 
-    def get_tool_status(self) -> Dict[str, Dict]:
+    def get_tool_status(self) -> dict[str, dict]:
         """获取工具状态"""
         return {
             name: {

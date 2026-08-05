@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-05
+
+### Added
+
+- **Platform plugin architecture**: new `vidknot.core.platforms` package with
+  `BasePlatform` / `YtDlpPlatform` abstract classes and a `PlatformRegistry`
+  (register/detect/list). Adding a platform now requires only one file + registration.
+- **12 registered platforms**: YouTube, Douyin, Bilibili, XiaoHongShu, TikTok,
+  Twitter/X, Instagram, Kuaishou, Weibo, Vimeo, WeChat Channels (reserved), and a
+  generic yt-dlp fallback.
+- **YouTube subtitle-first strategy**: youtube-transcript-api → yt-dlp subtitle
+  extraction → audio download + ASR fallback, preserving timestamped segments.
+- **Bilibili CC subtitle-first** with fallback to audio + ASR.
+- **Douyin**: three-tier fallback migrated into the plugin (parser → browser cookie
+  yt-dlp → optional third-party API, incl. self-hosted Evil0ctal via `api_base_url`).
+- **XiaoHongShu**: image notes kept, video path added, optional XHS-Downloader fallback.
+- **TikTok**: cobalt API integration with yt-dlp fallback.
+- **Transcription layer**: new `SubtitleExtractor` (.srt/.vtt parsing) and
+  `OpenAITranscribeASR` (Whisper API); `get_transcriber()` supports `openai_whisper`.
+- **Structured JSON output**: `result["structured"]` with `segments`, `topics`,
+  `entities`, `key_points`, `summary_one_line`, `tags`, and `correction_confidence`
+  via `ContentProcessor.extract_structured()`.
+- **Batch processing**: `pipeline.run_batch()` (ThreadPoolExecutor, default 3 workers)
+  and CLI flags `--batch urls.txt`, `--batch-dir ./videos/`, `--max-workers`.
+- **MCP multi-tool server**: `video_to_notes`, `batch_process`, `platform_status`,
+  `search_video` (reserved) for both the FastMCP path and the fallback stdio server.
+- **Agent bridge**: `get_all_tools_metadata()` and tool-name routing in
+  `execute_tool(arguments, tool=...)`.
+- **New config block** `platforms`: per-platform subtitle/cookie options plus
+  `transcription.strategy` (subtitle_first/siliconflow_only/faster_whisper_only/dual_asr)
+  and `transcription.fallback_provider`.
+- **New dependency**: `youtube-transcript-api>=0.6.0`.
+- **93 new unit tests** (226 total passing) covering platforms, batch processing,
+  structured JSON, and MCP/agent tooling.
+
+### Changed
+
+- `VideoDownloader._download_sync()` delegates to `PlatformRegistry.detect(url)`;
+  `downloader.py` reduced from ~774 to ~350 lines by moving platform logic into plugins.
+- `process_video()` and `pipeline.run()` apply the subtitle-first strategy and skip ASR
+  when a platform provides official subtitles.
+- `agent_bridge.execute_tool()` calls the pipeline synchronously (fixes incorrect
+  `asyncio.run()` usage on sync methods).
+
 ## [0.2.1] - 2026-07-30
 
 ### Changed

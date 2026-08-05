@@ -6,11 +6,10 @@ VidkNot 缓存管理器
 
 import hashlib
 import json
-import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 class CacheManager:
@@ -37,7 +36,7 @@ class CacheManager:
         """获取缓存文件路径"""
         return self.cache_dir / f"{cache_key}.json"
 
-    def get(self, url: str, mode: str = "summary") -> Optional[Dict[str, Any]]:
+    def get(self, url: str, mode: str = "summary") -> dict[str, Any] | None:
         """
         获取缓存
 
@@ -71,7 +70,7 @@ class CacheManager:
         except Exception:
             return None
 
-    def set(self, url: str, mode: str, data: Dict[str, Any]) -> bool:
+    def set(self, url: str, mode: str, data: dict[str, Any]) -> bool:
         """
         设置缓存
 
@@ -112,7 +111,7 @@ class CacheManager:
             return True
         return False
 
-    def clear(self, max_age_days: Optional[int] = None) -> int:
+    def clear(self, max_age_days: int | None = None) -> int:
         """
         清理过期缓存
 
@@ -134,7 +133,7 @@ class CacheManager:
 
         return removed
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取缓存统计"""
         cache_files = list(self.cache_dir.glob("*.json"))
         total_size = sum(f.stat().st_size for f in cache_files)

@@ -10,10 +10,9 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Tuple, List
 
 
-def check_ffmpeg() -> Tuple[bool, str]:
+def check_ffmpeg() -> tuple[bool, str]:
     """
     检测 FFmpeg 是否可用
 
@@ -43,7 +42,7 @@ def check_ffmpeg() -> Tuple[bool, str]:
     return False, "FFmpeg 未找到"
 
 
-def check_python_version() -> Tuple[bool, str]:
+def check_python_version() -> tuple[bool, str]:
     """检测 Python 版本"""
     version = sys.version_info
     if version.major >= 3 and version.minor >= 10:
@@ -51,7 +50,7 @@ def check_python_version() -> Tuple[bool, str]:
     return False, f"{version.major}.{version.minor}.{version.micro} (需要 3.10+)"
 
 
-def check_yt_dlp() -> Tuple[bool, str]:
+def check_yt_dlp() -> tuple[bool, str]:
     """检测 yt-dlp 是否安装"""
     try:
         result = subprocess.run(
@@ -67,7 +66,7 @@ def check_yt_dlp() -> Tuple[bool, str]:
         return False, "yt-dlp 未安装"
 
 
-def check_whisper() -> Tuple[bool, str]:
+def check_whisper() -> tuple[bool, str]:
     """检测 faster-whisper 是否可用"""
     try:
         import faster_whisper
@@ -76,7 +75,7 @@ def check_whisper() -> Tuple[bool, str]:
         return False, "faster-whisper 未安装"
 
 
-def check_openai() -> Tuple[bool, str]:
+def check_openai() -> tuple[bool, str]:
     """检测 OpenAI SDK 是否可用"""
     try:
         import openai
@@ -85,7 +84,7 @@ def check_openai() -> Tuple[bool, str]:
         return False, "openai SDK 未安装"
 
 
-def check_all_requirements() -> Tuple[bool, List[str]]:
+def check_all_requirements() -> tuple[bool, list[str]]:
     """
     检测所有依赖是否满足
 

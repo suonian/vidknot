@@ -4,19 +4,18 @@ VidkNot 视频知识管道
 统一处理管道：接收 URL → 返回笔记内容 → 根据配置路由到目的地
 """
 
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Any
 
+from ..adapters.feishu_writer import FeishuWriter
+from ..adapters.notion_writer import NotionWriter
+from ..adapters.obsidian_writer import ObsidianWriter
+from ..adapters.yuque_writer import YuqueWriter
 from ..core.downloader import VideoDownloader
-from ..core.transcriber import SiliconFlowASR
 from ..core.processor import ContentProcessor
+from ..core.transcriber import SiliconFlowASR
 from ..utils.cache_manager import CacheManager
 from ..utils.exceptions import StorageError
 from ..utils.logger import get_logger
-from ..adapters.feishu_writer import FeishuWriter
-from ..adapters.obsidian_writer import ObsidianWriter
-from ..adapters.yuque_writer import YuqueWriter
-from ..adapters.notion_writer import NotionWriter
 
 logger = get_logger(__name__)
 
@@ -39,10 +38,10 @@ class VideoKnowledgePipeline:
         destination: str = "obsidian",
         format: str = "structured",
         language: str = "auto",
-        feishu_config: Optional[Dict] = None,
-        obsidian_config: Optional[Dict] = None,
-        yuque_config: Optional[Dict] = None,
-        notion_config: Optional[Dict] = None,
+        feishu_config: dict | None = None,
+        obsidian_config: dict | None = None,
+        yuque_config: dict | None = None,
+        notion_config: dict | None = None,
         use_cache: bool = True,
     ):
         """
@@ -89,7 +88,7 @@ class VideoKnowledgePipeline:
         if notion_config:
             self._notion = NotionWriter(**notion_config)
 
-    def run(self, url: str) -> Dict[str, Any]:
+    def run(self, url: str) -> dict[str, Any]:
         """
         执行完整处理管道（同步）
 
@@ -105,12 +104,28 @@ class VideoKnowledgePipeline:
                 cached["cache_hit"] = True
                 return cached
 
-        audio_path, metadata = self.downloader.download_audio_with_metadata(url)
+        from ..utils.config_manager import ConfigManager
 
-        transcription = self.transcriber.transcribe(
-            audio_path,
-            language=self.language,
+        strategy = ConfigManager().get(
+            "platforms", "transcription", "strategy", default="subtitle_first"
         )
+        audio_path, metadata = self.downloader.download_audio_with_metadata(
+            url, force_audio=(strategy != "subtitle_first")
+        )
+
+        subtitle_text = metadata.get("subtitle_text")
+        if subtitle_text:
+            # 字幕优先：平台已提供官方字幕，跳过 ASR
+            transcription = subtitle_text
+        else:
+            if audio_path is None:
+                audio_path, metadata = self.downloader.download_audio_with_metadata(
+                    url, force_audio=True
+                )
+            transcription = self.transcriber.transcribe(
+                audio_path,
+                language=self.language,
+            )
 
         result = {
             "title": metadata.get("title", "未知标题"),
@@ -134,11 +149,46 @@ class VideoKnowledgePipeline:
 
         return result
 
+    def run_batch(
+        self,
+        urls: list[str],
+        max_workers: int = 3,
+        save_options: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        批量处理多个视频 URL（线程池并发，默认 max_workers=3）
+
+        Args:
+            urls: 视频 URL 列表
+            max_workers: 最大并发数
+            save_options: 保存选项（非 None 时逐个保存到目的地）
+
+        Returns:
+            结果列表，每项含 url/success 字段，失败项含 error
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _run_one(url: str) -> dict[str, Any]:
+            try:
+                result = self.run(url)
+                result["url"] = url
+                result["success"] = True
+                if save_options is not None and self.destination != "none":
+                    saved = self.save(result, save_options)
+                    result["saved_to"] = saved
+                return result
+            except Exception as e:
+                logger.error(f"批量处理失败 {url}: {e}")
+                return {"url": url, "success": False, "error": str(e)}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            return list(executor.map(_run_one, urls))
+
     def save(
         self,
-        result: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Union[str, List[str]]:
+        result: dict[str, Any],
+        options: dict[str, Any] | None = None,
+    ) -> str | list[str]:
         """
         保存结果到目的地（同步）
 
@@ -224,25 +274,25 @@ class VideoKnowledgePipeline:
             return saved[0]
         return saved
 
-    def _get_feishu_writer(self) -> Optional[FeishuWriter]:
+    def _get_feishu_writer(self) -> FeishuWriter | None:
         """获取飞书写入器（延迟初始化）"""
         if self._feishu is None and self._feishu_config:
             self._feishu = FeishuWriter(**self._feishu_config)
         return self._feishu
 
-    def _get_obsidian_writer(self) -> Optional[ObsidianWriter]:
+    def _get_obsidian_writer(self) -> ObsidianWriter | None:
         """获取 Obsidian 写入器（延迟初始化）"""
         if self._obsidian is None and self._obsidian_config:
             self._obsidian = ObsidianWriter(**self._obsidian_config)
         return self._obsidian
 
-    def _get_yuque_writer(self) -> Optional[YuqueWriter]:
+    def _get_yuque_writer(self) -> YuqueWriter | None:
         """获取语雀写入器（延迟初始化）"""
         if self._yuque is None and self._yuque_config:
             self._yuque = YuqueWriter(**self._yuque_config)
         return self._yuque
 
-    def _get_notion_writer(self) -> Optional[NotionWriter]:
+    def _get_notion_writer(self) -> NotionWriter | None:
         """获取 Notion 写入器（延迟初始化）"""
         if self._notion is None and self._notion_config:
             self._notion = NotionWriter(**self._notion_config)

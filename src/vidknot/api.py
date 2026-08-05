@@ -7,14 +7,14 @@ VidkNot FastAPI 服务
 - MCP Tool 元数据
 """
 
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ._version import __version__
 from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
-from .utils.env_check import check_ffmpeg, check_all_requirements
+from .utils.env_check import check_all_requirements, check_ffmpeg
 from .utils.logger import get_logger
 
 logger = get_logger("vidknot.api")
@@ -39,8 +39,8 @@ class TranscribeRequest(BaseModel):
     mode: str = Field(default="summary", description="raw(仅转录) / summary(结构化笔记)")
     language: str = Field(default="auto", description="语言: auto/zh/en/ja/ko")
     destination: str = Field(default="obsidian", description="保存目的地: feishu/obsidian/both/none")
-    feishu_folder: Optional[str] = Field(default=None, description="飞书文件夹名称")
-    obsidian_tags: List[str] = Field(default_factory=list, description="Obsidian 标签")
+    feishu_folder: str | None = Field(default=None, description="飞书文件夹名称")
+    obsidian_tags: list[str] = Field(default_factory=list, description="Obsidian 标签")
     use_cache: bool = Field(default=True, description="是否使用缓存")
 
     @field_validator("mode")
@@ -67,28 +67,30 @@ class TranscribeRequest(BaseModel):
 
 class TranscribeResponse(BaseModel):
     success: bool
-    title: Optional[str] = None
-    author: Optional[str] = None
-    duration: Optional[int] = None
+    title: str | None = None
+    author: str | None = None
+    duration: int | None = None
     source_url: str
     transcription: str
-    markdown: Optional[str] = None
+    markdown: str | None = None
     cache_hit: bool = False
-    saved_to: Optional[List[str]] = None
-    error: Optional[str] = None
+    saved_to: list[str] | None = None
+    error: str | None = None
 
 
 class HealthResponse(BaseModel):
     status: str
     ffmpeg_ok: bool
-    ffmpeg_path: Optional[str] = None
+    ffmpeg_path: str | None = None
     checks_passed: bool
 
 
 class ToolMetadata(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str
     description: str
-    inputSchema: dict
+    input_schema: dict = Field(alias="inputSchema")
 
 
 @app.get("/health", response_model=HealthResponse, tags=["系统"])
@@ -109,11 +111,11 @@ async def health():
 async def transcribe(req: TranscribeRequest):
     """视频转录 + 笔记生成"""
     from .utils.exceptions import (
+        DependencyError,
         DownloadError,
-        TranscriptionError,
         LLMError,
         StorageError,
-        DependencyError,
+        TranscriptionError,
     )
 
     try:
@@ -178,7 +180,7 @@ async def get_tool_metadata():
     return ToolMetadata(
         name=meta["function"]["name"],
         description=meta["function"]["description"],
-        inputSchema=meta["function"]["parameters"],
+        input_schema=meta["function"]["parameters"],
     )
 
 

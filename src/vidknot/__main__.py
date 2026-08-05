@@ -8,9 +8,9 @@ VidkNot 统一入口
 - FastAPI: uvicorn vidknot.api:app
 """
 
+import argparse
 import os
 import sys
-import argparse
 from pathlib import Path
 
 from ._version import __version__
@@ -84,6 +84,14 @@ def main():
     parser.add_argument("--correction-version", choices=["v3", "v4"], default=None,
                         help="校正版本: v4 保守（默认）, v3 激进")
 
+    # 批量处理参数
+    parser.add_argument("--batch",
+                        help="批量处理: URL 列表文件（每行一个 URL，# 开头为注释）")
+    parser.add_argument("--batch-dir",
+                        help="批量处理: 本地视频/音频文件目录")
+    parser.add_argument("--max-workers", type=int, default=3,
+                        help="批量处理并发数（默认 3）")
+
     args = parser.parse_args()
 
     # 模式检测优先级: check-env > MCP > CLI (有url) > Help
@@ -103,6 +111,10 @@ def main():
         from .adapters.mcp_server import run_mcp_server
         run_mcp_server()
 
+    elif args.batch or args.batch_dir:
+        # 批量处理模式
+        run_batch_cli(args)
+
     elif args.url or args.cli:
         # CLI 模式
         if not args.url and args.cli:
@@ -121,12 +133,9 @@ def main():
 
 def run_cli(args):
     """CLI 模式主逻辑（同步）"""
-    from .core.downloader import VideoDownloader
-    from .core.transcriber import SiliconFlowASR
-    from .core.processor import ContentProcessor
-    from .utils.cache_manager import CacheManager
-    from .utils.env_check import check_ffmpeg, check_all_requirements
     from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+    from .utils.cache_manager import CacheManager
+    from .utils.env_check import check_all_requirements, check_ffmpeg
 
     logger.info("VidkNot v%s — Video Knowledge, Knotted.", __version__)
 
@@ -203,6 +212,142 @@ def run_cli(args):
         print("=" * 60)
 
 
+LOCAL_MEDIA_EXTENSIONS = {
+    ".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".m4v",
+    ".mp3", ".m4a", ".wav", ".flac", ".ogg", ".opus", ".aac",
+}
+
+
+def run_batch_cli(args):
+    """批量处理模式: --batch urls.txt 和/或 --batch-dir ./videos/"""
+    import json
+
+    from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+
+    mode = "raw" if args.raw else "summary"
+    all_results: list[dict] = []
+
+    # ---- URL 批量 ----
+    if args.batch:
+        batch_file = Path(args.batch)
+        if not batch_file.exists():
+            logger.error(f"批量文件不存在: {batch_file}")
+            sys.exit(1)
+        urls = [
+            line.strip()
+            for line in batch_file.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        logger.info(f"批量处理 {len(urls)} 个 URL (并发 {args.max_workers})...")
+
+        pipeline = VideoKnowledgePipeline(
+            destination=args.destination,
+            format=mode,
+            language=args.language,
+            use_cache=not args.no_cache,
+        )
+        save_options = None if args.destination == "none" else {
+            "feishu_folder": args.feishu_folder,
+            "obsidian_tags": args.obsidian_tags,
+        }
+        all_results.extend(
+            pipeline.run_batch(urls, max_workers=args.max_workers, save_options=save_options)
+        )
+
+    # ---- 本地目录批量 ----
+    if args.batch_dir:
+        batch_dir = Path(args.batch_dir)
+        if not batch_dir.is_dir():
+            logger.error(f"目录不存在: {batch_dir}")
+            sys.exit(1)
+        files = sorted(
+            f for f in batch_dir.iterdir()
+            if f.is_file() and f.suffix.lower() in LOCAL_MEDIA_EXTENSIONS
+        )
+        logger.info(f"批量处理 {len(files)} 个本地媒体文件...")
+        for media_file in files:
+            logger.info(f"处理本地文件: {media_file.name}")
+            try:
+                result = process_local_video(media_file, mode, args.language)
+                result["success"] = True
+                all_results.append(result)
+            except Exception as e:
+                logger.error(f"本地文件处理失败 {media_file.name}: {e}")
+                all_results.append({
+                    "url": str(media_file),
+                    "success": False,
+                    "error": str(e),
+                })
+
+    # ---- 汇总输出 ----
+    ok = sum(1 for r in all_results if r.get("success"))
+    summary = {
+        "total": len(all_results),
+        "success": ok,
+        "failed": len(all_results) - ok,
+        "results": [
+            {
+                "url": r.get("url") or r.get("source_url", ""),
+                "success": r.get("success", False),
+                "title": r.get("title", ""),
+                "error": r.get("error"),
+                "saved_to": r.get("saved_to"),
+            }
+            for r in all_results
+        ],
+    }
+    print("\n" + "=" * 60)
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    print("=" * 60)
+
+
+def process_local_video(file_path: Path, mode: str, language: str) -> dict:
+    """处理本地视频/音频文件（无需下载，直接转录）"""
+    from .core.processor import ContentProcessor
+    from .core.transcriber import SiliconFlowASR, get_transcriber
+
+    metadata = {
+        "title": file_path.stem,
+        "uploader": "",
+        "duration": 0,
+        "url": str(file_path),
+        "platform": "local",
+    }
+
+    logger.info(f"正在转录本地文件 (SiliconFlow): {file_path.name}")
+    try:
+        transcription = SiliconFlowASR().transcribe(file_path, language=language)
+    except Exception as e:
+        from .utils.config_manager import ConfigManager
+        fallback_provider = ConfigManager().get(
+            "platforms", "transcription", "fallback_provider", default="openai_whisper"
+        )
+        logger.warning(f"SiliconFlow 转录失败: {e}，回退到 {fallback_provider}")
+        transcription = get_transcriber(fallback_provider).transcribe(
+            file_path, language=language
+        )
+
+    result = {
+        "title": metadata["title"],
+        "author": "",
+        "duration": 0,
+        "source_url": str(file_path),
+        "transcription": transcription,
+        "metadata": metadata,
+        "url": str(file_path),
+    }
+
+    if mode == "summary":
+        processor = ContentProcessor()
+        processed = processor.summarize(transcription, metadata)
+        result["markdown"] = processed["markdown"]
+        result["structured"] = _build_structured(transcription, metadata)
+    else:
+        result["markdown"] = transcription
+
+    return result
+
+
 def generate_images_markdown(metadata: dict, image_paths: list) -> str:
     """为纯图片内容生成 Markdown"""
     from datetime import date
@@ -216,8 +361,8 @@ def generate_images_markdown(metadata: dict, image_paths: list) -> str:
         f"title: {title}",
         f"source: {url}",
         f"date: {date.today().isoformat()}",
-        f"platform: xiaohongshu",
-        f"type: images",
+        "platform: xiaohongshu",
+        "type: images",
         "---",
         "",
         f"# {title}",
@@ -231,7 +376,6 @@ def generate_images_markdown(metadata: dict, image_paths: list) -> str:
     ]
 
     for i, img_path in enumerate(image_paths, 1):
-        from pathlib import Path
         filename = Path(img_path).name
         lines.append(f"### 图片 {i}")
         lines.append(f"![图片 {i}]({filename})")
@@ -245,14 +389,19 @@ def generate_images_markdown(metadata: dict, image_paths: list) -> str:
 
 def process_video(url: str, mode: str, language: str, args=None) -> dict:
     """处理视频的完整流程（同步）"""
-    from .core.downloader import VideoDownloader
-    from .core.transcriber import SiliconFlowASR, FasterWhisperASR
     from .core.corrector import DualASRCorrector
+    from .core.downloader import VideoDownloader
     from .core.processor import ContentProcessor
+    from .core.transcriber import FasterWhisperASR, SiliconFlowASR, get_transcriber
+
+    strategy = _get_transcription_strategy()
 
     logger.info("正在下载...")
     downloader = VideoDownloader()
-    file_path, metadata = downloader.download_audio_with_metadata(url)
+    # 非字幕优先策略时直接强制下载音频，避免先拿字幕再重下
+    file_path, metadata = downloader.download_audio_with_metadata(
+        url, force_audio=(strategy != "subtitle_first")
+    )
     logger.info(f"下载完成: {metadata.get('title', 'Unknown')}")
 
     result = {
@@ -273,17 +422,52 @@ def process_video(url: str, mode: str, language: str, args=None) -> dict:
         logger.info(f"纯图片笔记: {image_count} 张图片")
         return result
 
+    # ---- 字幕优先：平台已提供官方字幕时跳过 ASR ----
+    subtitle_text = metadata.get("subtitle_text")
+    if subtitle_text:
+        logger.info(
+            f"使用平台字幕 ({metadata.get('transcription_source', 'subtitle')})，"
+            f"跳过 ASR ({len(subtitle_text)} 字符)"
+        )
+        result["transcription"] = subtitle_text
+        result["transcription_source"] = metadata.get("transcription_source", "subtitle")
+
+        if mode == "summary":
+            logger.info("正在生成结构化笔记...")
+            processor = ContentProcessor()
+            processed = processor.summarize(result["transcription"], metadata)
+            result["markdown"] = processed["markdown"]
+            result["structured"] = _build_structured(result["transcription"], metadata)
+            logger.info("笔记生成完成")
+        else:
+            result["markdown"] = result["transcription"]
+        return result
+
+    # ---- ASR 转录路径 ----
+    if file_path is None:
+        # 字幕路径未拿到音频（理论上不应发生），强制重新下载
+        logger.info("未获取到音频，强制重新下载...")
+        file_path, metadata = downloader.download_audio_with_metadata(url, force_audio=True)
+        result["metadata"] = metadata
+
     # 是否启用双 ASR 校正
     enable_correction = _should_correct(args)
     correction_version = _get_correction_version(args)
     corrected_text = None
     correction_meta = None
 
-    # Step 1: 云端 SiliconFlow 转录（始终跑，主转录源）
+    # Step 1: 云端 SiliconFlow 转录（主转录源，失败时用兜底 provider）
     logger.info("正在转录 (SiliconFlow)...")
     sf_transcriber = SiliconFlowASR()
-    sf_transcription = sf_transcriber.transcribe(file_path, language=language)
-    logger.info(f"SiliconFlow 转录完成: {len(sf_transcription)} 字符")
+    try:
+        sf_transcription = sf_transcriber.transcribe(file_path, language=language)
+    except Exception as e:
+        fallback_provider = _get_fallback_provider()
+        logger.warning(f"SiliconFlow 转录失败: {e}，回退到 {fallback_provider}")
+        fallback = get_transcriber(fallback_provider)
+        sf_transcription = fallback.transcribe(file_path, language=language)
+        result["transcription_source"] = fallback_provider
+    logger.info(f"主转录完成: {len(sf_transcription)} 字符")
 
     if enable_correction:
         # Step 2: 本地 faster-whisper 转录（用作对照）
@@ -336,11 +520,43 @@ def process_video(url: str, mode: str, language: str, args=None) -> dict:
         if correction_meta:
             processed.setdefault("metadata", {}).setdefault("correction", correction_meta)
             result["markdown"] = processed["markdown"]
+        result["structured"] = _build_structured(
+            result["transcription"], metadata, correction_meta
+        )
         logger.info("笔记生成完成")
     else:
         result["markdown"] = result["transcription"]
 
     return result
+
+
+def _build_structured(transcription: str, metadata: dict, correction_meta: dict | None = None) -> dict:
+    """生成结构化 JSON（LLM 失败时回退最小结构）"""
+    from .core.processor import ContentProcessor
+
+    try:
+        processor = ContentProcessor()
+        structured = processor.extract_structured(transcription, metadata)
+    except Exception as e:
+        logger.warning(f"结构化 JSON 提取失败，使用最小结构: {e}")
+        structured = {
+            "topics": [],
+            "entities": [],
+            "key_points": [],
+            "summary_one_line": "",
+            "tags": [],
+        }
+
+    # 带时间戳的字幕分段（平台提供时，如 youtube_transcript_api）
+    structured["segments"] = metadata.get("subtitle_segments", [])
+
+    # 校正置信度（双 ASR 校正时）
+    if correction_meta and "diff_count" in correction_meta:
+        n_segments = max(correction_meta.get("n_segments", 1) or 1, 1)
+        diff_count = correction_meta.get("diff_count", 0) or 0
+        structured["correction_confidence"] = round(max(0.0, 1.0 - diff_count / n_segments / 5), 2)
+
+    return structured
 
 
 def _should_correct(args) -> bool:
@@ -356,6 +572,22 @@ def _should_correct(args) -> bool:
     if args.correct:
         return True
     return cfg_default
+
+
+def _get_transcription_strategy() -> str:
+    """获取转录策略: subtitle_first | siliconflow_only | faster_whisper_only | dual_asr"""
+    from .utils.config_manager import ConfigManager
+    config = ConfigManager()
+    return config.get("platforms", "transcription", "strategy", default="subtitle_first")
+
+
+def _get_fallback_provider() -> str:
+    """获取兜底转录 provider"""
+    from .utils.config_manager import ConfigManager
+    config = ConfigManager()
+    return config.get(
+        "platforms", "transcription", "fallback_provider", default="openai_whisper"
+    )
 
 
 def _get_correction_version(args) -> str:

@@ -7,11 +7,11 @@ VidkNot Notion 文档写入适配器
 
 import os
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 
 from ..utils.exceptions import (
-    StorageError,
     NoAPIKeyError,
+    StorageError,
 )
 from ..utils.logger import get_logger
 
@@ -30,9 +30,9 @@ class NotionWriter:
 
     def __init__(
         self,
-        token: Optional[str] = None,
-        parent_page_id: Optional[str] = None,
-        database_id: Optional[str] = None,
+        token: str | None = None,
+        parent_page_id: str | None = None,
+        database_id: str | None = None,
     ):
         self.token = token or os.getenv("NOTION_TOKEN")
         self.parent_page_id = parent_page_id or os.getenv("NOTION_PAGE_ID")
@@ -167,7 +167,7 @@ class NotionWriter:
         self,
         title: str,
         markdown_content: str,
-        parent_id: Optional[str] = None,
+        parent_id: str | None = None,
     ) -> str:
         """
         在 Notion 创建页面
@@ -216,7 +216,7 @@ class NotionWriter:
         self,
         title: str,
         markdown_content: str,
-        options: Optional[Dict[str, Any]] = None,
+        options: dict[str, Any] | None = None,
     ) -> str:
         """
         保存笔记（兼容接口）

@@ -7,14 +7,11 @@ VidkNot 飞书文档写入适配器
 
 import os
 import re
-from typing import Optional, List, Dict, Any
-from pathlib import Path
 
 from ..utils.exceptions import (
     FeishuAuthError,
-    FeishuPermissionError,
     FeishuCreateDocError,
-    StorageError,
+    FeishuPermissionError,
     NoAPIKeyError,
 )
 from ..utils.logger import get_logger
@@ -35,11 +32,11 @@ class FeishuWriter:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        app_id: Optional[str] = None,
-        app_secret: Optional[str] = None,
-        default_folder: Optional[str] = None,
-        wiki_node_id: Optional[str] = None,
+        api_key: str | None = None,
+        app_id: str | None = None,
+        app_secret: str | None = None,
+        default_folder: str | None = None,
+        wiki_node_id: str | None = None,
     ):
         self.api_key = api_key or os.getenv("FEISHU_API_KEY")
         self.app_id = app_id or os.getenv("FEISHU_APP_ID")
@@ -78,9 +75,9 @@ class FeishuWriter:
         self,
         title: str,
         markdown_content: str,
-        folder_token: Optional[str] = None,
-        wiki_node_id: Optional[str] = None,
-        folder_name: Optional[str] = None,
+        folder_token: str | None = None,
+        wiki_node_id: str | None = None,
+        folder_name: str | None = None,
     ) -> str:
         """
         创建飞书文档
@@ -123,13 +120,13 @@ class FeishuWriter:
                     title=title,
                     document_id=doc_id,
                 )
-                logger.info(f"文档已添加到知识库节点")
+                logger.info("文档已添加到知识库节点")
             except Exception as e:
                 logger.warning(f"知识库节点创建失败（非阻塞）: {e}")
 
         return doc_url
 
-    def markdown_to_lark_blocks(self, md: str) -> List[Dict]:
+    def markdown_to_lark_blocks(self, md: str) -> list[dict]:
         """
         将 Markdown 转换为飞书文档块格式
 
@@ -141,7 +138,7 @@ class FeishuWriter:
         except ImportError:
             return self._manual_markdown_to_blocks(md)
 
-    def _manual_markdown_to_blocks(self, md: str) -> List[Dict]:
+    def _manual_markdown_to_blocks(self, md: str) -> list[dict]:
         """
         手动 Markdown → 飞书块转换（基础 + 增强版）
 
@@ -251,7 +248,7 @@ class FeishuWriter:
 
         return blocks
 
-    def _text_elements(self, text: str) -> List[Dict]:
+    def _text_elements(self, text: str) -> list[dict]:
         """
         将文本转换为飞书 text_run 元素列表
 
@@ -311,12 +308,12 @@ class FeishuWriter:
 
         return elements
 
-    def _parse_table(self, lines: List[str]) -> Dict:
+    def _parse_table(self, lines: list[str]) -> dict:
         """解析 Markdown 表格为飞书块"""
         if len(lines) < 2:
             return {"type": "paragraph", "paragraph": {}}
 
-        def parse_row(line: str) -> List[str]:
+        def parse_row(line: str) -> list[str]:
             return [cell.strip() for cell in line.strip("|").split("|")]
 
         rows = [parse_row(line) for line in lines if line.strip().startswith("|")]
@@ -377,7 +374,7 @@ class FeishuDocumentsAPI:
     def __init__(self, client: FeishuClient):
         self.client = client
 
-    def create(self, title: str, content: List[Dict]) -> Dict:
+    def create(self, title: str, content: list[dict]) -> dict:
         """创建文档"""
         # 创建空白文档
         resp = self.client._requests.post(
@@ -423,7 +420,7 @@ class FeishuWikiAPI:
         node_type: str,
         title: str,
         document_id: str = None,
-    ) -> Dict:
+    ) -> dict:
         """创建知识库节点"""
         resp = self.client._requests.post(
             "https://open.feishu.cn/open-apis/wiki/v2/spaces/create_node",

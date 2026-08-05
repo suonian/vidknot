@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 VidkNot 抖音视频解析器
 
@@ -12,7 +11,7 @@ curl_cffi 为可选依赖，未安装时自动回退到 httpx。
 
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Any
 
 from ..utils.logger import get_logger
 
@@ -47,7 +46,7 @@ MOBILE_HEADERS = {
 class HttpClient:
     """HTTP 客户端抽象基类"""
 
-    def get(self, url: str, headers: Dict[str, str], follow_redirects: bool = True, timeout: float = 30.0) -> Any:
+    def get(self, url: str, headers: dict[str, str], follow_redirects: bool = True, timeout: float = 30.0) -> Any:
         raise NotImplementedError
 
     @property
@@ -63,7 +62,7 @@ class HttpxClient(HttpClient):
         self._client = httpx.Client(follow_redirects=True, timeout=30.0)
         self._httpx = httpx
 
-    def get(self, url: str, headers: Dict[str, str], follow_redirects: bool = True, timeout: float = 30.0) -> Any:
+    def get(self, url: str, headers: dict[str, str], follow_redirects: bool = True, timeout: float = 30.0) -> Any:
         return self._client.get(url, headers=headers, follow_redirects=follow_redirects, timeout=timeout)
 
     @property
@@ -79,7 +78,7 @@ class CurlCffiClient(HttpClient):
         self._requests = curl_requests
         self._impersonate = impersonate
 
-    def get(self, url: str, headers: Dict[str, str], follow_redirects: bool = True, timeout: float = 30.0) -> Any:
+    def get(self, url: str, headers: dict[str, str], follow_redirects: bool = True, timeout: float = 30.0) -> Any:
         return self._requests.get(
             url,
             headers=headers,
@@ -115,7 +114,7 @@ def _get_http_clients() -> list:
 
 # ===== 解析逻辑 =====
 
-def parse(url: str) -> Dict[str, Any]:
+def parse(url: str) -> dict[str, Any]:
     """
     解析抖音分享链接，返回视频元数据
 
@@ -145,7 +144,7 @@ def parse(url: str) -> Dict[str, Any]:
     raise ValueError(f"所有客户端均解析失败。最后错误: {last_error}")
 
 
-def _parse_with_client(url: str, client: HttpClient) -> Dict[str, Any]:
+def _parse_with_client(url: str, client: HttpClient) -> dict[str, Any]:
     """使用指定客户端解析"""
     # 1. 获取重定向后的长链接并提取 video_id
     r1 = client.get(url, headers={"User-Agent": ANDROID_CHROME_UA})
@@ -168,7 +167,7 @@ def _vid(raw: str) -> str:
     return raw.split("?")[0].rstrip("/").split("/")[-1]
 
 
-def _json(html: str) -> Dict[str, Any]:
+def _json(html: str) -> dict[str, Any]:
     """从 HTML 中提取 window._ROUTER_DATA JSON"""
     m = re.search(r"window\._ROUTER_DATA\s*=\s*(.*?)\s*</script>", html, re.DOTALL)
     if not m:
@@ -176,9 +175,9 @@ def _json(html: str) -> Dict[str, Any]:
     return json.loads(m.group(1).strip())
 
 
-def _info(data: Dict[str, Any]) -> Dict[str, Any]:
+def _info(data: dict[str, Any]) -> dict[str, Any]:
     """从 _ROUTER_DATA 中提取视频信息"""
-    items: Optional[list] = None
+    items: list | None = None
     for v in data.get("loaderData", {}).values():
         if isinstance(v, dict) and "videoInfoRes" in v:
             items = v["videoInfoRes"].get("item_list", [])
@@ -213,7 +212,7 @@ def _info(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _lst(d: Dict[str, Any], k1: str, k2: str) -> list:
+def _lst(d: dict[str, Any], k1: str, k2: str) -> list:
     """安全获取嵌套列表"""
     v = d.get(k1, {})
     v = v.get(k2, [])
