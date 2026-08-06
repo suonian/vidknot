@@ -182,6 +182,8 @@ class TestNewProviderAndDotEnv:
         monkeypatch.delenv("LLM_API_KEY", raising=False)
         monkeypatch.delenv("LLM_BASE_URL", raising=False)
         monkeypatch.setenv("VIDKNOT_ENV_FILE", "")
+        # 必须切到临时目录，避免 cwd/.env 的 LLM_API_KEY 通过 dotenv_values 渗入
+        monkeypatch.chdir(tmp_config_path.parent)
         ConfigManager._instance = None
         c = ConfigManager(config_path=str(tmp_config_path))
         provider = c.get_provider("openai-compatible")
