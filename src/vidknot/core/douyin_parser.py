@@ -114,12 +114,13 @@ def _get_http_clients() -> list:
 
 # ===== 解析逻辑 =====
 
-def parse(url: str) -> dict[str, Any]:
+def parse(url: str, cookie_str: str | None = None) -> dict[str, Any]:
     """
     解析抖音分享链接，返回视频元数据
 
     Args:
         url: 抖音分享链接（短链或长链）
+        cookie_str: 可选的 Cookie 字符串（格式: "key1=val1; key2=val2"）
 
     Returns:
         视频元数据字典
@@ -133,7 +134,7 @@ def parse(url: str) -> dict[str, Any]:
     for client in clients:
         try:
             logger.info(f"[DouyinParser] 尝试使用 {client.name} 解析: {url[:60]}...")
-            result = _parse_with_client(url, client)
+            result = _parse_with_client(url, client, cookie_str)
             logger.info(f"[DouyinParser] {client.name} 解析成功: {result.get('title', '')[ :30]}...")
             return result
         except Exception as e:
@@ -144,8 +145,13 @@ def parse(url: str) -> dict[str, Any]:
     raise ValueError(f"所有客户端均解析失败。最后错误: {last_error}")
 
 
-def _parse_with_client(url: str, client: HttpClient) -> dict[str, Any]:
+def _parse_with_client(url: str, client: HttpClient, cookie_str: str | None = None) -> dict[str, Any]:
     """使用指定客户端解析"""
+    headers = dict(MOBILE_HEADERS)
+    if cookie_str:
+        headers["Cookie"] = cookie_str
+        logger.debug("[DouyinParser] 已携带 Cookie")
+
     # 1. 获取重定向后的长链接并提取 video_id
     r1 = client.get(url, headers={"User-Agent": ANDROID_CHROME_UA})
     r1.raise_for_status()
@@ -154,7 +160,7 @@ def _parse_with_client(url: str, client: HttpClient) -> dict[str, Any]:
 
     # 2. 请求移动端分享页
     share_url = f"https://www.iesdouyin.com/share/video/{vid}/"
-    r2 = client.get(share_url, headers=MOBILE_HEADERS)
+    r2 = client.get(share_url, headers=headers)
     r2.raise_for_status()
 
     # 3. 解析 _ROUTER_DATA

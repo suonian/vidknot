@@ -1,12 +1,13 @@
 """
 抖音平台插件
 
-三层 Fallback 策略（从 downloader.py 迁移）：
-┌─────────────────────────────────────────────────────────────┐
-│ 第一层: 无 Cookie 快速解析（douyin_parser + 移动端指纹）      │
-│ 第二层: Cookie 解析通道（yt-dlp + cookie_provider）           │
-│ 第三层: 第三方 API 兜底（apibyte/canxiang/alapi/tikhub）      │
-└─────────────────────────────────────────────────────────────┘
+四层 Fallback 策略：
+┌─────────────────────────────────────────────────────────────────┐
+│ Layer 0: f2 XBogus 签名（scripts/f2_helper.py，免费开源，自动签名）│
+│ Layer 1: iesdouyin 直采（douyin_parser + 移动端指纹 + Cookie）    │
+│ Layer 2: yt-dlp + Cookie（可能因 X-Bogus 失败）                  │
+│ Layer 3 (opt-in): 第三方 API 兜底（apibyte/canxiang/alapi/tikhub）│
+└─────────────────────────────────────────────────────────────────┘
 
 可选对接 Evil0ctal/Douyin_TikTok_Download_API 自部署实例
 （配置 platforms.douyin.api_base_url 或 douyin.api_base_url）。
@@ -66,31 +67,41 @@ class DouyinPlatform(BasePlatform):
     ) -> tuple[Path, dict[str, Any]]:
         errors: list[str] = []
 
-        # ---- 第一层: 无 Cookie 快速解析 ----
+        # ---- Layer 0: f2 XBogus 签名（免费开源优先）----
+        if self._cfg(dl, "enable_f2", default=True):
+            try:
+                logger.info("[Douyin] Layer 0: 尝试 f2 XBogus 签名...")
+                return self._layer0_f2_helper(url, dl)
+            except Exception as e:
+                err = f"Layer0(f2签名): {str(e)[:200]}"
+                errors.append(err)
+                logger.warning(f"[Douyin] {err}")
+
+        # ---- Layer 1: iesdouyin 直采 + Cookie ----
         try:
-            logger.info("[Douyin] 第一层: 尝试无 Cookie 解析...")
+            logger.info("[Douyin] Layer 1: 尝试 iesdouyin 直采...")
             return self._layer1_parse_and_download(url, dl)
         except Exception as e:
-            err = f"第一层(无Cookie解析): {str(e)[:200]}"
+            err = f"Layer1(iesdouyin): {str(e)[:200]}"
             errors.append(err)
             logger.warning(f"[Douyin] {err}")
 
-        # ---- 第二层: yt-dlp + Cookie ----
+        # ---- Layer 2: yt-dlp + Cookie ----
         try:
-            logger.info("[Douyin] 第二层: 尝试 yt-dlp + Cookie...")
+            logger.info("[Douyin] Layer 2: 尝试 yt-dlp + Cookie...")
             return self._layer2_yt_dlp_with_cookie(url, quality, dl)
         except Exception as e:
-            err = f"第二层(yt-dlp+Cookie): {str(e)[:200]}"
+            err = f"Layer2(yt-dlp): {str(e)[:200]}"
             errors.append(err)
             logger.warning(f"[Douyin] {err}")
 
-        # ---- 第三层: 第三方 API / Evil0ctal 自部署 ----
+        # ---- Layer 3: 第三方 API / Evil0ctal 自部署 ----
         if self._cfg(dl, "enable_third_party", default=False):
             try:
-                logger.info("[Douyin] 第三层: 尝试第三方 API...")
+                logger.info("[Douyin] Layer 3: 尝试第三方 API...")
                 return self._layer3_third_party_api(url, dl)
             except Exception as e:
-                err = f"第三方API: {str(e)[:200]}"
+                err = f"Layer3(第三方API): {str(e)[:200]}"
                 errors.append(err)
                 logger.warning(f"[Douyin] {err}")
 
@@ -100,8 +111,8 @@ class DouyinPlatform(BasePlatform):
             f"抖音视频下载失败，所有策略均已尝试:\n{error_report}\n\n"
             f"建议:\n"
             f"1. 导出浏览器 Cookie 为 Netscape 格式保存到 cookies/douyin.txt\n"
-            f"2. 或开启浏览器 Remote Debugging 端口让 CDP 自动获取\n"
-            f"3. 或在 config.yaml 中配置第三方 API Key"
+            f"2. 确认 .venv-f2 已安装 f2 库（./.venv-f2/bin/pip install f2）\n"
+            f"3. 或在 config.yaml 中配置 TikHub API Key (Layer 3)"
         )
 
     def _cfg(self, dl: Any, key: str, default=None):
@@ -111,11 +122,144 @@ class DouyinPlatform(BasePlatform):
             value = dl._config.get("douyin", key, default=default)
         return value
 
-    def _layer1_parse_and_download(self, url: str, dl: Any) -> tuple[Path, dict[str, Any]]:
-        """第一层: 使用 douyin_parser 解析直链并下载"""
-        from .. import douyin_parser
+    @staticmethod
+    def _cookie_file_to_str(cookie_file: str) -> str | None:
+        """从 Netscape Cookie 文件读取为 'key=val; key2=val2' 字符串"""
+        if not cookie_file or not Path(cookie_file).exists():
+            return None
+        cookies: list[str] = []
+        try:
+            with open(cookie_file, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    parts = line.split("\t")
+                    if len(parts) >= 7:
+                        cookies.append(f"{parts[5]}={parts[6]}")
+        except Exception:
+            return None
+        return "; ".join(cookies) if cookies else None
 
-        info = douyin_parser.parse(url)
+    def _layer0_f2_helper(self, url: str, dl: Any) -> tuple[Path, dict[str, Any]]:
+        """Layer 0: 调用 f2_helper.py 子进程（免费 XBogus 签名）
+
+        要求 .venv-f2/bin/python3 已安装 f2 0.0.1.7+。
+        子进程隔离避免 f2 的庞依赖污染主 venv。
+        """
+        import subprocess
+
+        f2_python = Path(__file__).parent.parent.parent.parent / ".venv-f2" / "bin" / "python3"
+        helper_script = Path(__file__).parent.parent.parent.parent / "scripts" / "f2_helper.py"
+
+        if not f2_python.exists():
+            raise DownloadError(f".venv-f2 不存在: {f2_python}")
+        if not helper_script.exists():
+            raise DownloadError(f"f2_helper.py 不存在: {helper_script}")
+
+        # 尝试获取 Cookie
+        explicit_cookie = self._cfg(dl, "cookie_file")
+        cookie_file = None
+        if explicit_cookie and Path(explicit_cookie).exists():
+            cookie_file = explicit_cookie
+        else:
+            # 从 dl._find_cookie_file 获取
+            found = dl._find_cookie_file("douyin")
+            if found and Path(found).exists():
+                cookie_file = found
+
+        # 构造命令
+        cmd = [str(f2_python), str(helper_script), url]
+        if cookie_file:
+            cmd.extend(["--cookie-file", cookie_file])
+
+        logger.info(f"[Douyin-L0] 调用 f2_helper: {' '.join(cmd)}")
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except subprocess.TimeoutExpired:
+            raise DownloadError("f2_helper.py 超时（30秒）")
+        except Exception as e:
+            raise DownloadError(f"f2_helper.py 调用失败: {e}")
+
+        if result.returncode != 0 and not result.stdout.strip():
+            raise DownloadError(f"f2_helper.py 退出码 {result.returncode}: {result.stderr[:300]}")
+
+        # 解析 JSON 输出
+        try:
+            data = json.loads(result.stdout.strip())
+        except json.JSONDecodeError as e:
+            raise DownloadError(f"f2_helper.py 输出非 JSON: stdout={result.stdout[:200]}, stderr={result.stderr[:200]}")
+
+        if not data.get("ok"):
+            raise DownloadError(f"f2_helper 解析失败: {data.get('error', 'unknown')}")
+
+        video_url = data.get("video_url", "")
+        if not video_url:
+            raise DownloadError("f2_helper 未返回视频地址")
+
+        logger.info(f"[Douyin-L0] 获取到视频地址: {video_url[:80]}...")
+
+        # 下载视频
+        title = data.get("title", "douyin_video")
+        author = data.get("author", "unknown")
+        duration = data.get("duration", 0)
+        aweme_id = data.get("aweme_id", "douyin")
+
+        safe_title = dl._sanitize_filename(title) or "douyin_video"
+        video_path = dl.output_dir / f"douyin_f2_{author}_{aweme_id}_{safe_title}.mp4"
+
+        import httpx
+        with httpx.Client(follow_redirects=True, timeout=60.0) as client:
+            with client.stream("GET", video_url) as resp:
+                resp.raise_for_status()
+                with open(video_path, "wb") as f:
+                    for chunk in resp.iter_bytes(chunk_size=8192):
+                        f.write(chunk)
+
+        # 提取音频
+        audio_path = dl._extract_audio(video_path, video_path.stem)
+
+        metadata = {
+            "title": title,
+            "uploader": author,
+            "duration": duration,
+            "thumbnail": data.get("cover", ""),
+            "url": url,
+            "id": aweme_id,
+            "platform": "douyin",
+            "download_layer": "f2_xbogus",
+        }
+        return audio_path, metadata
+
+    def _layer1_parse_and_download(self, url: str, dl: Any) -> tuple[Path, dict[str, Any]]:
+        """第一层: 使用 douyin_parser 解析直链并下载（支持 Cookie）"""
+        from .. import douyin_parser
+        from ..cookie_provider import cleanup_temp_cookie, get_douyin_cookie_file
+
+        # 尝试获取 Cookie 以提高解析成功率
+        explicit_cookie = self._cfg(dl, "cookie_file")
+        cookie_file, strategy = get_douyin_cookie_file(
+            explicit_path=explicit_cookie,
+            enable_cdp=self._cfg(dl, "enable_cdp", default=True),
+            enable_browser_cookie3=self._cfg(dl, "enable_browser_cookie3", default=True),
+        )
+        cookie_str = self._cookie_file_to_str(cookie_file) if cookie_file else None
+        if cookie_str:
+            logger.info(f"[Douyin-L1] 使用 Cookie 策略: {strategy}")
+
+        try:
+            info = douyin_parser.parse(url, cookie_str=cookie_str)
+        finally:
+            cleanup_temp_cookie(cookie_file)
+
         video_url = info.get("video_url", "")
         if not video_url:
             raise DownloadError("解析成功但未获取到视频地址")
@@ -196,7 +340,7 @@ class DouyinPlatform(BasePlatform):
             apis = [
                 {
                     "name": "tikhub",
-                    "url": "https://api.tikhub.io/api/v1/douyin/web/fetch_one_video_by_share_url",
+                    "url": "https://api.tikhub.dev/api/v1/douyin/web/fetch_one_video_by_share_url",
                     "method": "GET",
                     "param_name": "share_url",
                     "headers": {"Authorization": f"Bearer {tikhub_key}"},

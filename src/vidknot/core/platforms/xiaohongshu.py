@@ -2,9 +2,14 @@
 小红书平台插件
 
 策略：
-1. 优先尝试图片笔记下载（纯图文笔记）
+1. 优先尝试图片笔记下载（解析 __INITIAL_STATE__ + CDN 正则回退）
 2. 失败则回退到 yt-dlp 视频下载
-3. 可选对接 XHS-Downloader（pip install xhs-downloader）作为最终兜底
+3. 可选对接 xhs 库（pip install xhs）或 XHS-Downloader 作为增强
+
+关键要求：
+- xsec_token 必须保留在 URL 查询参数中（否则 404）
+- 需要登录 Cookie（web_session, a1, webId 等）
+- 短链接 xhslink.cn/xhslink.com 需先 302 解析
 """
 
 import re
@@ -22,7 +27,7 @@ class XiaoHongShuPlatform(BasePlatform):
     """小红书平台：图片优先 + yt-dlp 视频兜底"""
 
     name = "xiaohongshu"
-    domains = ["xiaohongshu.com", "xhslink.com"]
+    domains = ["xiaohongshu.com", "xhslink.com", "xhslink.cn"]
 
     def download(
         self,
@@ -126,7 +131,14 @@ class XiaoHongShuPlatform(BasePlatform):
         note_id = ""
 
         try:
-            with httpx.Client(headers=headers, follow_redirects=True, timeout=30.0) as client:
+            # 获取 Cookie（小红书需要登录 Cookie 才能访问笔记）
+            cookie_file = dl._try_export_cookies("xiaohongshu")
+            cookies_dict = self._load_cookies(cookie_file)
+
+            with httpx.Client(
+                headers=headers, cookies=cookies_dict,
+                follow_redirects=True, timeout=30.0,
+            ) as client:
                 resp = client.get(url)
                 actual_url = str(resp.url)
                 logger.info(f"[XiaoHongShu] 解析到实际 URL: {actual_url}")
@@ -135,8 +147,12 @@ class XiaoHongShuPlatform(BasePlatform):
                 if note_id == "unknown":
                     raise DownloadError(f"无法从 URL 提取小红书笔记 ID: {actual_url}")
 
+                # 保留完整查询参数（xsec_token 是必需的，否则 404）
+                from urllib.parse import urlparse, urlunparse
+                parsed = urlparse(actual_url)
                 api_url = f"https://www.xiaohongshu.com/explore/{note_id}"
-                url = actual_url
+                if parsed.query:
+                    api_url += f"?{parsed.query}"
 
                 title = f"xiaohongshu_{note_id}"
                 image_urls = []
@@ -145,40 +161,17 @@ class XiaoHongShuPlatform(BasePlatform):
                 resp.raise_for_status()
                 html = resp.text
 
-                image_patterns = [
-                    r'"url":"(https?://sns-img[^"]+\.jpg[^"]*)"',
-                    r'"url":"(https?://sns-img[^"]+\.jpeg[^"]*)"',
-                    r'"url":"(https?://sns-img[^"]+\.png[^"]*)"',
-                    r'"url":"(https?://sns-web[^"]+\.jpg[^"]*)"',
-                    r'"url":"(https?://sns-web[^"]+\.jpeg[^"]*)"',
-                    r'"url":"(https?://sns-web[^"]+\.png[^"]*)"',
-                    r'"urlDefault":"(https?://sns-img[^"]+\.(?:jpg|jpeg|png)[^"]*)"',
-                    r'"url":"(https?://sns\.xiaohongshu\.com[^"]+\.(?:jpg|jpeg|png)[^"]*)"',
-                ]
-
-                for pattern in image_patterns:
-                    found = re.findall(pattern, html)
-                    image_urls.extend(found)
-
-                image_urls = list(dict.fromkeys(image_urls))
+                # 优先从 __INITIAL_STATE__ 提取图片（最可靠）
+                state_title, image_urls = self._extract_from_state(html, note_id)
+                if state_title:
+                    title = state_title
 
                 if not image_urls:
-                    logger.warning("[XiaoHongShu] 未找到图片，尝试其他方法...")
+                    # 回退到正则匹配
+                    image_urls = self._extract_images_by_regex(html)
                     title_match = re.search(r'"title":"([^"]+)"', html)
                     if title_match:
                         title = title_match.group(1)
-                        logger.info(f"[XiaoHongShu] 提取到标题: {title}")
-
-                    web_img_patterns = [
-                        r'src="(https?://sns-img[^"]+)"',
-                        r'data-src="(https?://sns-img[^"]+)"',
-                        r'background-image:\s*url\(["\']?(https?://[^"\')\s]+\.(?:jpg|jpeg|png)[^"\')\s]*)[ "\']?\)',
-                    ]
-                    for pattern in web_img_patterns:
-                        found = re.findall(pattern, html)
-                        image_urls.extend(found)
-
-                    image_urls = list(dict.fromkeys(image_urls))
 
                 if not image_urls:
                     raise DownloadError("未找到可下载的图片")
@@ -235,12 +228,86 @@ class XiaoHongShuPlatform(BasePlatform):
         return result_file, metadata
 
     @staticmethod
+    def _load_cookies(cookie_file: str | None) -> dict[str, str] | None:
+        """从 Netscape Cookie 文件加载 Cookie 字典"""
+        if not cookie_file or not Path(cookie_file).exists():
+            return None
+        cookies = {}
+        try:
+            with open(cookie_file, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    parts = line.split("\t")
+                    if len(parts) >= 7 and "xiaohongshu" in parts[0].lower():
+                        cookies[parts[5]] = parts[6]
+        except Exception:
+            pass
+        return cookies or None
+
+    @staticmethod
+    def _extract_from_state(html: str, note_id: str) -> tuple[str, list[str]]:
+        """从 __INITIAL_STATE__ JSON 提取标题和图片 URL（最可靠）
+
+        Returns:
+            (title, image_urls) 元组
+        """
+        import json as _json
+
+        match = re.search(r'window\.__INITIAL_STATE__\s*=\s*(\{.+?\})\s*</script>', html, re.DOTALL)
+        if not match:
+            return "", []
+
+        try:
+            # 小红书 JSON 中 undefined 需替换为 null
+            raw = match.group(1).replace("undefined", "null")
+            state = _json.loads(raw)
+        except Exception:
+            return "", []
+
+        title = ""
+        image_urls: list[str] = []
+        # 遍历笔记数据查找 imageList
+        note_data = state.get("note", {}).get("noteDetailMap", {})
+        for key, val in note_data.items():
+            note_detail = val.get("note", {}) if isinstance(val, dict) else {}
+            # 提取标题
+            note_title = note_detail.get("title", "")
+            if note_title:
+                title = note_title
+            # 提取图片
+            image_list = note_detail.get("imageList", [])
+            for img in image_list:
+                url = img.get("urlDefault") or img.get("url", "")
+                if url and isinstance(url, str) and url.startswith("http"):
+                    image_urls.append(url)
+
+        return title, list(dict.fromkeys(image_urls))
+
+    @staticmethod
+    def _extract_images_by_regex(html: str) -> list[str]:
+        """通过正则匹配图片 URL（回退方案，覆盖所有已知 CDN）"""
+        image_patterns = [
+            # 所有已知小红书图片 CDN 域名
+            r'"url[^"]*":"(https?://sns-webpic[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+            r'"url[^"]*":"(https?://sns-img[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+            r'"url[^"]*":"(https?://sns-web[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+            r'"url[^"]*":"(https?://sns\.xiaohongshu\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+            r'"url[^"]*":"(https?://ci\.xiaohongshu\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+        ]
+        image_urls: list[str] = []
+        for pattern in image_patterns:
+            image_urls.extend(re.findall(pattern, html))
+        return list(dict.fromkeys(image_urls))
+
+    @staticmethod
     def _extract_note_id(url: str) -> str:
         """从 URL 提取小红书笔记 ID"""
         patterns = [
             r"/discovery/item/([a-zA-Z0-9]+)",
             r"/explore/([a-zA-Z0-9]+)",
-            r"xhslink\.com/[a-zA-Z]+/([a-zA-Z0-9]+)",
+            r"xhslink\.(?:com|cn)/[a-zA-Z]+/([a-zA-Z0-9]+)",
             r"xiaohongshu\.com/discovery/item/([a-zA-Z0-9]+)",
         ]
         for pattern in patterns:
