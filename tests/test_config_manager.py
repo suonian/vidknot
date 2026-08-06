@@ -165,14 +165,21 @@ class TestNewProviderAndDotEnv:
     # 每个测试都需要干净的单例
     def _fresh_config(self, config_path, **env):
         ConfigManager._instance = None
+        # 屏蔽外界 VIDKNOT_ENV_FILE，避免服务器上 ~/.hermes/.env 的 LLM_API_KEY 污染测试
+        old_vidknot_env = os.environ.pop("VIDKNOT_ENV_FILE", None)
         for k, v in env.items():
             os.environ[k] = v
-        c = ConfigManager(config_path=str(config_path))
-        for k in env:
-            os.environ.pop(k, None)
+        try:
+            c = ConfigManager(config_path=str(config_path))
+        finally:
+            for k in env:
+                os.environ.pop(k, None)
+            if old_vidknot_env:
+                os.environ["VIDKNOT_ENV_FILE"] = old_vidknot_env
         return c
 
-    def test_openai_compatible_defaults(self, tmp_config_path):
+    def test_openai_compatible_defaults(self, tmp_config_path, monkeypatch):
+        monkeypatch.setenv("VIDKNOT_ENV_FILE", "")
         ConfigManager._instance = None
         c = ConfigManager(config_path=str(tmp_config_path))
         provider = c.get_provider("openai-compatible")
