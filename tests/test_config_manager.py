@@ -179,6 +179,8 @@ class TestNewProviderAndDotEnv:
         return c
 
     def test_openai_compatible_defaults(self, tmp_config_path, monkeypatch):
+        monkeypatch.delenv("LLM_API_KEY", raising=False)
+        monkeypatch.delenv("LLM_BASE_URL", raising=False)
         monkeypatch.setenv("VIDKNOT_ENV_FILE", "")
         ConfigManager._instance = None
         c = ConfigManager(config_path=str(tmp_config_path))
