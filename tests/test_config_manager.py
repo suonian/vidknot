@@ -173,6 +173,7 @@ class TestNewProviderAndDotEnv:
         return c
 
     def test_openai_compatible_defaults(self, tmp_config_path):
+        ConfigManager._instance = None
         c = ConfigManager(config_path=str(tmp_config_path))
         provider = c.get_provider("openai-compatible")
         assert provider["api_key"] is None
