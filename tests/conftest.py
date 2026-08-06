@@ -5,23 +5,21 @@ pytest 全局 fixtures
 """
 
 import os
-import sys
+
+# 确保 src/ 路径在 sys.path 中（方便直接 import vidknot）
+# 注意：collection 阶段就需要这个路径，所以用 conftest.py 根级别而非 fixture
+import sys as _sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-
-# 确保 src/ 路径在 sys.path 中（方便直接 import vidknot）
-# 注意：collection 阶段就需要这个路径，所以用 conftest.py 根级别而非 fixture
-import sys as _sys
 _src_path = str(Path(__file__).parent.parent / "src")
 if _src_path not in _sys.path:
     _sys.path.insert(0, _src_path)
 
 
 # ===== 每个测试前重置 ConfigManager 单例 =====
-import pytest
 
 
 @pytest.fixture(autouse=True)

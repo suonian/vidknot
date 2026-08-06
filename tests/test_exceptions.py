@@ -3,20 +3,21 @@
 """
 
 import pytest
+
 from vidknot.utils.exceptions import (
-    VidkNotError,
-    DownloadError,
-    PlatformNotSupportedError,
-    TranscriptionError,
-    EmptyAudioError,
-    LLMError,
-    LLMAPIError,
-    StorageError,
-    FeishuAuthError,
-    ObsidianWriteError,
-    DependencyError,
-    FFmpegNotFoundError,
     ConfigError,
+    DependencyError,
+    DownloadError,
+    EmptyAudioError,
+    FeishuAuthError,
+    FFmpegNotFoundError,
+    LLMAPIError,
+    LLMError,
+    ObsidianWriteError,
+    PlatformNotSupportedError,
+    StorageError,
+    TranscriptionError,
+    VidkNotError,
 )
 
 

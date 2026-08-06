@@ -14,15 +14,14 @@ import pytest
 
 from vidknot.core.corrector import (
     DualASRCorrector,
-    run_correction_pipeline,
+    _extract_corrected_transcript,
+    _make_diff,
     _normalize,
     _strip_timestamps,
-    _make_diff,
-    _extract_corrected_transcript,
+    run_correction_pipeline,
 )
 from vidknot.core.transcriber import FasterWhisperASR, SiliconFlowASR
 from vidknot.utils.exceptions import CorrectionError, LLMError
-
 
 # ========== 工具函数测试 ==========
 

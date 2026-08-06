@@ -4,8 +4,7 @@
 
 import logging
 
-import pytest
-from vidknot.utils.logger import get_logger, log_step, log_download_progress
+from vidknot.utils.logger import get_logger, log_download_progress, log_step
 
 
 class TestGetLogger:

@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-08-06
+
+### Added
+
+- **`.env` file support**: `ConfigManager` now loads `dotenv_values` from local
+  `.env` files, and `python -m vidknot` calls `load_dotenv` at entry for
+  consistent env views across all consumers.
+- **`VIDKNOT_ENV_FILE`**: comma-separated shared credential file paths for
+  multi-agent hosts (e.g. `~/.hermes/.env`). Generic `OPENAI_*` / `ZHIPUAI_MODEL`
+  keys in shared files are stripped to prevent key leakage from host agents.
+- **`openai-compatible` provider**: new provider block for generic OpenAI-compatible
+  LLM endpoints (MiniMax, DeepSeek, etc.), configurable via `LLM_API_KEY`,
+  `LLM_BASE_URL`, and `VIDKNOT_LLM_MODEL`.
+- **`LLM_API_KEY` dual mapping**: applies to both `openai` and `openai-compatible`
+  providers for backward compatibility.
+
+### Changed
+
+- `OpenAITranscribeASR._get_client()` no longer falls back to `os.getenv("OPENAI_API_KEY")`;
+  key resolution is centralized in `ConfigManager._apply_env_overrides()`.
+- `yt-dlp` bumped to `>=2026.07`.
+
+### Fixed
+
+- PyPI trove classifier `Natural Language :: Chinese (Simplified)` (was invalid
+  `Chinese`, causing all release workflows to fail since v0.2.0).
+
 ## [0.3.1] - 2026-08-06
 
 ### Added

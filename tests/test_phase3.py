@@ -14,9 +14,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-
 # ============================================================
 # MCP 工具 Schema 与平台状态
 # ============================================================

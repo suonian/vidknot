@@ -5,10 +5,9 @@
 """
 
 import os
-import tempfile
-from pathlib import Path
 
 import pytest
+
 from vidknot.utils.config_manager import ConfigManager
 
 
@@ -158,6 +157,96 @@ class TestConfigEnvOverrides:
         monkeypatch.setenv("TIKHUB_API_KEY", "tikhub-test-key")
         c = ConfigManager(config_path=str(tmp_config_path))
         assert c.get("douyin", "tikhub", "api_key") == "tikhub-test-key"
+
+
+class TestNewProviderAndDotEnv:
+    """测试 openai-compatible provider + .env 加载 + LLM_API_KEY 双映射"""
+
+    # 每个测试都需要干净的单例
+    def _fresh_config(self, config_path, **env):
+        ConfigManager._instance = None
+        for k, v in env.items():
+            os.environ[k] = v
+        c = ConfigManager(config_path=str(config_path))
+        for k in env:
+            os.environ.pop(k, None)
+        return c
+
+    def test_openai_compatible_defaults(self, tmp_config_path):
+        c = ConfigManager(config_path=str(tmp_config_path))
+        provider = c.get_provider("openai-compatible")
+        assert provider["api_key"] is None
+        assert provider["base_url"] is None
+        assert provider["model"] == "gpt-4o"
+
+    def test_llm_api_key_dual_mapping(self, tmp_config_path):
+        """LLM_API_KEY 应同时映射到 openai 和 openai-compatible"""
+        c = self._fresh_config(tmp_config_path, LLM_API_KEY="dual-key-123")
+        assert c.get("providers", "openai", "api_key") == "dual-key-123"
+        assert c.get("providers", "openai-compatible", "api_key") == "dual-key-123"
+
+    def test_llm_api_key_does_not_overwrite_existing_openai_key(self, tmp_config_path):
+        """如果 openai provider 已有独立的 api_key，LLM_API_KEY 不应覆盖它"""
+        c = self._fresh_config(
+            tmp_config_path,
+            OPENAI_API_KEY="openai-specific",
+            LLM_API_KEY="generic-llm-key",
+        )
+        assert c.get("providers", "openai", "api_key") == "openai-specific"
+        # openai-compatible 不受 OPENAI_API_KEY 影响，应拿到 LLM_API_KEY
+        assert c.get("providers", "openai-compatible", "api_key") == "generic-llm-key"
+
+    def test_llm_base_url_env(self, tmp_config_path):
+        c = self._fresh_config(tmp_config_path, LLM_BASE_URL="https://api.minimaxi.com/v1")
+        assert c.get("providers", "openai-compatible", "base_url") == "https://api.minimaxi.com/v1"
+
+    def test_vidknot_llm_model_env(self, tmp_config_path):
+        c = self._fresh_config(tmp_config_path, VIDKNOT_LLM_MODEL="MiniMax-M3")
+        assert c.get("providers", "openai-compatible", "model") == "MiniMax-M3"
+
+    def test_dotenv_local_file_loaded(self, tmp_path):
+        """本地 .env 文件内容应被加载并覆盖配置"""
+        env_file = tmp_path / ".env"
+        env_file.write_text("LLM_API_KEY=dotenv-key\nLLM_BASE_URL=https://test.local/v1\n")
+        config_file = tmp_path / "config.local.yaml"
+        config_file.write_text("")
+        ConfigManager._instance = None
+        os.chdir(tmp_path)
+        try:
+            c = ConfigManager()
+            assert c.get("providers", "openai-compatible", "api_key") == "dotenv-key"
+        finally:
+            ConfigManager._instance = None
+
+    def test_process_env_wins_over_dotenv(self, tmp_path):
+        """进程环境变量优先级 > .env 文件"""
+        env_file = tmp_path / ".env"
+        env_file.write_text("LLM_API_KEY=dotenv-key\n")
+        config_file = tmp_path / "config.local.yaml"
+        config_file.write_text("")
+        ConfigManager._instance = None
+        os.chdir(tmp_path)
+        os.environ["LLM_API_KEY"] = "env-key"
+        try:
+            c = ConfigManager()
+            assert c.get("providers", "openai-compatible", "api_key") == "env-key"
+        finally:
+            os.environ.pop("LLM_API_KEY", None)
+            ConfigManager._instance = None
+
+    def test_openai_api_key_not_from_dotenv(self, tmp_path):
+        """OPENAI_API_KEY 不从 .env 读取（避免与 LLM_API_KEY 冲突）"""
+        env_file = tmp_path / ".env"
+        env_file.write_text("OPENAI_API_KEY=should-not-appear\n")
+        config_file = tmp_path / "config.local.yaml"
+        config_file.write_text("")
+        ConfigManager._instance = None
+        os.chdir(tmp_path)
+        try:
+            c = ConfigManager()
+            assert c.get("providers", "openai", "api_key") is None
+        finally:
+            ConfigManager._instance = None
 
 
 # ===== Pytest Fixtures =====

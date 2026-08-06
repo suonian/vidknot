@@ -9,24 +9,22 @@
 """
 
 import os
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from vidknot.core.transcriber import (
-    SiliconFlowASR,
     FasterWhisperASR,
+    SiliconFlowASR,
     get_transcriber,
 )
 from vidknot.utils.exceptions import (
-    TranscriptionError,
     EmptyAudioError,
-    UnsupportedAudioFormatError,
     NoAPIKeyError,
+    TranscriptionError,
+    UnsupportedAudioFormatError,
 )
-
 
 # ========== SiliconFlowASR 测试 ==========
 

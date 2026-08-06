@@ -21,6 +21,12 @@ logger = get_logger("vidknot.cli")
 
 def main():
     """智能检测运行模式并启动对应服务"""
+    # 加载 .env 文件（不覆盖已有的进程环境变量）
+    # 注意：ConfigManager 也会加载 dotenv，这里是为直接读 os.getenv 的调用方
+    # （如 transcriber、adapter 等）提供一致的 env 视图
+    from dotenv import load_dotenv
+    load_dotenv(Path.cwd() / ".env", override=False)
+
     parser = argparse.ArgumentParser(
         description="VidkNot — Video Knowledge, Knotted. 将视频链接转换为结构化笔记，自动保存到飞书文档或 Obsidian Vault。",
         formatter_class=argparse.RawDescriptionHelpFormatter,

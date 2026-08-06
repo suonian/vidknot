@@ -256,7 +256,7 @@ class OpenAITranscribeASR:
 
         config = ConfigManager()
         key = self.api_key or config.get("providers", "openai", "api_key") or ""
-        key = (key or os.getenv("OPENAI_API_KEY", "")).strip()
+        key = key.strip()
 
         if not key or key.startswith("YOUR_"):
             raise NoAPIKeyError(

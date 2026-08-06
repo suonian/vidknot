@@ -34,6 +34,13 @@ providers:
     base_url: https://api.openai.com/v1
     model: gpt-4o-mini
     max_tokens: 4000
+  # OpenAI-compatible provider（通用 LLM 接入点，如 MiniMax / DeepSeek / 豆包等）
+  # 配置环境变量 LLM_API_KEY / LLM_BASE_URL / VIDKNOT_LLM_MODEL
+  openai-compatible:
+    api_key: ""
+    base_url: ""
+    model: gpt-4o
+    max_tokens: 4000
   zhipuai:
     api_key: YOUR_ZHIPU_KEY
     base_url: https://open.bigmodel.cn/api/paas/v4/
