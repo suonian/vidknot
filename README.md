@@ -172,6 +172,14 @@ VidkNot writes Markdown notes with:
 | [COOKIE_GUIDE.md](COOKIE_GUIDE.md) | Cookie setup and security |
 | [DEPENDENCIES.md](DEPENDENCIES.md) | Direct dependencies |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [docs/PRIVACY.md](docs/PRIVACY.md) | Privacy guarantees and credential scanning |
+| [docs/CONFIG.md](docs/CONFIG.md) | Environment variable reference |
+| [docs/BACKENDS.md](docs/BACKENDS.md) | Backend storage configuration |
+| [docs/PLATFORMS.md](docs/PLATFORMS.md) | Platform support matrix + TikHub endpoints |
+| [docs/DOUYIN_FALLBACK.md](docs/DOUYIN_FALLBACK.md) | Douyin 4-layer fallback strategy |
+| [docs/EXPERIENCES.md](docs/EXPERIENCES.md) | Field-tested battle scars |
+| [docs/EXAMPLES.md](docs/EXAMPLES.md) | Custom backend / task / batch / source recipes |
+| [scripts/codex_sample_curator.py](scripts/codex_sample_curator.py) | Six-gate check for Codex-quality sample candidates |
 
 ## Security And Compliance
 
