@@ -6,9 +6,9 @@ collection helpers. No URL lists or user data are baked in.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from ...pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
 from ..source import SourcesFile, load_sources_file

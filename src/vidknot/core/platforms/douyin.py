@@ -132,7 +132,7 @@ class DouyinPlatform(BasePlatform):
             return None
         cookies: list[str] = []
         try:
-            with open(cookie_file, "r", encoding="utf-8", errors="replace") as f:
+            with open(cookie_file, encoding="utf-8", errors="replace") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -198,7 +198,7 @@ class DouyinPlatform(BasePlatform):
         # 解析 JSON 输出
         try:
             data = json.loads(result.stdout.strip())
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             raise DownloadError(f"f2_helper.py 输出非 JSON: stdout={result.stdout[:200]}, stderr={result.stderr[:200]}")
 
         if not data.get("ok"):

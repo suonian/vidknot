@@ -27,7 +27,7 @@
 | Twitter / X | 短视频 | ✅ yt-dlp 稳定支持 |
 | Instagram | Reels | ✅ yt-dlp 稳定支持 |
 | 微信视频号 | 短视频 | ✅ |
-| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug |
+| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.4.0 仍生效）|
 | 小红书（视频笔记） | 短视频 | ✅ 从 `__INITIAL_STATE__` 拿无水印直链 |
 | 快手、微博 | 短视频 | ⚠️ 框架已就位，依赖 yt-dlp |
 | 任何 yt-dlp 支持的站点 | 混合 | ✅ GenericPlatform 兜底 |
@@ -46,10 +46,10 @@
 
 ## 安装
 
-当前 GitHub 版本为 `v0.3.3`。从 GitHub 安装：
+当前 GitHub 版本为 `v0.4.0`。从 GitHub 安装：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.3.3"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.0"
 ```
 
 开发安装：

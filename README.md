@@ -27,7 +27,7 @@ VidkNot turns video links into structured knowledge notes. It downloads audio, t
 | Twitter / X | Short video | ✅ Stable via yt-dlp |
 | Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
 | WeChat Channels (视频号) | Short video | ✅ |
-| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.4.0) |
 | Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
 | Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
 | Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
@@ -46,10 +46,10 @@ See [COOKIE_GUIDE.md](COOKIE_GUIDE.md) for the full capability matrix.
 
 ## Installation
 
-The current GitHub release is `v0.3.3`. Install from GitHub:
+The current GitHub release is `v0.4.0`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.3.3"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.0"
 ```
 
 For development:

@@ -218,7 +218,7 @@ class XiaoHongShuPlatform(BasePlatform):
                     raise DownloadError(f"无法从 URL 提取小红书笔记 ID: {actual_url}")
 
                 # 保留完整查询参数（xsec_token 是必需的，否则 404）
-                from urllib.parse import urlparse, urlunparse
+                from urllib.parse import urlparse
                 parsed = urlparse(actual_url)
                 api_url = f"https://www.xiaohongshu.com/explore/{note_id}"
                 if parsed.query:
@@ -496,7 +496,7 @@ class XiaoHongShuPlatform(BasePlatform):
             return None
         cookies = {}
         try:
-            with open(cookie_file, "r", encoding="utf-8", errors="replace") as f:
+            with open(cookie_file, encoding="utf-8", errors="replace") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):

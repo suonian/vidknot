@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-10
+
+### Platform Evolution: 视频转笔记工具 → 通用研究平台框架
+
+本次为大版本（major bump）：vidknot 从"视频转笔记工具"升级为"通用研究平台框架"。
+**完全向后兼容** —— 现有 CLI / FastAPI / MCP / Python API、11 个平台插件、ASR + 校正流水线零改动。
+v0.3.4 已发布的所有功能在新版本中完全保留。
+
+### Added (Hermes / 小云 feature/general-platform-framework)
+
+#### 核心框架模块
+- **core/backend/** — 可插拔存储抽象层
+  - `NotePayload` / `StorageResult` / `BackendError` 数据类
+  - `BackendStorage` 协议 + `BackendRegistry` 注册表
+  - `SqliteBackend` 内置实现（路径由 `VIDKNOT_SQLITE_PATH` env 控制）
+  - `build_default_registry()` 工厂函数
+- **core/source/** — 订阅源 schema + 凭证注入保护
+  - `SourceConfig` / `SourceKind` / `SourcesFile` 数据类
+  - `load_sources_file(path)` 解析 YAML / JSON
+  - **凭证拒绝机制**：加载时主动拒绝 8 类危险模式（`sessionid=` / `ttwid=` / `odin_ttid=` / `fpk1=` / `fpk2=` / `web_session=` / `AI_PASS=` / `Bearer ` / `sk-` / `SK-`）
+- **core/batch/** — 批处理 driver
+  - `BatchSummary` / `collect_urls()` / `run_batch()`
+- **core/monitor/** — 通用周期调度器
+  - `MonitorTask` (base) / `TaskRegistry` / `MonitorScheduler` / `ScheduledRun`
+  - async `run_once()` 和 `run_forever(max_ticks=...)` 带上限防止泄漏
+  - 错误 per-task 捕获不抛出
+
+#### 文档
+- `docs/PRIVACY.md` — 隐私声明（仓库零用户数据 / 零嵌入凭证）
+- `docs/BACKENDS.md` — 后端配置（含飞书机器人接法）
+- `docs/CONFIG.md` — 全部环境变量参考
+- `docs/EXAMPLES.md` — 自定义 backend / task / batch / source 配方
+- `examples/sources.yaml.example` — 空模板（零真实账号）
+
+#### Tests
+- `tests/test_backend.py` — 9 个测试
+- `tests/test_source.py` — 20 个测试（含凭证拒绝反例）
+- `tests/test_batch.py` — 8 个测试
+- `tests/test_monitor.py` — 10 个测试
+- **新增 47 个测试**（247 → 294）
+
+#### Dev Dependencies
+- 加 `pytest-asyncio>=0.21`（core/monitor 异步测试需要）
+
+### Privacy & Safety
+
+- 仓库**无 cookies / tokens / API keys**
+- 仓库**无账号列表 / 频道列表 / KOL 标识**
+- 仓库**无私有文件夹 / 文档 / 聊天 ID**
+- `load_sources_file` 主动拒绝凭证模式注入
+- 所有示例使用占位 URL
+
+### Verified
+
+- 294 tests pass
+- ruff lint 0 errors
+- 现有核心模块（platforms / transcriber / processor / downloader / cookie_provider）零改动
+- v0.3.4 已发布功能完全保留
+
+## [0.3.4] - 2026-08-10
+
 ## [0.3.4] - 2026-08-10
 
 ### Changed

@@ -5,8 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 from vidknot.core.batch import BatchSummary, collect_urls, run_batch
 
 

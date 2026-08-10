@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from .base import BackendError, BackendStorage, NotePayload, StorageResult
-
 
 _DEFAULT_PATH = "./vidknot_notes.db"
 

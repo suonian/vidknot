@@ -16,7 +16,7 @@ Use one of these private channels instead:
 
 - GitHub Security Advisories: <https://github.com/suonian/vidknot/security/advisories/new>
 - Email: see the latest maintainer contact published in `git log --format='%ae'` for the
-  latest tagged commit (e.g. `v0.3.3`).
+  latest tagged commit (e.g. `v0.4.0`).
 
 When reporting, please include:
 

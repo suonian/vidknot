@@ -19,9 +19,10 @@ from __future__ import annotations
 import asyncio
 import time
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Awaitable, Callable, Iterable, Mapping
+from typing import Any
 
 
 class MonitorTask(ABC):
@@ -121,7 +122,7 @@ class MonitorScheduler:
             task_results=tuple(results),
         )
 
-    async def run_forever(self) -> "AsyncIterator[ScheduledRun]":
+    async def run_forever(self) -> AsyncIterator[ScheduledRun]:
         """Yield :class:`ScheduledRun` results until ``max_ticks`` is hit.
 
         Yields rather than returning a list, so callers can stream logs
