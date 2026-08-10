@@ -1,4 +1,4 @@
-#!/usr/bin/env /Users/suonian/Documents/vidknot/.venv-f2/bin/python3
+#!/usr/bin/env python3
 """
 f2_helper.py — VidkNot 抖音下载辅助脚本（基于 f2 X-Bogus 签名）
 
@@ -13,23 +13,35 @@ f2_helper.py — VidkNot 抖音下载辅助脚本（基于 f2 X-Bogus 签名）
 - 使用 f2 库的 XBogusManager 自动签名 API 请求（解决抖音 X-Bogus 反爬）
 - 不污染 vidknot 主 venv（独立 .venv-f2）
 - 输出 JSON 给主程序解析
+
+运行环境：
+- 需要安装 f2 的独立虚拟环境（默认 ./../.venv-f2，可在环境变量 F2_VENV 中覆盖）
+- 主程序通过 subprocess 调用本脚本
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
-# 让 f2 库能找到
-sys.path.insert(0, "/Users/suonian/Documents/vidknot/.venv-f2/lib/python3.13/site-packages")
+# 定位 f2 虚拟环境（默认与仓库同级 .venv-f2）
+_F2_VENV = os.environ.get("F2_VENV") or str(Path(__file__).resolve().parent.parent / ".venv-f2")
+_F2_SITE_PACKAGES = os.path.join(_F2_VENV, "lib", "python3.13", "site-packages")
+if Path(_F2_SITE_PACKAGES).exists():
+    sys.path.insert(0, _F2_SITE_PACKAGES)
 
 import httpx  # noqa: E402
 
-from f2.apps.douyin.api import DouyinAPIEndpoints as dyendpoint  # noqa: E402
-from f2.apps.douyin.utils import ClientConfManager, XBogusManager  # noqa: E402
+try:
+    from f2.apps.douyin.api import DouyinAPIEndpoints as dyendpoint  # noqa: E402
+    from f2.apps.douyin.utils import ClientConfManager, XBogusManager  # noqa: E402
+except ImportError as e:
+    print(json.dumps({"ok": False, "error": f"f2 未安装或虚拟环境配置错误: {e}"}), flush=True)
+    sys.exit(1)
 
 
 def load_cookie_str(cookie_file: str | None) -> str:

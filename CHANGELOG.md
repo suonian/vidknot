@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Verified
 
-- 端到端测试：链接 `https://www.xiaohongshu.com/discovery/item/6a75a820000000002800b463`（让 Hermes🐎 变好用的 19 个隐藏设置）跑完整 pipeline：下载视频（7.6 MB）→ 抽音频 → SiliconFlow + FasterWhisper 双 ASR 转录 → 双 ASR diff → LLM 校正 → 生成结构化 Markdown 笔记，全部成功。
+- 端到端测试：一条小红书视频笔记（4:54 时长 / 7.6 MB）跑完整 pipeline：下载视频 → 抽音频 → SiliconFlow + FasterWhisper 双 ASR 转录 → 双 ASR diff → LLM 校正 → 生成结构化 Markdown 笔记，全部成功。
 - 242 个单元测试全部通过。
 
 ## [0.3.2] - 2026-08-06
