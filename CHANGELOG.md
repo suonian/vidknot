@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-08-10
+
+### Added
+
+- **小红书视频笔记直链下载** (`xiaohongshu.py`)：从 `__INITIAL_STATE__.note.video.media.stream.h264[0].masterUrl` 拿无水印视频直链，多清晰度候选（HD/SD/原链）自动尝试；下载后调用 `dl._extract_audio` 抽音频用于转写。
+- **笔记类型探测** (`XiaoHongShuPlatform._probe_note_type`)：从 HTML 提取 `video.media.stream` 字段判断笔记是视频还是图片，避免 yt-dlp 对小红书不可靠的 fallback。
+- **平衡括号 JSON 提取器** (`_extract_balanced_json`)：处理 `__INITIAL_STATE__` 多行 JSON 截断问题，修复之前正则非贪婪导致的解析失败。
+- **抖音 Layer 0: f2 X-Bogus 集成** (`scripts/f2_helper.py`)：调用 f2 库的 `XBogusManager.str_2_endpoint` 自动签名 POST_DETAIL URL，通过 `.venv-f2` 隔离依赖（结构就绪；f2 0.0.1.7 签名算法已被抖音更新，运行时仍回退 Layer 1）。
+- **抖音 Cookie 支持** (`douyin_parser.parse(cookie_str=...)`)：Layer 1 自动从 `cookie_provider` 获取 Cookie 并注入请求头。
+- **`COOKIE_GUIDE.md` 能力地图章节**：记录各平台可用性、抖音四层 Fallback 状态、行业级未解难题（如 X-Bogus 纯开源签名）。
+
+### Changed
+
+- TikHub 端点从 `api.tikhub.io`（国际）切换到 `api.tikhub.dev`（大陆直连，无需代理）。
+- 小红书 `_extract_from_state` 返回签名扩展为 `(title, image_urls, video_url)`，同时支持图片和视频直链提取。
+- 小红书主下载流程重构：`probe → video/image → yt-dlp → XHS-Downloader` 三层回退；探测失败（短链被风控跳首页）时自动让 video 路径接管，避免走错分支。
+
+### Fixed
+
+- 小红书 `_extract_note_id` 正则不支持 `xhslink.cn` 短链 → 修复。
+- 小红书 `_download_images` 未保留 `xsec_token`（短链 302 后 404）→ 修复。
+- 小红书 httpx.Client 未传入 Cookie → 修复。
+- 小红书图片 CDN 正则未覆盖 `sns-webpic-qc.xhscdn.com` → 修复。
+
+### Verified
+
+- 端到端测试：链接 `https://www.xiaohongshu.com/discovery/item/6a75a820000000002800b463`（让 Hermes🐎 变好用的 19 个隐藏设置）跑完整 pipeline：下载视频（7.6 MB）→ 抽音频 → SiliconFlow + FasterWhisper 双 ASR 转录 → 双 ASR diff → LLM 校正 → 生成结构化 Markdown 笔记，全部成功。
+- 242 个单元测试全部通过。
+
 ## [0.3.2] - 2026-08-06
 
 ### Added
