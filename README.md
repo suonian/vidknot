@@ -179,6 +179,7 @@ VidkNot writes Markdown notes with:
 | [docs/DOUYIN_FALLBACK.md](docs/DOUYIN_FALLBACK.md) | Douyin 4-layer fallback strategy |
 | [docs/EXPERIENCES.md](docs/EXPERIENCES.md) | Field-tested battle scars |
 | [docs/EXAMPLES.md](docs/EXAMPLES.md) | Custom backend / task / batch / source recipes |
+| [scripts/codex_sample_curator.py](scripts/codex_sample_curator.py) | Six-gate check for Codex-quality sample candidates |
 
 ## Security And Compliance
 

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`scripts/codex_sample_curator.py`** — six-gate quality check
+  distilled from Codex's three-round feedback (2026-08-10):
+  - Gate 1: ffprobe duration ≥ 180 s
+  - Gate 2: file size ≥ 1 MB
+  - Gate 3: ASR transcript ≥ 1500 chars
+  - Gate 4: filename-derived keywords match transcript head/tail (≥ 50%)
+  - Gate 5: type coverage awareness (tool test / project retrospective /
+    opinion / OPC super-individual)
+  - Gate 6: transcript head rejection for known failure patterns
+    (single-character spam, "音响设备故障", etc.)
+- **`tests/test_codex_sample_curator.py`** — 11 tests covering
+  duration, size, transcript length, keyword mismatch, failure
+  pattern, batch mode, and config defaults.
+
+### Changed
+
+- README.md / README.zh.md document the new curator script in the
+  Documentation table.
+
 ## [0.4.1] - 2026-08-10
 
 ### Standard Agent Skill Compliance

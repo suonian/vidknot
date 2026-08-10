@@ -179,6 +179,7 @@ VidkNot 默认生成 Markdown 笔记，包含：
 | [docs/DOUYIN_FALLBACK.md](docs/DOUYIN_FALLBACK.md) | 抖音四层 Fallback 实战策略 |
 | [docs/EXPERIENCES.md](docs/EXPERIENCES.md) | 实战经验汇总 |
 | [docs/EXAMPLES.md](docs/EXAMPLES.md) | 自定义后端 / 任务 / 批量 / 订阅源示例 |
+| [scripts/codex_sample_curator.py](scripts/codex_sample_curator.py) | Codex 高质量样本筛选（六关检查）|
 
 ## 安全与合规
 
