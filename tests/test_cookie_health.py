@@ -15,7 +15,6 @@ from vidknot.utils.cookie_health_check import (
     write_health_flag,
 )
 
-
 COOKIE_CONTENT = """\
 .douyin.com\tTRUE\t/\tFALSE\t1820022478\tfpk1\tabcdef123456789
 .douyin.com\tTRUE\t/\tFALSE\t1820022478\tsessionid\tsess_xyz

@@ -39,7 +39,6 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 
 class F2DownloadError(RuntimeError):
@@ -48,7 +47,8 @@ class F2DownloadError(RuntimeError):
 
 # The f2 CLI executable is in the f2env venv. Tests / docs should not
 # hard-code this — set ``F2_BIN`` env var to override.
-_F2_BIN = os.getenv("F2_BIN", "/home/ubuntu/f2env/bin/f2")
+# Default: <project-root>/.venv-f2/bin/f2 (portable, matches f2_helper.py)
+_F2_BIN = os.getenv("F2_BIN") or str(Path(__file__).resolve().parent.parent / ".venv-f2" / "bin" / "f2")
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,7 @@ def find_downloaded_mp4(
     aweme_id: str,
     *,
     max_depth: int = 4,
-) -> Optional[Path]:
+) -> Path | None:
     """Locate the most recently written ``*_video.mp4`` under ``output_root``.
 
     f2 writes to ``<root>/douyin/one/<author>/<date>_<title>_video.mp4``
@@ -135,7 +135,7 @@ def download_one(
     cookie_file: str | os.PathLike[str],
     output_dir: str | os.PathLike[str] = "/tmp",
     timeout_seconds: int = 120,
-    f2_bin: Optional[str] = None,
+    f2_bin: str | None = None,
 ) -> F2DownloadResult:
     """Download a single Douyin video via ``f2 dy --mode one``.
 

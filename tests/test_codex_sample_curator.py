@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -15,7 +14,6 @@ from scripts.codex_sample_curator import (
     evaluate_transcript,
     ffprobe_duration,
 )
-
 
 # 满足全部 6 关的假转录（>= 1500 字符 + 关键词匹配 + 非失败模式）
 GOOD_TRANSCRIPT = (

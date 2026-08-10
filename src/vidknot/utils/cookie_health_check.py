@@ -35,7 +35,6 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 
 class HealthStatus(str, enum.Enum):
@@ -139,7 +138,7 @@ def check_cookie_health(
                 "--max-time",
                 str(timeout_seconds),
                 "-H",
-                f"User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_0)",
+                "User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_0)",
                 "-H",
                 f"Cookie: {cookie_str}",
                 url,
@@ -186,7 +185,7 @@ def write_health_flag(
     flag_dir: str | os.PathLike[str],
     report: HealthReport,
     *,
-    date: Optional[str] = None,
+    date: str | None = None,
 ) -> Path:
     """Write a ``{date}.flag`` file so downstream jobs can short-circuit.
 

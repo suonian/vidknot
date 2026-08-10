@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -16,7 +17,6 @@ from scripts.f2_helper_cli import (
     iesdouyin_share_url,
     read_cookie_file,
 )
-
 
 COOKIE_CONTENT = """\
 # Netscape HTTP Cookie File
@@ -149,6 +149,4 @@ class TestDownloadOne:
                 )
 
 
-# `subprocess` is imported at module scope; aliasing here for the
-# TimeoutExpired side effect.
-import subprocess
+
