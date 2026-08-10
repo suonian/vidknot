@@ -332,6 +332,7 @@ class TestXiaoHongShuPlatform:
         dl = MagicMock()
         dl._try_export_cookies = MagicMock(return_value=None)
         dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/v.mp3"), {"platform": "xiaohongshu"}))
+        platform._probe_note_type = MagicMock(return_value="image")
         platform._download_images = MagicMock(side_effect=DownloadError("no images"))
 
         audio_path, _ = platform.download("https://www.xiaohongshu.com/explore/x", dl)
@@ -343,10 +344,12 @@ class TestXiaoHongShuPlatform:
         dl = MagicMock()
         dl._try_export_cookies = MagicMock(return_value=None)
         dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/v.mp3"), {}))
+        platform._probe_note_type = MagicMock(return_value="image")
         platform._download_images = MagicMock()
 
         platform.download("https://www.xiaohongshu.com/explore/x", dl, force_audio=True)
         platform._download_images.assert_not_called()
+        platform._probe_note_type.assert_not_called()
 
     def test_ytdlp_fail_fallback_xhs_downloader(self):
         """yt-dlp 失败后尝试 XHS-Downloader（未安装时给出安装指引）"""
@@ -354,6 +357,7 @@ class TestXiaoHongShuPlatform:
         dl = MagicMock()
         dl._try_export_cookies = MagicMock(return_value=None)
         dl._yt_dlp_download = MagicMock(side_effect=DownloadError("yt-dlp fail"))
+        platform._probe_note_type = MagicMock(return_value="image")
         platform._download_images = MagicMock(side_effect=DownloadError("no images"))
 
         try:
@@ -362,6 +366,115 @@ class TestXiaoHongShuPlatform:
         except ImportError:
             with pytest.raises(DownloadError, match="pip install xhs-downloader"):
                 platform.download("https://www.xiaohongshu.com/explore/x", dl)
+
+    def test_probe_video_type(self):
+        """探测为视频笔记时走视频下载"""
+        platform = XiaoHongShuPlatform()
+        dl = MagicMock()
+        dl._try_export_cookies = MagicMock(return_value=None)
+        platform._probe_note_type = MagicMock(return_value="video")
+        platform._download_video = MagicMock(return_value=(Path("/tmp/v.mp3"), {"platform": "xiaohongshu", "is_video": True}))
+        platform._download_images = MagicMock()
+
+        audio_path, meta = platform.download("https://www.xiaohongshu.com/explore/x", dl)
+        assert audio_path == Path("/tmp/v.mp3")
+        assert meta["is_video"] is True
+        platform._download_images.assert_not_called()
+
+    def test_video_fail_fallback_ytdlp(self):
+        """视频下载失败后回退 yt-dlp"""
+        platform = XiaoHongShuPlatform()
+        dl = MagicMock()
+        dl._try_export_cookies = MagicMock(return_value=None)
+        dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/v.mp3"), {"platform": "xiaohongshu"}))
+        platform._probe_note_type = MagicMock(return_value="video")
+        platform._download_video = MagicMock(side_effect=DownloadError("video fail"))
+
+        audio_path, _ = platform.download("https://www.xiaohongshu.com/explore/x", dl)
+        assert audio_path == Path("/tmp/v.mp3")
+
+    def test_extract_video_from_state(self):
+        """从 __INITIAL_STATE__ 提取视频直链"""
+        html = '''
+        <script>window.__INITIAL_STATE__ = {
+          "note": {
+            "noteDetailMap": {
+              "abc123": {
+                "note": {
+                  "title": "测试视频笔记",
+                  "type": "video",
+                  "video": {
+                    "media": {
+                      "stream": {
+                        "h264": [
+                          {"masterUrl": "https://sns-video-bd.xhscdn.com/stream/123/HD.mp4", "backupUrls": []}
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        };</script>
+        '''
+        title, images, video_url = XiaoHongShuPlatform._extract_from_state(html, "abc123")
+        assert title == "测试视频笔记"
+        assert images == []
+        assert video_url == "https://sns-video-bd.xhscdn.com/stream/123/HD.mp4"
+
+    def test_extract_video_fallback_h265(self):
+        """h264 不可用时回退 h265"""
+        html = '''
+        <script>window.__INITIAL_STATE__ = {
+          "note": {
+            "noteDetailMap": {
+              "abc123": {
+                "note": {
+                  "title": "h265 only",
+                  "video": {
+                    "media": {
+                      "stream": {
+                        "h265": [
+                          {"masterUrl": "https://sns-video-bd.xhscdn.com/stream/456/h265.m3u8"}
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        };</script>
+        '''
+        _, _, video_url = XiaoHongShuPlatform._extract_from_state(html, "abc123")
+        assert video_url == "https://sns-video-bd.xhscdn.com/stream/456/h265.m3u8"
+
+    def test_extract_video_uses_backup_urls(self):
+        """无 masterUrl 时用 backupUrls"""
+        html = '''
+        <script>window.__INITIAL_STATE__ = {
+          "note": {
+            "noteDetailMap": {
+              "abc123": {
+                "note": {
+                  "video": {
+                    "media": {
+                      "stream": {
+                        "h264": [
+                          {"backupUrls": ["https://sns-video-al.xhscdn.com/stream/789/HD.mp4"]}
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        };</script>
+        '''
+        _, _, video_url = XiaoHongShuPlatform._extract_from_state(html, "abc123")
+        assert video_url == "https://sns-video-al.xhscdn.com/stream/789/HD.mp4"
 
 
 class TestTikTokPlatform:

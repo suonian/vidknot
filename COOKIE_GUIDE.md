@@ -67,3 +67,79 @@ python -m vidknot "https://v.douyin.com/example/" --destination none --no-cache
 - Cookie 过期后重新导出
 - 发现异常登录或泄露风险时，退出平台登录并重新生成 Cookie
 - 不要把 Cookie 粘贴到公开 issue、聊天记录或文档中
+
+---
+
+## VidkNot 当前能力地图
+
+> 记录时间：2026-08-10｜对应版本：v0.3.2 + 本次修复
+
+### ✅ 已实现（可直接使用）
+
+#### 视频下载平台
+
+| 平台 | 下载方式 | 实测状态 | 备注 |
+| --- | --- | --- | --- |
+| YouTube | yt-dlp | ✅ 稳定 | 最成熟，字幕/视频/播放列表均支持 |
+| B 站 (bilibili) | yt-dlp + 平台增强 | ✅ 稳定 | 支持弹幕/字幕/分P |
+| 抖音 (douyin) | Layer 1 iesdouyin 直采 + Cookie | ✅ 可用 | Layer 1/2/3 兜底链已加固 |
+| TikTok | yt-dlp | ✅ 可用 | 国际版，X-Bogus 不强制 |
+| Twitter / X | yt-dlp | ✅ 可用 | 视频/GIF |
+| Instagram | yt-dlp | ✅ 可用 | Reels/帖子视频，需登录Cookie |
+| Vimeo | yt-dlp | ✅ 可用 | |
+| 微信视频号 | 平台实现 | ✅ 可用 | |
+
+#### 笔记型平台（图片/混合）
+
+| 平台 | 类型 | 实测状态 |
+| --- | --- | --- |
+| 小红书 | 图片笔记（图集） | ✅ 4 个 Bug 已修复，涠洲岛 12 张 / AI+Obsidian 1 张 端到端验证通过 |
+| 小红书 | 视频笔记 | ⚠️ 部分可用，依赖 `__INITIAL_STATE__.note.video` 解析 + Cookie，yt-dlp 兜底可能失败 |
+
+#### 其他已注册平台
+
+| 平台 | 实测状态 |
+| --- | --- |
+| 快手 (kuaishou) | ⚠️ 框架已注册，依赖 yt-dlp 对快手的支持度 |
+| 微博 (weibo) | ⚠️ 框架已注册，依赖 yt-dlp 对微博的支持度 |
+
+#### 通用兜底
+
+- **GenericPlatform**：未匹配平台时用 yt-dlp 兜底，能下就下
+
+### ❌ 不能实现 / 受限
+
+#### 抖音
+
+- ❌ **Layer 0 (f2 XBogus 自动签名)**：f2 0.0.1.7 的 X-Bogus 算法已被抖音更新，签名后 API 返回空 body。需要等 f2 项目复活，或迁移到 Evil0ctal/Douyin_TikTok_Download_API 自部署实例
+- ❌ **零依赖纯开源签名**：当前不存在持续维护的开源 X-Bogus 实现
+- ⚠️ **风控后无 Cookie**：请求被风控又无 Cookie 时只能失败，需准备 `VIDKNOT_DOUYIN_COOKIE_FILE`
+
+#### 小红书
+
+- ❌ **视频笔记**（当前最大缺口）：`__INITIAL_STATE__.note.video` 字段需要登录 Cookie + xsec_token 才能稳定获取；yt-dlp fallback 常因 X-Bogus 失败。下一阶段重点处理
+- ❌ **私密笔记**：即便有 Cookie 也可能被风控拦截
+- ❌ **批量下载 / 整页爬取**：当前架构只支持单链接
+
+#### 全局限制
+
+- ❌ **付费 / 会员内容**：所有平台都无法下载
+- ❌ **直播流**：当前架构不支持（实时流需要 m3u8/HLS 单独处理）
+- ❌ **DRM 保护内容**：所有平台均不支持
+
+### 抖音四层 Fallback 当前状态
+
+```
+Layer 0: f2 XBogus 签名（scripts/f2_helper.py） ──────── ⚠️ 结构就绪，签名算法已过期
+        ↓ 失败
+Layer 1: iesdouyin 直采 + Cookie（douyin_parser）  ────── ✅ 工作
+        ↓ 失败
+Layer 2: yt-dlp + Cookie ─────────────────────────────── ✅ 工作
+        ↓ 失败
+Layer 3 (opt-in): 第三方 API ────────────────────────── ✅ 端点已切换 api.tikhub.dev 大陆直连
+                  (apibyte / canxiang / alapi / tikhub)   默认关闭，按需开启
+```
+
+### 一句话总结
+
+> 视频类平台全部可用（yt-dlp 成熟路线）；小红书图片已修好；抖音依赖 Cookie 但已加固；小红书视频 / 抖音 X-Bogus 纯开源签名 这两项是行业级未解难题，需要 Cookie 或第三方 API 辅助。
