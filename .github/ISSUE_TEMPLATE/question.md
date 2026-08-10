@@ -1,9 +1,8 @@
 ---
 name: Question
 about: Ask a usage question about VidkNot
-title: "[Question] "
+title: '[Question]: '
 labels: question
-assignees: ''
 ---
 
 ## What are you trying to do?

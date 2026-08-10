@@ -1,9 +1,8 @@
 ---
 name: Bug report
 about: Report a defect or unexpected behavior
-title: "[Bug] "
+title: '[Bug]: '
 labels: bug
-assignees: ''
 ---
 
 ## Describe the bug

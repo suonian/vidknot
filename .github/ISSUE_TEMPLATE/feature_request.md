@@ -1,9 +1,8 @@
 ---
 name: Feature request
 about: Suggest an enhancement to VidkNot
-title: "[Feature] "
+title: '[Feature]: '
 labels: enhancement
-assignees: ''
 ---
 
 ## Summary

@@ -1,9 +1,8 @@
 ---
 name: Documentation / typo
 about: Fix a typo, broken link, or unclear wording in docs
-title: "[Docs] "
+title: '[Docs]: '
 labels: documentation
-assignees: ''
 ---
 
 ## What needs to change
