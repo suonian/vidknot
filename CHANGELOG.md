@@ -5,21 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.4] - 2026-08-10
-
-### Changed
-
-- **抖音 Layer 0 (f2 XBogus) 默认改为 disabled**。Hermes agent (上海服务器) 2026-08 实测 f2 0.0.1.7 签名算法已被抖音更新，签名后 API 返回空 body。仍可通过 `enable_f2: true` 手动开启，但默认走 Layer 1+2 路径。文件: `src/vidknot/core/platforms/douyin.py:71`
-
-### Added
-
-- **本地 mp4/mkv/mov 视频自动转码为 mp3** (`process_local_video`)。Hermes agent 实战发现：SiliconFlow 不接受 mp4，错误信息误导为"SSL 握手失败"实际是格式不支持。`__main__.py:328-340` 检测视频格式后调 ffmpeg 抽音频，再传给 SiliconFlow。文件: `src/vidknot/__main__.py`
-
-### Verified
-
-- 247 个单元测试全部通过（246 + 1 个新增的转码逻辑场景）
-- 端到端验证：抖音 Layer 0 默认 disable 不影响 Layer 1/2 工作路径
-
 ## [0.3.3] - 2026-08-10
 
 ### Added
