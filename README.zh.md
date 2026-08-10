@@ -4,6 +4,8 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-242%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | [English](README.md) | 中文 |
 
@@ -14,11 +16,29 @@
 - 给 Agent / MCP 客户端提供“视频转笔记”工具能力
 - 对转写结果做双 ASR 交叉校验，减少专有名词和口播误识别
 
+## 支持的平台
+
+| 平台 | 类型 | 状态 |
+| --- | --- | --- |
+| YouTube、Vimeo | 长视频 | ✅ yt-dlp 成熟路线 |
+| B 站 | 长视频 | ✅ 字幕/弹幕均支持 |
+| 抖音 | 短视频 | ✅ Cookie 直采 + 四层 fallback |
+| TikTok | 短视频 | ✅ yt-dlp 稳定支持 |
+| Twitter / X | 短视频 | ✅ yt-dlp 稳定支持 |
+| Instagram | Reels | ✅ yt-dlp 稳定支持 |
+| 微信视频号 | 短视频 | ✅ |
+| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug |
+| 小红书（视频笔记） | 短视频 | ✅ 从 `__INITIAL_STATE__` 拿无水印直链 |
+| 快手、微博 | 短视频 | ⚠️ 框架已就位，依赖 yt-dlp |
+| 任何 yt-dlp 支持的站点 | 混合 | ✅ GenericPlatform 兜底 |
+
+完整能力地图见 [COOKIE_GUIDE.md](COOKIE_GUIDE.md)。
+
 ## 核心能力
 
 | 能力 | 说明 |
 | --- | --- |
-| 视频解析与下载 | 支持抖音、Bilibili、YouTube 等 yt-dlp 可处理的平台，并包含抖音短链解析 |
+| 视频解析与下载 | 11 个平台 + yt-dlp 兑底，抖音四层 fallback |
 | 双 ASR 转写 | SiliconFlow SenseVoice + 本地 faster-whisper，默认启用交叉校正 |
 | 结构化笔记 | 生成主题、要点、细节、引用、术语和完整转写 |
 | 多端保存 | 支持 Obsidian、飞书、Notion、语雀，也可只输出 Markdown |
@@ -26,10 +46,10 @@
 
 ## 安装
 
-当前 GitHub 版本为 `v0.2.1`。如果需要最新仓库代码，请从 GitHub 安装：
+当前 GitHub 版本为 `v0.3.3`。从 GitHub 安装：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.2.1"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.3.3"
 ```
 
 开发安装：

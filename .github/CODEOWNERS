@@ -1,0 +1,22 @@
+# VidkNot code owners
+#
+# Auto-assigns reviewers for pull requests. See:
+# https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in this repo
+*       @suonian
+
+# Platform plugins require an extra review because they touch anti-bot logic
+/src/vidknot/core/platforms/        @suonian
+/src/vidknot/core/cookie_provider.py @suonian
+/src/vidknot/core/douyin_parser.py   @suonian
+
+# Release / version changes are reviewed by the maintainer
+/pyproject.toml                      @suonian
+/src/vidknot/_version.py             @suonian
+/CHANGELOG.md                        @suonian
+
+# Security-sensitive configs
+/.github/workflows/                  @suonian
+/SECURITY.md                         @suonian
+/.gitignore                          @suonian

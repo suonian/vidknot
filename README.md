@@ -4,6 +4,8 @@ VidkNot turns video links into structured knowledge notes. It downloads audio, t
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-242%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | English | [中文](README.zh.md) |
 
@@ -14,11 +16,29 @@ VidkNot turns video links into structured knowledge notes. It downloads audio, t
 - Expose video-to-note capability to agents through MCP
 - Reduce transcription mistakes with dual-ASR cross-validation
 
+## Supported Platforms
+
+| Platform | Type | Status |
+| --- | --- | --- |
+| YouTube, Vimeo | Long-form video | ✅ Stable via yt-dlp |
+| Bilibili | Long-form video | ✅ Stable with subtitle/danmaku |
+| Douyin (TikTok China) | Short video | ✅ Cookie-based direct fetch + 4-layer fallback |
+| TikTok (International) | Short video | ✅ Stable via yt-dlp |
+| Twitter / X | Short video | ✅ Stable via yt-dlp |
+| Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
+| WeChat Channels (视频号) | Short video | ✅ |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 |
+| Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
+| Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
+| Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
+
+See [COOKIE_GUIDE.md](COOKIE_GUIDE.md) for the full capability matrix.
+
 ## Capabilities
 
 | Capability | Description |
 | --- | --- |
-| Video parsing and download | Supports Douyin, Bilibili, YouTube, and other yt-dlp-compatible platforms |
+| Video parsing and download | 11 platforms + generic yt-dlp fallback, 4-layer fallback for Douyin |
 | Dual-ASR transcription | SiliconFlow SenseVoice + local faster-whisper correction, enabled by default |
 | Structured notes | Generates topic, summary, key points, details, quotes, terms, and full transcript |
 | Storage targets | Obsidian, Feishu, Notion, Yuque, or Markdown-only output |
@@ -26,10 +46,10 @@ VidkNot turns video links into structured knowledge notes. It downloads audio, t
 
 ## Installation
 
-The current GitHub release is `v0.2.1`. Install this repository version from GitHub:
+The current GitHub release is `v0.3.3`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.2.1"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.3.3"
 ```
 
 For development:
