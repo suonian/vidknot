@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vidknot"
 version = "0.4.0"
-description = "VidkNot — Video Knowledge, Knotted. A general research platform framework: convert video links to structured notes (dual-ASR cross-validation), and sync to Notion / Obsidian / Feishu / Yuque. Pluggable storage backends, async periodic scheduler, batch runner, and credential-leak-proof subscription source loader. CLI / FastAPI / MCP / Python API."
+description = "VidkNot — Video Knowledge, Knotted. A general research platform framework for extracting knowledge from 11+ self-media platforms (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). Dual-ASR cross-validation, OpenAI-compatible LLM, pluggable storage backends (Obsidian / Feishu / Notion / Yuque / SQLite / custom), async periodic scheduler, batch runner, credential-leak-proof source loader. CLI / FastAPI / MCP / Python API."
 readme = "README.md"
 license = "MIT"
 authors = [{name = "VidkNot Team"}]

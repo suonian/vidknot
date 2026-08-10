@@ -5,6 +5,13 @@ VidkNot 统一入口（v0.4.0 通用研究平台框架）
 VidkNot — Video Knowledge, Knotted.
 视频知识，结成一网。
 
+支持 11+ 自媒体平台（重点: 提取源）:
+YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X,
+Instagram, WeChat Channels, Weibo, Vimeo
+
+支持四种笔记平台（保存目标）:
+Obsidian, Feishu, Notion, Yuque
+
 支持三种运行模式:
 - CLI: python -m vidknot <url> [--destination feishu|yuque|notion|obsidian|both|none]
 - MCP: python -m vidknot --mcp

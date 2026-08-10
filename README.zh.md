@@ -1,6 +1,6 @@
 # VidkNot
 
-视频知识提取与笔记沉淀平台（v0.4.0 通用研究平台框架）。给 VidkNot 一个视频链接，它会下载音频、转写内容、生成结构化笔记，并保存到 Obsidian、飞书、Notion 或语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器。
+视频知识提取与研究平台（v0.4.0 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器。
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
