@@ -63,6 +63,11 @@ downloads/
 transcripts/
 *.mp3
 *.mp4
+
+# Local databases (exploration / debugging)
+*.db
+douyin_*.db
+vidknot_*.db
 *.wav
 *.m4a
 *.webm
