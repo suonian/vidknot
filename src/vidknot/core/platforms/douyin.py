@@ -68,7 +68,10 @@ class DouyinPlatform(BasePlatform):
         errors: list[str] = []
 
         # ---- Layer 0: f2 XBogus 签名（免费开源优先）----
-        if self._cfg(dl, "enable_f2", default=True):
+        # 默认 disabled：f2 0.0.1.7 签名算法已被抖音更新，真实环境跑不通。
+        # Hermes agent (上海服务器) 2026-08 实测：签名后 API 返回空 body。
+        # 等 f2 项目复活或集成 Evil0ctal/Douyin_TikTok_Download_API 自部署后可重新开启。
+        if self._cfg(dl, "enable_f2", default=False):
             try:
                 logger.info("[Douyin] Layer 0: 尝试 f2 XBogus 签名...")
                 return self._layer0_f2_helper(url, dl)

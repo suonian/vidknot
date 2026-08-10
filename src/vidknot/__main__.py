@@ -322,9 +322,24 @@ def process_local_video(file_path: Path, mode: str, language: str) -> dict:
         "platform": "local",
     }
 
-    logger.info(f"正在转录本地文件 (SiliconFlow): {file_path.name}")
+    # 视频格式需要先抽音频（SiliconFlow 不接受 mp4/mkv/mov）
+    # Hermes agent (上海服务器) 2026-08 实测：mp4 传给 SiliconFlow 被拒，
+    # 错误信息误导成“SSL 握手失败”，其实是格式不支持。
+    transcribe_path = file_path
+    video_extensions = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".m4v"}
+    if (
+        file_path.suffix.lower() in video_extensions
+        and file_path.exists()
+    ):
+        from .core.downloader import VideoDownloader
+        logger.info(f"视频格式 {file_path.suffix} → ffmpeg 转 mp3")
+        tmp_dl = VideoDownloader(output_dir=str(file_path.parent / ".vidknot_tmp"))
+        transcribe_path = tmp_dl._extract_audio(file_path, file_path.stem)
+        logger.info(f"转码完成: {transcribe_path}")
+
+    logger.info(f"正在转录本地文件 (SiliconFlow): {transcribe_path.name}")
     try:
-        transcription = SiliconFlowASR().transcribe(file_path, language=language)
+        transcription = SiliconFlowASR().transcribe(transcribe_path, language=language)
     except Exception as e:
         from .utils.config_manager import ConfigManager
         fallback_provider = ConfigManager().get(
@@ -332,7 +347,7 @@ def process_local_video(file_path: Path, mode: str, language: str) -> dict:
         )
         logger.warning(f"SiliconFlow 转录失败: {e}，回退到 {fallback_provider}")
         transcription = get_transcriber(fallback_provider).transcribe(
-            file_path, language=language
+            transcribe_path, language=language
         )
 
     result = {
