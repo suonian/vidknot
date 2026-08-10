@@ -1,0 +1,28 @@
+# VidkNot subscription sources — TEMPLATE
+#
+# Copy this file to a path that is NOT tracked by version control, e.g.:
+#   cp examples/sources.yaml.example ~/.config/vidknot/sources.yaml
+#
+# Fill in your own account, channel, or playlist URLs below. NEVER
+# paste credentials (cookies, tokens, API keys) here — those belong in
+# environment variables or a separate, git-ignored secrets file.
+
+sources:
+  # - name: my-youtube-kol
+  #   platform: youtube
+  #   kind: channel
+  #   url: https://www.youtube.com/@example
+  #   tags: [ai-agents, llm]
+  #   schedule: "0 9 * * 1"   # optional cron expression
+  #
+  # - name: my-douyin-favorites
+  #   platform: douyin
+  #   kind: video_url
+  #   url: https://www.douyin.com/video/EXAMPLE
+  #   tags: [ai-pipeline]
+  #
+  # - name: ai-news-hashtag
+  #   platform: xiaohongshu
+  #   kind: hashtag
+  #   url: https://www.xiaohongshu.com/search_result/EXAMPLE
+  #   tags: [news]
