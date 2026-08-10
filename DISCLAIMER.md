@@ -40,11 +40,10 @@ VidkNot 仅调用第三方 API 服务获取公开数据：
 
 | 服务 | 责任方 |
 |------|---------|
-| SiliconFlow | 硅基流动（广州）智能科技有限公司 |
-| OpenAI API | OpenAI, Inc. |
-| 智谱 AI | 北京智谱华章科技有限公司 |
+| SiliconFlow (ASR) | 硅基流动（广州）智能科技有限公司 |
+| LLM 提供商（OpenAI / OpenAI 兼容服务） | 各服务商（详见 API_GUIDE.md） |
 
-使用这些服务产生的费用和责任由用户自行承担。
+用户通过 `LLM_API_KEY` / `LLM_BASE_URL` / `VIDKNOT_LLM_MODEL` 配置任意 OpenAI 兼容 LLM（OpenAI、Anthropic via 代理、智谱 GLM、阿里 Qwen、字节 Doubao、MiniMax、DeepSeek 等）。使用这些服务产生的费用和责任由用户自行承担。
 
 ### 5. 免责声明
 
@@ -102,11 +101,10 @@ Third-party services used by this project:
 
 | Service | Provider |
 |---------|-----------|
-| SiliconFlow | SiliconFlow (Guangzhou) AI Co., Ltd. |
-| OpenAI API | OpenAI, Inc. |
-| Zhipu AI | Beijing Zhipu AI Technology Co., Ltd. |
+| SiliconFlow (ASR) | SiliconFlow (Guangzhou) AI Co., Ltd. |
+| LLM providers (OpenAI / OpenAI-compatible) | Each service (see API_GUIDE.md) |
 
-Users bear all costs and responsibilities arising from using these services.
+Users configure any OpenAI-compatible LLM (OpenAI, Anthropic via proxy, GLM, Qwen, Doubao, MiniMax, DeepSeek, etc.) via `LLM_API_KEY` / `LLM_BASE_URL` / `VIDKNOT_LLM_MODEL`. Users bear all costs and responsibilities arising from using these services.
 
 ### 5. Liability Disclaimer
 

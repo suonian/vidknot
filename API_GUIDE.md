@@ -18,23 +18,30 @@ SILICONFLOW_API_KEY=sk-xxx
 2. 创建 API Key
 3. 写入 `.env`
 
-### OpenAI 兼容 LLM
+### LLM（结构化笔记生成）
 
-用于生成结构化笔记。默认按 OpenAI 兼容接口调用，因此也可以配置兼容网关或国内模型服务。
-
-```bash
-OPENAI_API_KEY=sk-xxx
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
-```
-
-如果使用智谱：
+用于生成结构化笔记。VidkNot 通过 OpenAI 兼容接口调用 LLM，因此可以接入**任意**兼容服务：
 
 ```bash
-ZHIPUAI_API_KEY=xxx
-ZHIPUAI_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
-ZHIPUAI_MODEL=glm-4-flash
+# 默认推荐：通过 LLM_API_KEY + LLM_BASE_URL + VIDKNOT_LLM_MODEL 接入任意兼容服务
+LLM_API_KEY=sk-xxx
+LLM_BASE_URL=https://api.your-provider.com/v1
+VIDKNOT_LLM_MODEL=your-model-name
 ```
+
+支持的 LLM 服务示例（不限于）：
+
+| 服务 | LLM_BASE_URL | LLM_MODEL 示例 |
+|------|--------------|------------------|
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+| Anthropic (via 代理) | 你的代理地址 | `claude-3-5-sonnet-...` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4/` | `glm-4-flash` |
+| 阿里 Qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
+| 字节 Doubao | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-...` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| MiniMax | `https://api.MiniMax.com/v1` | `MiniMax-M3` |
+
+也可以直接使用 `OPENAI_API_KEY` + `OPENAI_BASE_URL` 配置（仅兼容 OpenAI 协议的服务）。
 
 ## 可选：双 ASR 搜证
 
