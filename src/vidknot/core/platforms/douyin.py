@@ -320,7 +320,6 @@ class DouyinPlatform(BasePlatform):
 
     def _layer3_third_party_api(self, url: str, dl: Any) -> tuple[Path, dict[str, Any]]:
         """第三层: 使用第三方 API / Evil0ctal 自部署获取直链并下载"""
-        import httpx
 
         apis = self._cfg(dl, "third_party_apis") or list(DEFAULT_THIRD_PARTY_APIS)
 
@@ -362,12 +361,7 @@ class DouyinPlatform(BasePlatform):
                 logger.info(f"[Douyin-L3] {api['name']} 获取到直链: {video_url[:80]}...")
 
                 video_path = dl.output_dir / f"douyin_thirdparty_{api['name']}.mp4"
-                with httpx.Client(follow_redirects=True, timeout=60.0) as client:
-                    with client.stream("GET", video_url) as resp:
-                        resp.raise_for_status()
-                        with open(video_path, "wb") as f:
-                            for chunk in resp.iter_bytes(chunk_size=8192):
-                                f.write(chunk)
+                self._download_with_retry(video_url, video_path, api["name"])
 
                 audio_path = dl._extract_audio(video_path, f"douyin_{api['name']}")
 
@@ -389,8 +383,74 @@ class DouyinPlatform(BasePlatform):
 
         raise DownloadError(f"所有第三方 API 均失败。最后错误: {last_error}")
 
-    def _call_third_party_api(self, url: str, api: dict[str, Any]) -> str | None:
-        """调用单个第三方 API 获取视频直链"""
+    @staticmethod
+    def _download_with_retry(
+        video_url: str,
+        video_path: Path,
+        api_name: str,
+        max_retries: int = 2,
+        chunk_size: int = 65536,
+        timeout: float = 90.0,
+    ) -> None:
+        """下载视频直链（自带指数退避重试）。
+
+        TikHub / apibyte 返回的视频直链可能来自 CDN 缓存，偶尔临时不可达。
+        加 2 次重试（1s / 2s 退避），避免因为 CDN 瞬断直接跳过该 API。
+"""
+        import time
+
+        import httpx
+
+        last_err = None
+        for attempt in range(max_retries + 1):
+            try:
+                with httpx.Client(
+                    follow_redirects=True, timeout=timeout,
+                ) as client:
+                    with client.stream("GET", video_url) as resp:
+                        resp.raise_for_status()
+                        with open(video_path, "wb") as f:
+                            for chunk in resp.iter_bytes(chunk_size=chunk_size):
+                                if chunk:
+                                    f.write(chunk)
+                if video_path.exists() and video_path.stat().st_size > 1024:
+                    logger.info(
+                        f"[Douyin-L3] {api_name} 视频下载完成"
+                        f" ({video_path.stat().st_size} bytes)"
+                    )
+                    return
+                last_err = f"视频文件异常 ({video_path.stat().st_size} bytes)"
+                video_path.unlink(missing_ok=True)
+            except Exception as e:
+                last_err = str(e)[:200]
+                video_path.unlink(missing_ok=True)
+
+            if attempt < max_retries:
+                delay = 1.0 * (2 ** attempt)
+                logger.warning(
+                    f"[Douyin-L3] {api_name} 下载失败 (attempt {attempt + 1}),"
+                    f" {delay}s 后重试: {last_err}"
+                )
+                time.sleep(delay)
+
+        raise DownloadError(
+            f"{api_name} 视频下载失败 (after {max_retries + 1} attempts): {last_err}"
+        )
+
+    @staticmethod
+    def _call_third_party_api(
+        url: str,
+        api: dict[str, Any],
+        max_retries: int = 2,
+    ) -> str | None:
+        """调用单个第三方 API 获取视频直链（自带指数退避重试）。
+
+        重试策略（v0.4.2 新增）:
+        - 临时错误（429 限流 / 5xx 过载 / 网络超时）→ 指数退避重试
+        - 永久错误（401 鉴权过期 / 403 无权限 / 404 不存在）→ 直接跳过
+        """
+        import time
+
         import httpx
 
         name = api["name"]
@@ -401,28 +461,84 @@ class DouyinPlatform(BasePlatform):
         timeout = api.get("timeout", 15)
         headers = api.get("headers", {})
 
-        logger.debug(f"[Douyin-L3] 调用 {name}: {api_url}")
+        _permanent_status = {401, 403, 404}
 
-        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
-            if method == "GET":
-                resp = client.get(api_url, params={param_name: url}, headers=headers)
+        last_err = None
+        for attempt in range(max_retries + 1):
+            try:
+                logger.debug(f"[Douyin-L3] 调用 {name}: {api_url}")
+
+                with httpx.Client(
+                    timeout=timeout, follow_redirects=True,
+                ) as client:
+                    if method == "GET":
+                        resp = client.get(
+                            api_url, params={param_name: url}, headers=headers,
+                        )
+                    else:
+                        resp = client.post(
+                            api_url, json={param_name: url}, headers=headers,
+                        )
+
+                    # 永久错误 → 不重试
+                    if resp.status_code in _permanent_status:
+                        logger.warning(
+                            f"[Douyin-L3] {name} 返回 {resp.status_code}"
+                            f" (permanent, skip): {resp.text[:200]}"
+                        )
+                        return None
+
+                    resp.raise_for_status()
+                    data = resp.json()
+
+            except httpx.TimeoutException:
+                last_err = f"{name} 超时"
+            except httpx.HTTPStatusError as e:
+                sc = e.response.status_code
+                last_err = f"{name} HTTP {sc}: {str(e)[:150]}"
+                if sc in _permanent_status:
+                    return None  # permanent, don't retry
+            except Exception as e:
+                last_err = f"{name} 请求异常: {str(e)[:150]}"
             else:
-                resp = client.post(api_url, json={param_name: url}, headers=headers)
+                # 成功 → 解析 response
+                return DouyinPlatform._parse_api_response(
+                    data, response_path, name,
+                )
 
-            resp.raise_for_status()
-            data = resp.json()
+            if attempt < max_retries:
+                delay = 1.0 * (2 ** attempt)
+                logger.warning(
+                    f"[Douyin-L3] {last_err} —"
+                    f" {delay}s 后重试 (attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(delay)
 
-            value = data
-            for key in response_path:
-                if isinstance(value, dict):
-                    value = value.get(key)
-                elif isinstance(value, list) and isinstance(key, int):
-                    value = value[key] if key < len(value) else None
-                else:
-                    value = None
-                    break
+        logger.warning(f"[Douyin-L3] {name} 重试 {max_retries} 次后仍失败")
+        return None
 
-            if value and isinstance(value, str):
-                return value
+    @staticmethod
+    def _parse_api_response(
+        data: dict,
+        response_path: list,
+        api_name: str,
+    ) -> str | None:
+        """从第三方 API JSON 响应中按路径提取视频直链 URL。"""
+        value = data
+        for key in response_path:
+            if isinstance(value, dict):
+                value = value.get(key)
+            elif isinstance(value, list) and isinstance(key, int):
+                value = value[key] if key < len(value) else None
+            else:
+                value = None
+                break
 
-        raise DownloadError(f"{name} 返回数据异常: {json.dumps(data, ensure_ascii=False)[:200]}")
+        if value and isinstance(value, str):
+            return value
+
+        logger.warning(
+            f"[Douyin-L3] {api_name} 返回数据无法解析"
+            f" (path={response_path}): {str(data)[:200]}"
+        )
+        return None
