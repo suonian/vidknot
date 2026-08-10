@@ -172,6 +172,13 @@ VidkNot 默认生成 Markdown 笔记，包含：
 | [COOKIE_GUIDE.md](COOKIE_GUIDE.md) | Cookie 获取与安全说明 |
 | [DEPENDENCIES.md](DEPENDENCIES.md) | 直接依赖清单 |
 | [CHANGELOG.md](CHANGELOG.md) | 版本历史 |
+| [docs/PRIVACY.md](docs/PRIVACY.md) | 隐私红线声明与凭证扫描机制 |
+| [docs/CONFIG.md](docs/CONFIG.md) | 环境变量参考 |
+| [docs/BACKENDS.md](docs/BACKENDS.md) | 后端存储配置（含飞书机器人权限） |
+| [docs/PLATFORMS.md](docs/PLATFORMS.md) | 平台支持矩阵 + TikHub 接口地址 |
+| [docs/DOUYIN_FALLBACK.md](docs/DOUYIN_FALLBACK.md) | 抖音四层 Fallback 实战策略 |
+| [docs/EXPERIENCES.md](docs/EXPERIENCES.md) | 实战经验汇总 |
+| [docs/EXAMPLES.md](docs/EXAMPLES.md) | 自定义后端 / 任务 / 批量 / 订阅源示例 |
 
 ## 安全与合规
 

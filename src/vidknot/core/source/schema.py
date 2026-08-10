@@ -48,6 +48,8 @@ _FORBIDDEN_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"sk-[a-z0-9]{16,}"),  # OpenAI / siliconflow / zhipu
     re.compile(r"AI_PASS\s*="),  # legacy internal var
     re.compile(r"Bearer\s+[A-Za-z0-9\-_\.]{20,}"),
+    re.compile(r"TIKHUB_API_KEY\s*=", re.IGNORECASE),  # paid fallback key
+    re.compile(r"TIKHUB_[A-Z_]+\s*=", re.IGNORECASE),
 )
 
 
