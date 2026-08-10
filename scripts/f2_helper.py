@@ -37,7 +37,7 @@ if Path(_F2_SITE_PACKAGES).exists():
 import httpx  # noqa: E402
 
 try:
-    from f2.apps.douyin.api import DouyinAPIEndpoints as dyendpoint  # noqa: E402
+    from f2.apps.douyin.api import DouyinAPIEndpoints as dyendpoint  # noqa: E402, N813
     from f2.apps.douyin.utils import ClientConfManager, XBogusManager  # noqa: E402
 except ImportError as e:
     print(json.dumps({"ok": False, "error": f"f2 未安装或虚拟环境配置错误: {e}"}), flush=True)
@@ -50,7 +50,7 @@ def load_cookie_str(cookie_file: str | None) -> str:
         return ""
     cookies: list[str] = []
     try:
-        with open(cookie_file, "r", encoding="utf-8", errors="replace") as f:
+        with open(cookie_file, encoding="utf-8", errors="replace") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):

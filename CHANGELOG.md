@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-08-10
+
+### Standard Agent Skill Compliance
+
+本次为 patch 版本（minor bump），专门为达到**标准 Agent Skill 格式**：
+vidknot 现在可被 Claude / Qoder / Cursor / Cline 等 AI agent 一键识别为 skill。
+
+### Added
+
+- **SKILL.md**（根目录）— Agent skill 标准格式入口
+  - YAML frontmatter: name / version / description / when-to-use
+  - Quick start (1 minute)、4 种接口说明、配置指南、架构图
+- **`--demo` 模式** — 零配置烟雾测试
+  - `python -m vidknot --demo` 不需要任何 API key
+  - 输出 mock 笔记展示完整 pipeline（6 步 + 模拟 Markdown）
+  - 适合：agent 首次接触 / README 演示 / 教学场景
+- **`.env.minimal`** — 单 API key 最小配置模板
+  - 只需 `SILICONFLOW_API_KEY` 即可跑（其他 LLM/存储可选）
+- **`scripts/install.sh`** — 一键安装 / 验证脚本
+  - 检查 Python / ffmpeg / 安装 / .env 准备 / demo 验证
+  - 可通过 `curl ... | bash` 远程运行
+  - 支持 `VERSION=` `SKIP_DEMO=` `REPO_URL=` 自定义
+- **MCP 工具说明** — 三个工具接口文档
+  - `vidknot_extract` / `vidknot_transcribe_only` / `vidknot_status`
+- **重点强调 11+ 自媒体平台**（输入源）
+  - 不再以"笔记平台"为重点
+  - 在所有 manifest（pyproject/README/__init__/__main__）明确"自媒 体平台 vs 笔记平台"分层
+
+### Changed
+
+- 项目定位重写：视频转笔记工具 → 通用研究平台框架，**重点是 11+ 自媒体平台**
+- 文档交叉验证（5 个 manifest 文件 + GitHub repo description 全部一致）
+- ruff lint 自动修复 4 个 errors（UP015 / W292 / 格式）
+
+### Verified
+
+- 294 tests pass（v0.4.0 全部保留）
+- ruff lint 0 errors
+- `--demo` 模式零配置可用
+- `bash scripts/install.sh` 一键安装验证
+- 现有核心模块零改动
+
+### Install
+
+```bash
+# 一键安装（验证 demo）
+bash scripts/install.sh
+
+# 或手动
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.1"
+vidknot --demo
+```
+
+## [0.4.0] - 2026-08-10
+
 ## [0.4.0] - 2026-08-10
 
 ### Platform Evolution: 视频转笔记工具 → 通用研究平台框架

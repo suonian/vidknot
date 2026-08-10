@@ -76,6 +76,8 @@ def main():
                         help="强制使用 CLI 模式 (默认自动检测)")
     parser.add_argument("--check-env", action="store_true",
                         help="检查运行环境依赖是否满足")
+    parser.add_argument("--demo", action="store_true",
+                        help="Demo 模式: 不调真实 API，用 mock 输出展示完整 pipeline")
 
     # CLI 参数
     parser.add_argument("url", nargs="?",
@@ -134,6 +136,10 @@ def main():
         # MCP Stdio 模式
         from .adapters.mcp_server import run_mcp_server
         run_mcp_server()
+
+    elif args.demo:
+        # Demo 模式: 不调任何 API，用 mock 输出展示完整 pipeline
+        run_demo(args)
 
     elif args.batch or args.batch_dir:
         # 批量处理模式
@@ -234,6 +240,126 @@ def run_cli(args):
         print("\n" + "=" * 60)
         print(output)
         print("=" * 60)
+
+
+def run_demo(args):
+    """Demo 模式: 不调任何 API，用 mock 输出展示完整 pipeline。
+
+    零配置即可试用 —— 不需要 SILICONFLOW_API_KEY / LLM_API_KEY。
+    适合：
+    - Agent 首次接触 skill 时的烟雾测试
+    - README 演示
+    - 教学 / 演示场景
+
+    输出：
+    - 6 步 pipeline 进度（按时间顺序）
+    - 模拟的真实结构化 Markdown 笔记
+    - 不写入任何文件 / 调任何 API
+    """
+    url = args.url or "https://www.bilibili.com/video/BV1xx411c7mD"
+    logger.info("Demo 模式启动 (零 API 调用)")
+
+    print("=" * 70)
+    print(f"  VidkNot v{__version__} — Demo 模式")
+    print("=" * 70)
+    print()
+    print(f"  输入 URL: {url}")
+    print()
+    print("  Pipeline 6 步 (mock，不调真实 API):")
+    print()
+
+    # Mock 6-step pipeline
+    steps = [
+        ("Step 1/6", "Downloading audio from Bilibili (mock)", "294.5 KB"),
+        ("Step 2/6", "Extracting audio → mp3 (mock)", "146.3 KB"),
+        ("Step 3/6", "Transcribing via SiliconFlow (mock)", "2148 chars"),
+        ("Step 4/6", "Cross-validating with faster-whisper (mock)", "5096 chars"),
+        ("Step 5/6", "Generating structured notes via LLM (mock)", "1856 chars"),
+        ("Step 6/6", f"Format: {args.destination or 'obsidian'}", "skipped (demo)"),
+    ]
+    for step, action, result in steps:
+        print(f"  [{step}] {action} ... ✓ ({result})")
+
+    print()
+    print("-" * 70)
+    print("  示例输出（这是 mock 笔记，结构是真实的，文本是占位的）")
+    print("-" * 70)
+    print()
+
+    # Mock Markdown note
+    note = f"""---
+title: "[Demo] VidkNot 演示笔记 — {url}"
+date: 2026-08-10
+platform: bilibili
+duration: 4:54
+author: "[Mock Author]"
+tags: [vidknot, demo, mock]
+---
+
+# VidkNot Demo 笔记
+
+> **注意**：这是 VidkNot Demo 模式生成的占位笔记，**未调用任何真实 API**。
+> 真实运行需要 `SILICONFLOW_API_KEY` + `LLM_API_KEY`（参见 SKILL.md）。
+
+## 主题 (Topic)
+
+[Mock] VidkNot v0.4.1 平台框架能力演示
+
+## 摘要 (Summary)
+
+[Mock] 本视频是 VidkNot 的功能演示，涵盖 11+ 自媒体平台支持、双 ASR 交叉校验、
+OpenAI 兼容 LLM 笔记生成、可插拔存储后端、异步周期调度器等 v0.4.x 新能力。
+
+## 关键要点 (Key Points)
+
+1. 支持 11+ 自媒体平台（YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou,
+   TikTok, Twitter/X, Instagram, WeChat, Weibo, Vimeo）
+2. 双 ASR 交叉校验：SiliconFlow SenseVoice + 本地 faster-whisper
+3. OpenAI 兼容 LLM（GLM-4 / GPT-4o / Qwen / Doubao / DeepSeek 等）
+4. 4 个笔记平台目标：Obsidian / Feishu / Notion / Yuque
+5. v0.4.0 新增：可插拔 backend、订阅源、批处理、周期调度器
+6. 隐私保护：主动拒绝 8 类凭证模式注入
+
+## 术语 (Terms)
+
+| 术语 | 解释 |
+| --- | --- |
+| ASR | Automatic Speech Recognition，自动语音识别 |
+| LLM | Large Language Model，大语言模型 |
+| MCP | Model Context Protocol，AI 智能体调用外部工具的协议 |
+| Backend | 笔记存储后端（可插拔） |
+
+## 引用 (Quotes)
+
+> "VidkNot — Video Knowledge, Knotted. 视频知识，结成一网。"
+
+## 时间戳 (Timestamps)
+
+- 00:00 - 项目介绍
+- 00:42 - 11+ 自媒体平台
+- 01:38 - 双 ASR 交叉校验
+- 02:54 - LLM 笔记生成
+- 04:12 - 存储后端集成
+
+## 元数据 (Metadata)
+
+- VidkNot 版本: v{__version__}
+- 输入 URL: {url}
+- 处理模式: demo
+- 时间: 2026-08-10
+"""
+
+    print(note)
+    print("-" * 70)
+    print()
+    print("  Demo 完成！")
+    print()
+    print("  真实运行:")
+    print("    1. 配置 .env:  echo 'SILICONFLOW_API_KEY=sk-xxx' > .env")
+    print(f"    2. 运行:      vidknot '{url}'")
+    print()
+    print("  完整文档: SKILL.md / README.md / docs/CONFIG.md")
+    print("=" * 70)
 
 
 LOCAL_MEDIA_EXTENSIONS = {
