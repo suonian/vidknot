@@ -1,11 +1,11 @@
 # VidkNot
 
-视频知识提取与笔记沉淀工具。给 VidkNot 一个视频链接，它会下载音频、转写内容、生成结构化笔记，并保存到 Obsidian、飞书、Notion 或语雀。
+视频知识提取与笔记沉淀平台（v0.4.0 通用研究平台框架）。给 VidkNot 一个视频链接，它会下载音频、转写内容、生成结构化笔记，并保存到 Obsidian、飞书、Notion 或语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器。
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-242%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-294%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | [English](README.md) | 中文 |
 

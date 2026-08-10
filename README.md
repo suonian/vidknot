@@ -1,11 +1,11 @@
 # VidkNot
 
-VidkNot turns video links into structured knowledge notes. It downloads audio, transcribes speech, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque.
+VidkNot is a **general research platform framework** (v0.4.0) that turns video links into structured knowledge notes. It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 adds pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader.
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-242%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-294%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | English | [中文](README.zh.md) |
 

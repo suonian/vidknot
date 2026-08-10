@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
 """
-VidkNot 统一入口
+VidkNot 统一入口（v0.4.0 通用研究平台框架）
+
+VidkNot — Video Knowledge, Knotted.
+视频知识，结成一网。
 
 支持三种运行模式:
 - CLI: python -m vidknot <url> [--destination feishu|yuque|notion|obsidian|both|none]
 - MCP: python -m vidknot --mcp
 - FastAPI: uvicorn vidknot.api:app
+
+v0.4.0 新增能力:
+- 可插拔存储后端 (core/backend)
+- 订阅源 schema + 凭证注入保护 (core/source)
+- 批处理 driver (core/batch)
+- 异步周期调度器 (core/monitor)
 """
 
 import argparse

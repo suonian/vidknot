@@ -1,10 +1,17 @@
 """
-VidkNot - Video Knowledge, Knotted.
+VidkNot — Video Knowledge, Knotted.
 
-Tie your video knowledge together.
-视频知识，结成一网。
+A general research platform framework:
+1. Download video audio from 11+ platforms (YouTube, Bilibili, Douyin, Xiaohongshu, ...)
+2. Transcribe via dual-ASR cross-validation (SiliconFlow + faster-whisper)
+3. Generate structured Markdown notes via OpenAI-compatible LLM
+4. Persist via pluggable backend (Obsidian / Feishu / Notion / Yuque / SQLite / custom)
+5. Coordinate via async periodic scheduler (core/monitor) and batch runner (core/batch)
+6. Subscribe from YAML/JSON sources with credential-leak protection (core/source)
 
-Core module for Agent-driven video knowledge pipeline.
+视频知识，结成一网。通用研究平台框架。
+
+Interfaces: CLI / FastAPI / MCP / Python API
 """
 
 from ._version import __version__
