@@ -83,18 +83,34 @@ class XiaoHongShuPlatform(BasePlatform):
         force_audio: bool = False,
     ) -> tuple[Path, dict[str, Any]]:
         if not force_audio:
-            # 先探测笔记类型（需拉一次 HTML，但拿不到则默认按图片走）
+            # 先探测笔记类型（需拉一次 HTML，但拿不到则让视频路径接管）
             note_type = self._probe_note_type(url, dl)
             if note_type == "video":
                 try:
                     return self._download_video(url, dl)
                 except Exception as e:
                     logger.warning(f"[XiaoHongShu] 视频下载失败: {e}，尝试 yt-dlp 兜底...")
-            else:
+            elif note_type == "image":
                 try:
                     return self._download_images(url, dl)
                 except Exception as e:
-                    logger.warning(f"[XiaoHongShu] 图片下载失败: {e}，尝试 yt-dlp 兜底...")
+                    logger.warning(f"[XiaoHongShu] 图片下载失败: {e}，尝试视频路径兑底...")
+                    # 图片路径走了一次请求后探测可能为“”代表被风控。
+                    # 此时不要放弃，仍试一次视频下载走它自己内部的重复请求机制。
+                    try:
+                        return self._download_video(url, dl)
+                    except Exception as e2:
+                        logger.warning(f"[XiaoHongShu] 视频路径也失败: {e2}，尝试 yt-dlp 兜底...")
+            else:
+                # unknown：探测请求可能被风控跳到首页。直接试视频路径。
+                try:
+                    return self._download_video(url, dl)
+                except Exception as e:
+                    logger.warning(f"[XiaoHongShu] 视频下载失败: {e}，尝试图片路径兑底...")
+                    try:
+                        return self._download_images(url, dl)
+                    except Exception as e2:
+                        logger.warning(f"[XiaoHongShu] 图片路径也失败: {e2}，尝试 yt-dlp 兜底...")
 
         # yt-dlp 兜底（图片/视频/混合笔记）
         cookie_file = dl._try_export_cookies("xiaohongshu")
