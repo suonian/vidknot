@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-08-10
+
+### TikHub Layer 3 增强（小云外围硬化 + 小 Q 核心增强）
+
+抖音 fallback 双重增强。小云（Hermes）做了外围工具层，
+小 Q 在此基础上做了核心 TikHub API 集成增强。
+
+### Added (Hermes / 小云 feature/douyin-fallback-hardening)
+
+- **`scripts/f2_helper_cli.py`** — f2 CLI 封装 (Layer 1 备用)
+- **`src/vidknot/utils/cookie_health_check.py`** — Cookie 健康度 watchdog
+  - `check_cookie_health()` + `write_health_flag()`
+  - 适用：周一早上自动检测，cookie 过期时生成 flag 文件
+- **`scripts/codex_sample_curator.py`** — Codex 六关检查工具
+  - ffprobe duration / file size / 转录字符 / 关键词匹配 / 类型覆盖 / ASR 头部
+- **`src/vidknot/core/source/schema.py`** — TikHub key 模式识别
+- **文献**: `docs/DOUYIN_FALLBACK.md`、`docs/PLATFORMS.md`、`docs/EXPERIENCES.md`
+- **23 个新测试** (294 → 326)
+
+### Added (小 Q — TikHub Layer 3 核心增强)
+
+- **`_call_third_party_api`** — 新增 **exponential backoff retry**
+  - max_retries=2，指数退避（1s / 2s / 4s）
+  - 区分临时错误（429 限流 / 5xx 过载 / 网络超时 → 重试）
+  - 区分永久错误（401 鉴权过期 / 403 无权限 / 404 不存在 → 跳过）
+- **`_download_with_retry`** — 新建 CDN 直链下载重试
+  - max_retries=2（1s / 2s 退避）
+  - TikHub / apibyte 返回的视频直链可能来自 CDN 缓存，偶尔瞬断
+- **`_parse_api_response`** — 独立的 response path 解析
+  - 不再 hard-fail（DownloadError），改为 warn + return None
+  - 让主循环继续到下一个 API
+
+### Changed
+
+- 旧 `_call_third_party_api` 方法已删除（无 retry / 无错误分类）
+- `_version.py` 0.4.1 → 0.4.2
+- `pyproject.toml` 0.4.1 → 0.4.2
+
+### Verified
+
+- 326 tests pass（294 core + 23 Hermes + 9 local fix）
+- ruff lint 0 errors
+- Zero regression on v0.4.1 全部功能
+
+## [0.4.1] - 2026-08-10
+
 ## [Unreleased]
 
 ### Added

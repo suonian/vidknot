@@ -1,6 +1,6 @@
 # VidkNot
 
-VidkNot is a **general research platform framework** (v0.4.1) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.4.1 adds Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`).
+VidkNot is a **general research platform framework** (v0.4.2) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.4.2 adds Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`).
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
@@ -27,7 +27,7 @@ VidkNot is a **general research platform framework** (v0.4.1) that extracts know
 | Twitter / X | Short video | ✅ Stable via yt-dlp |
 | Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
 | WeChat Channels (视频号) | Short video | ✅ |
-| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.4.1) |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.4.2) |
 | Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
 | Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
 | Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
@@ -46,10 +46,10 @@ See [COOKIE_GUIDE.md](COOKIE_GUIDE.md) for the full capability matrix.
 
 ## Installation
 
-The current GitHub release is `v0.4.1`. Install from GitHub:
+The current GitHub release is `v0.4.2`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.1"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.2"
 ```
 
 For development:

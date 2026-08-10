@@ -1,6 +1,6 @@
 ---
 name: vidknot
-version: 0.4.1
+version: 0.4.2
 description: >
   Extract structured knowledge notes from 11+ self-media platforms
   (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X,
@@ -44,7 +44,7 @@ Do NOT use VidkNot for:
 
 ```bash
 # 1. Install (one command)
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.1"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.2"
 
 # 2. Configure (only one API key required)
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -217,7 +217,7 @@ This skill follows [Semantic Versioning](https://semver.org/):
 - MINOR: new features, backward-compatible
 - PATCH: bug fixes
 
-Latest: **0.4.1** — see [CHANGELOG.md](CHANGELOG.md).
+Latest: **0.4.2** — see [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

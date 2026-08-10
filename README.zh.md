@@ -1,6 +1,6 @@
 # VidkNot
 
-视频知识提取与研究平台（v0.4.1 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.4.1 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）。
+视频知识提取与研究平台（v0.4.2 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.4.2 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）。
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
@@ -27,7 +27,7 @@
 | Twitter / X | 短视频 | ✅ yt-dlp 稳定支持 |
 | Instagram | Reels | ✅ yt-dlp 稳定支持 |
 | 微信视频号 | 短视频 | ✅ |
-| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.4.1 仍生效）|
+| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.4.2 仍生效）|
 | 小红书（视频笔记） | 短视频 | ✅ 从 `__INITIAL_STATE__` 拿无水印直链 |
 | 快手、微博 | 短视频 | ⚠️ 框架已就位，依赖 yt-dlp |
 | 任何 yt-dlp 支持的站点 | 混合 | ✅ GenericPlatform 兜底 |
@@ -46,10 +46,10 @@
 
 ## 安装
 
-当前 GitHub 版本为 `v0.4.1`。从 GitHub 安装：
+当前 GitHub 版本为 `v0.4.2`。从 GitHub 安装：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.1"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.4.2"
 ```
 
 开发安装：
