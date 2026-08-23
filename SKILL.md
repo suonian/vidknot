@@ -197,7 +197,7 @@ When the agent receives this skill, it should look for:
 | File | Purpose |
 | --- | --- |
 | `SKILL.md` | This file (YAML frontmatter + usage docs) |
-| `README.md` / `README.en.md` | 中文默认首页 / 英文辅助 |
+| `README.md` / `README.zh-CN.md` | English default / Chinese localized |
 | `CHANGELOG.md` | Version history |
 | `CONTRIBUTING.md` | Contribution guide |
 | `SECURITY.md` | Security reporting |
