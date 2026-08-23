@@ -188,6 +188,12 @@ VidkNot writes Markdown notes with:
 - Follow the terms of video platforms, cloud services, and note platforms
 - Third-party service availability, pricing, and permissions are controlled by their providers
 
+## Contact Author
+
+For project inquiries and discussions, scan the QR code below to add the author on WeChat:
+
+![WeChat QR Code](assets/wechat-qr.jpg)
+
 ## License
 
 [MIT](LICENSE)
