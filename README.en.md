@@ -196,4 +196,20 @@ For project inquiries and discussions, scan the QR code below to add the author 
 
 ## License
 
-[MIT](LICENSE)
+This project is licensed under the MIT License.
+
+**Permissions**
+- Commercial use
+- Modification
+- Distribution
+- Patent use
+- Private use
+
+**Conditions**
+- License and copyright notice required
+
+**Limitations**
+- No liability
+- No warranty
+
+See the [LICENSE](LICENSE) file for the full text.
