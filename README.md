@@ -192,7 +192,7 @@ VidkNot 默认生成 Markdown 笔记，包含：
 
 项目咨询与讨论，请扫描下方二维码添加作者微信：
 
-<img src="assets/wechat-qr.jpg" width="120" alt="微信二维码">
+<img src="assets/wechat-qr.jpg" width="140" alt="微信二维码">
 
 ## License
 

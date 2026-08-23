@@ -192,7 +192,7 @@ VidkNot writes Markdown notes with:
 
 For project inquiries and discussions, scan the QR code below to add the author on WeChat:
 
-<img src="assets/wechat-qr.jpg" width="120" alt="WeChat QR Code">
+<img src="assets/wechat-qr.jpg" width="140" alt="WeChat QR Code">
 
 ## License
 
