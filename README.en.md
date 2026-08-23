@@ -199,7 +199,7 @@ For project inquiries and discussions, scan the QR code below to add the author 
 This project is licensed under the MIT License.
 
 **Permissions**
-- Commercial use
+- Commercial use (refers to this tool software itself)
 - Modification
 - Distribution
 - Patent use
@@ -211,5 +211,7 @@ This project is licensed under the MIT License.
 **Limitations**
 - No liability
 - No warranty
+
+> **Important Notice**: This tool is intended for personal learning and research purposes only. The copyright of video content downloaded through this tool belongs to the original creators or platforms. Using downloaded content for commercial purposes may infringe on others' copyrights. Please comply with each platform's Terms of Service and applicable laws. This tool assumes no responsibility for users' behavior.
 
 See the [LICENSE](LICENSE) file for the full text.
