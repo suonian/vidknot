@@ -87,9 +87,12 @@ Not sure which to use? **CLI works for most users** — one command, done.
 
 Copy `.env.example` to `.env` and configure the keys you need:
 
+> SiliconFlow offers a **free** speech recognition model (SenseVoice). Register to get a free API Key.
+> Go to [siliconflow.cn](https://siliconflow.cn), create an account, and generate an API Key in the console — it's free.
+
 ```bash
-SILICONFLOW_API_KEY=your_siliconflow_api_key
-OPENAI_API_KEY=your_openai_compatible_api_key
+SILICONFLOW_API_KEY=your_siliconflow_api_key   # Speech transcription (SiliconFlow free model)
+OPENAI_API_KEY=your_openai_compatible_api_key  # Note generation (any OpenAI-compatible service)
 
 # Optional: Feishu
 FEISHU_APP_ID=your_feishu_app_id

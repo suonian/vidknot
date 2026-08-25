@@ -87,9 +87,12 @@ VidkNot 提供四种使用方式，根据你的场景选择：
 
 复制 `.env.example` 为 `.env`，至少配置转写和笔记生成所需的 API Key：
 
+> 硅基流动（SiliconFlow）提供**免费**的语音识别模型（SenseVoice），注册后即可获取免费 API Key。
+> 前往 [siliconflow.cn](https://siliconflow.cn) 注册账号，在控制台生成 API Key 即可免费使用。
+
 ```bash
-SILICONFLOW_API_KEY=your_siliconflow_api_key
-OPENAI_API_KEY=your_openai_compatible_api_key
+SILICONFLOW_API_KEY=your_siliconflow_api_key   # 语音转写（硅基流动免费模型）
+OPENAI_API_KEY=your_openai_compatible_api_key  # 笔记生成（任意 OpenAI 兼容服务）
 
 # 可选：飞书
 FEISHU_APP_ID=your_feishu_app_id
