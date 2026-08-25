@@ -46,6 +46,10 @@ See [COOKIE_GUIDE.md](COOKIE_GUIDE.md) for the full capability matrix.
 
 ## Installation
 
+> ️ **Prerequisite**: FFmpeg must be installed before running VidkNot, otherwise all platforms will fail.
+>
+> macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
+
 The current GitHub release is `v0.4.2`. Install from GitHub:
 
 ```bash
@@ -65,6 +69,19 @@ FFmpeg must be available locally:
 ```bash
 ffmpeg -version
 ```
+
+## Choosing an Interface
+
+VidkNot offers four ways to use it. Pick the one that fits your scenario:
+
+| Interface | Best For | Command |
+|-----------|----------|---------|
+| **CLI** | Daily use, batch scripts | `python -m vidknot "URL"` |
+| **Python API** | Embedding in your own Python project | `from vidknot import VideoKnowledgePipeline` |
+| **FastAPI** | Deploying as a web service | `uvicorn vidknot.api:app` |
+| **MCP** | Integrating with AI Agents (Claude, Codex) | `python -m vidknot --mcp` |
+
+Not sure which to use? **CLI works for most users** — one command, done.
 
 ## Configuration
 
@@ -154,14 +171,27 @@ print(result["markdown"])
 
 ## Output
 
-VidkNot writes Markdown notes with:
+VidkNot generates Markdown notes. Example structure:
 
-- Video title, source URL, and processing metadata
-- Topic and summary
-- Structured key points and details
-- Important quotes
-- Terms and explanations
-- Timestamped transcript
+```markdown
+# [Video Title]
+
+> Source: https://v.douyin.com/example/
+> Processed: 2026-08-24 10:30:00
+
+## Core Topic
+
+This video discusses...
+
+## Key Points
+
+1. **First point**: Details...
+2. **Second point**: Details...
+
+## Details / Quotes / Terms / Full Transcript
+```
+
+Includes: video title, source URL, processing metadata, core topic, structured key points, details, important quotes, terms and explanations, and timestamped transcript.
 
 ## Documentation
 
@@ -179,6 +209,7 @@ VidkNot writes Markdown notes with:
 | [docs/DOUYIN_FALLBACK.md](docs/DOUYIN_FALLBACK.md) | Douyin 4-layer fallback strategy |
 | [docs/EXPERIENCES.md](docs/EXPERIENCES.md) | Field-tested battle scars |
 | [docs/EXAMPLES.md](docs/EXAMPLES.md) | Custom backend / task / batch / source recipes |
+| [docs/FAQ.md](docs/FAQ.md) | FAQ and anti-patterns (check here first when stuck) |
 | [scripts/codex_sample_curator.py](scripts/codex_sample_curator.py) | Six-gate check for Codex-quality sample candidates |
 
 ## Security And Compliance

@@ -46,6 +46,10 @@
 
 ## 安装
 
+> ️ **前置依赖**：运行前必须安装 FFmpeg，否则所有平台都会失败。
+>
+> macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
+
 当前 GitHub 版本为 `v0.4.2`。从 GitHub 安装：
 
 ```bash
@@ -65,6 +69,19 @@ pip install -e ".[all]"
 ```bash
 ffmpeg -version
 ```
+
+## 选择使用方式
+
+VidkNot 提供四种使用方式，根据你的场景选择：
+
+| 方式 | 适用场景 | 命令 |
+|------|----------|------|
+| **CLI** | 日常使用、脚本批处理 | `python -m vidknot "URL"` |
+| **Python API** | 集成到自己的 Python 项目 | `from vidknot import VideoKnowledgePipeline` |
+| **FastAPI** | 部署为 Web 服务 | `uvicorn vidknot.api:app` |
+| **MCP** | 接入 AI Agent（如 Claude、Codex） | `python -m vidknot --mcp` |
+
+不确定用哪个？**CLI 适合大多数用户**，一条命令搞定。
 
 ## 配置
 
@@ -154,14 +171,27 @@ print(result["markdown"])
 
 ## 输出内容
 
-VidkNot 默认生成 Markdown 笔记，包含：
+VidkNot 默认生成 Markdown 笔记，示例如下：
 
-- 视频标题、来源链接和处理时间
-- 核心主题与摘要
-- 结构化要点和细节
-- 重要原文引用
-- 术语解释
-- 带时间戳的完整转写
+```markdown
+# [视频标题]
+
+> 来源：https://v.douyin.com/example/
+> 处理时间：2026-08-24 10:30:00
+
+## 核心主题
+
+本文讨论了...
+
+## 要点
+
+1. **第一个要点**：详细说明...
+2. **第二个要点**：详细说明...
+
+## 细节 / 重要引用 / 术语解释 / 完整转写
+```
+
+包含：视频标题、来源链接、核心主题、结构化要点、细节、原文引用、术语解释、带时间戳的完整转写。
 
 ## 更多文档
 
@@ -179,6 +209,7 @@ VidkNot 默认生成 Markdown 笔记，包含：
 | [docs/DOUYIN_FALLBACK.md](docs/DOUYIN_FALLBACK.md) | 抖音四层 Fallback 实战策略 |
 | [docs/EXPERIENCES.md](docs/EXPERIENCES.md) | 实战经验汇总 |
 | [docs/EXAMPLES.md](docs/EXAMPLES.md) | 自定义后端 / 任务 / 批量 / 订阅源示例 |
+| [docs/FAQ.md](docs/FAQ.md) | 常见问题与反模式（遇到问题先看这里）|
 | [scripts/codex_sample_curator.py](scripts/codex_sample_curator.py) | Codex 高质量样本筛选（六关检查）|
 
 ## 安全与合规
