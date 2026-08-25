@@ -197,6 +197,7 @@ class TestYouTubePlatform:
         """force_audio=True 时直接下载音频"""
         platform = YouTubePlatform()
         dl = self._make_dl()
+        dl._download_audio_no_cookie = MagicMock(side_effect=AssertionError("should not be called"))
         dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {"title": "t"}))
 
         audio_path, metadata = platform.download(
@@ -204,15 +205,18 @@ class TestYouTubePlatform:
         )
 
         assert audio_path == Path("/tmp/a.mp3")
+        dl._download_audio_no_cookie.assert_not_called()
         dl._download_with_browser_cookie.assert_called_once()
 
     def test_download_prefer_subtitles_false(self):
         """prefer_subtitles=False 时直接下载音频"""
         platform = YouTubePlatform()
         dl = self._make_dl(prefer_subtitles=False)
+        dl._download_audio_no_cookie = MagicMock(side_effect=AssertionError("should not be called"))
         dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
 
         platform.download("https://youtu.be/dQw4w9WgXcQ", dl)
+        dl._download_audio_no_cookie.assert_not_called()
         dl._download_with_browser_cookie.assert_called_once()
 
     def test_download_level1_fail_level2_success(self):
@@ -231,17 +235,21 @@ class TestYouTubePlatform:
         assert metadata["transcription_source"] == "yt_dlp_subtitle"
 
     def test_download_all_levels_fail_fallback_audio(self):
-        """所有字幕层级失败后回退音频下载"""
+        """所有字幕层级失败后回退音频下载 (Hermes PR: 走完 3-tier fallback 链)"""
         platform = YouTubePlatform()
         dl = self._make_dl()
-        dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
-
+        # Hermes (PR #N): SABR-only bypass fails → falls back to browser cookie
         with patch.object(platform, "_fetch_via_transcript_api", return_value=None), patch(
             "vidknot.core.platforms.youtube.fetch_ytdlp_subtitles", return_value=(None, {})
-        ):
+        ), patch.object(
+            platform, "_download_audio_no_cookie",
+            side_effect=Exception("simulated SABR failure"),
+        ) as mock_no_cookie:
+            dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
             audio_path, _ = platform.download("https://youtu.be/dQw4w9WgXcQ", dl)
 
         assert audio_path == Path("/tmp/a.mp3")
+        assert mock_no_cookie.called
         dl._download_with_browser_cookie.assert_called_once()
 
 

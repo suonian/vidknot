@@ -39,7 +39,9 @@ class YouTubePlatform(BasePlatform):
         ) or ["zh", "en", "ja", "ko"]
 
         if force_audio or not prefer_subtitles:
-            return self._download_audio(url, dl, quality)
+            # 显式 force_audio 或 prefer_subtitles=False 时: 直接走最稳的路径
+            # (跳过 SABR-only bypass, 因为 force_audio 是用户显式强制, 应该走最可靠的 Cookie 嗅探)
+            return self._download_audio_direct(url, dl, quality)
 
         # ---- Level 1: youtube-transcript-api ----
         try:
@@ -96,11 +98,112 @@ class YouTubePlatform(BasePlatform):
             return None
 
     def _download_audio(self, url: str, dl: Any, quality: str) -> tuple[Path, dict[str, Any]]:
-        """Level 3: 下载音频（浏览器 Cookie 优先）"""
+        """Level 3: 下载音频 (字幕提取失败后的 fallback)
+
+        优先级 (Hermes 实战沉淀, 2026-08-25):
+        1. 本地 cookies/youtube.txt 文件
+        2. **--extractor-args "youtube:player_client=android,web"** 绕过 Chrome cookies
+           (yt-dlp 2026+ 默认 SABR-only 必须用此参数, 否则 web client 拒签)
+        """
+        cookie_file = dl._find_cookie_file("youtube")
+
+        # 优先 1: 显式 cookie 文件
+        if cookie_file:
+            try:
+                return dl._yt_dlp_download(url, quality, cookie_file, "youtube")
+            except Exception as e:
+                logger.warning(f"[YouTube] Cookie 文件失败 ({str(e)[:100]}), 回退到无 cookie 模式")
+
+        # 优先 2: 无 cookie + SABR-only 兼容 (新增)
+        logger.info("[YouTube] 无本地 Cookie，使用 SABR-only 兼容 extractor-args")
+        try:
+            return self._download_audio_no_cookie(url, dl, quality)
+        except Exception as e:
+            logger.warning(f"[YouTube] 无 Cookie 模式失败 ({str(e)[:100]}), 回退到浏览器 Cookie 嗅探")
+            return dl._download_with_browser_cookie(url, quality, "youtube")
+
+    def _download_audio_direct(self, url: str, dl: Any, quality: str) -> tuple[Path, dict[str, Any]]:
+        """force_audio / prefer_subtitles=False 时的直接下载路径
+
+        Hermes 实战沉淀: 用户显式 force_audio=True 时, 不需要 SABR-only bypass
+        试探, 直接走 Cookie 嗅探 (最稳定, 因为 force_audio 是显式请求).
+        """
         cookie_file = dl._find_cookie_file("youtube")
         if cookie_file:
             return dl._yt_dlp_download(url, quality, cookie_file, "youtube")
         return dl._download_with_browser_cookie(url, quality, "youtube")
+
+    def _download_audio_no_cookie(
+        self, url: str, dl: Any, quality: str
+    ) -> tuple[Path, dict[str, Any]]:
+        """Level 3 fallback: 无 Cookie 下载（绕过 SABR-only 限制）
+
+        Hermes 实战沉淀 (2026-08-25): Lin Lili @linliliya AI 大模型科普课 7 条
+        全部用此模式跑通。关键参数:
+        - `--extractor-args "youtube:player_client=android,web"` 指定 Android + Web client
+        - 跳过 web client 默认的 SABR-only streaming 限制
+        - 不需要浏览器 Cookie
+        """
+        import yt_dlp
+
+        output_template = str(dl.output_dir / "youtube_video.%(ext)s")
+
+        ydl_opts: dict[str, Any] = {
+            "format": "18/bestaudio/best",  # format 18 = legacy mp4 480p, 兜底
+            "outtmpl": output_template,
+            "quiet": True,
+            "no_warnings": True,
+            "no_color": True,
+            "ignoreerrors": False,
+            # 关键: 绕过 Chrome cookies + SABR-only
+            "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "128",
+            }],
+        }
+
+        metadata: dict[str, Any] = {}
+        audio_path: Path | None = None
+
+        def hook(d: dict[str, Any]) -> None:
+            nonlocal audio_path
+            if d["status"] == "finished":
+                # yt-dlp 会把 ext 改成 .mp3 (FFmpegExtractAudio postprocessor)
+                audio_path = Path(d["filename"]).with_suffix(".mp3")
+
+        ydl_opts["progress_hooks"] = [hook]
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            if info:
+                metadata = {
+                    "title": info.get("title", ""),
+                    "uploader": info.get("uploader", ""),
+                    "duration": info.get("duration", 0),
+                    "thumbnail": info.get("thumbnail", ""),
+                    "description": info.get("description", ""),
+                    "url": url,
+                    "id": info.get("id", ""),
+                    "platform": "youtube",
+                    "transcription_source": "yt_dlp_sabr_bypass",
+                }
+                if audio_path is None or not audio_path.exists():
+                    # Fallback: 按 video_id 找
+                    for ext in ["mp3", "m4a", "webm", "wav", "flac"]:
+                        candidates = list(dl.output_dir.glob(f"*{info.get('id', '')}.{ext}"))
+                        if candidates:
+                            audio_path = candidates[0]
+                            break
+
+        if audio_path is None or not audio_path.exists():
+            from ..utils.exceptions import AudioExtractError
+            raise AudioExtractError("SABR-only bypass 下载完成但未找到音频文件")
+
+        logger.info(f"[YouTube] SABR-only bypass 成功: {audio_path.name}")
+        return audio_path, metadata
+
 
     def _fetch_metadata_only(self, url: str, dl: Any) -> dict[str, Any]:
         """仅提取元数据（不下载）"""

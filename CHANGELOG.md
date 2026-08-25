@@ -65,14 +65,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     opinion / OPC super-individual)
   - Gate 6: transcript head rejection for known failure patterns
     (single-character spam, "音响设备故障", etc.)
-- **`tests/test_codex_sample_curator.py`** — 11 tests covering
-  duration, size, transcript length, keyword mismatch, failure
-  pattern, batch mode, and config defaults.
+- **`scripts/post_run_audit.py`** — post-run dual-source audit
+  (Hermes iron rule 135 enforcement, 2026-08-25):
+  - Fetches every docx in a Feishu folder, verifies each "原文"
+    / "核心观点" / "原声金句" code-block line appears verbatim in
+    the local `fw_corrected.txt` or `sf_corrected.txt`
+  - Reports coverage + true_miss with section context
+  - Returns exit code 0 iff all docs ≥ 99.0 % coverage with zero
+    true_miss (CI-friendly)
+  - Reference: Hermes iron rule 113 "笔记内容 = 口播稿原文" + 老大拷问
+    "是否确定过笔记内容和口播稿内容一致"
+- **`tests/test_post_run_audit.py`** — covers normalization, time-stamp
+  stripping, OK / MISMATCH reporting, fw+sf 双源 boundary.
 
 ### Changed
 
-- README.md / README.zh.md document the new curator script in the
-  Documentation table.
+- **YouTube platform** — Level 3 (audio download) now uses a 3-tier
+  fallback (Hermes实战 2026-08-25, Lin Lili @linliliya 7 videos):
+  1. local Cookie file (cookies/youtube.txt)
+  2. **`--extractor-args "youtube:player_client=android,web"`** SABR-only
+     bypass (no Cookie required, default for yt-dlp 2026+)
+  3. Browser Cookie sniff (legacy fallback)
+  - Hermes noted: "vt-dlp 2026+ 默认 SABR-only 拒签 web client, 必须
+    指定 player_client=android,web 才能在无 Cookie 环境下下载"
+- **SiliconFlowASR** — automatic Traditional Chinese → Simplified
+  Chinese conversion (OpenCC `t2s`) when the transcript looks
+  Traditional:
+  - Heuristic: count of Traditional feature characters (經/學/聲/變/對/...)
+    > 2× Simplified counterparts
+  - Uses `opencc-python-reimplemented` if installed; gracefully skips
+    conversion otherwise
+  - Hermes noted: "Lin Lili @linliliya 全部 7 条视频都是繁体源, SF 输出
+    也含繁体, 不转 LLM 提取会混入繁体"
+
+### Documentation
+
+- `references/2026-08-25-HERMES-EXPERIENCE-REPORT.md` — Hermes heavy-user
+  perspective: 实战优势 + 上游改进建议清单
+  (companion to this commit)
 
 ## [0.4.1] - 2026-08-10
 
