@@ -133,6 +133,12 @@ class SiliconFlowASR:
                     details=f"文件: {audio_path.name}",
                 )
 
+            # 自动繁简转换 (Hermes 实战沉淀 2026-08-25):
+            # 台湾/香港创作者视频源是繁体中文, SF 输出的繁体字需要转简体
+            # 以便后续 LLM 提取和存储使用统一编码
+            if self._is_likely_traditional(result):
+                result = self._convert_traditional_to_simplified(result)
+
             logger.info(f"[SiliconFlow] 转录完成: {len(result)} 字符")
             return result.strip()
 
@@ -143,6 +149,36 @@ class SiliconFlowASR:
                 "硅基流动转录失败",
                 details=f"model={self.model}, error={e}",
             )
+
+    @staticmethod
+    def _is_likely_traditional(text: str) -> bool:
+        """检测文本是否可能是繁体中文 (启发式)
+
+        启发式: 包含多个繁体特征字 (經 學 聲 變 對 等) 但简体对应字 (经 学 声 变 对) 出现频次低
+        """
+        # 简体字远少于对应繁体字 = 极可能是繁体
+        trad_chars = "經學聲變對電腦語言頭條開發數據"
+        simp_chars = "经学声变对电脑语言头条开发数据"
+        trad_count = sum(text.count(c) for c in trad_chars)
+        simp_count = sum(text.count(c) for c in simp_chars)
+        return trad_count >= 5 and trad_count > simp_count * 2
+
+    @staticmethod
+    def _convert_traditional_to_simplified(text: str) -> str:
+        """OpenCC t2s 转换（需 opencc-python-reimplemented 包）
+
+        优雅降级: opencc 不可用时跳过转换, 不影响主流程
+        """
+        try:
+            import opencc
+            converter = opencc.OpenCC("t2s")
+            return converter.convert(text)
+        except ImportError:
+            logger.warning(
+                "[SiliconFlow] opencc-python-reimplemented 未安装, 跳过繁简转换. "
+                "pip install opencc-python-reimplemented 启用此功能."
+            )
+            return text
 
 
 def get_transcriber(provider: str = "siliconflow", **kwargs):
