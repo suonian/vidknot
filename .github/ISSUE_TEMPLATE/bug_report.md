@@ -30,7 +30,7 @@ What actually happened. Include the full traceback if any.
 
 ## Environment
 
-- VidkNot version (e.g. `v0.4.2`): <!-- run `python -m vidknot --version` -->
+- VidkNot version (e.g. `v0.5.0`): <!-- run `python -m vidknot --version` -->
 - Python version (`python --version`):
 - OS (macOS / Linux / Windows + version):
 - FFmpeg version (`ffmpeg -version | head -1`):

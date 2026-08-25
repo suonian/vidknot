@@ -5,8 +5,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 # Make scripts/ importable
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -17,7 +15,6 @@ from post_run_audit import (  # noqa: E402
     _normalize,
     _strip_ts,
 )
-
 
 # --- normalization ---
 

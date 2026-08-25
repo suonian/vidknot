@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-26
+
+### YouTube SABR Bypass + OpenCC 繁简转换 + 审计体系 + Cookie 健康度
+
+合并 feature/youtube-sop-and-audit 分支（Hermes/小云实战沉淀）。
+
+### Added
+
+- **YouTube SABR-only 绕过** (`youtube.py`)
+  - `--extractor-args "youtube:player_client=android,web"` 绕过 Chrome SABR 限制
+  - 无 Cookie 也能下载 YouTube 音频（Hermes 实测 7 条全部跑通）
+  - 新增 `_download_audio_no_cookie()` 和 `_download_audio_direct()`
+- **OpenCC 繁简自动转换** (`transcriber.py`)
+  - SiliconFlow ASR 输出繁体中文时自动转简体
+  - 启发式检测 + 优雅降级（opencc 未安装时跳过）
+- **Post-run Audit** (`scripts/post_run_audit.py`)
+  - 双重来源机械验证：笔记内容 vs 口播稿原文
+  - 检测 LLM  paraphrase/drop/invent 问题
+- **Cookie 健康度 Watchdog** (`utils/cookie_health_check.py`)
+  - `check_cookie_health()` + `write_health_flag()`
+  - 适用：周一早上自动检测，cookie 过期时生成 flag 文件
+- **Codex Sample Curator** (`scripts/codex_sample_curator.py`)
+  - 六关质量检查（ffprobe duration / file size / ASR chars / 关键词 / 类型覆盖 / ASR 头部）
+- **F2 Helper CLI** (`scripts/f2_helper_cli.py`)
+  - f2 CLI 封装，Layer 1 备用下载
+- **TikHub key 凭证扫描** (`schema.py`)
+  - 新增 TIKHUB_API_KEY 模式识别，防止误提交
+- **文档**: `references/2026-08-25-HERMES-EXPERIENCE-REPORT.md`
+- **15 个新测试** (326 → 341)
+
+### Changed
+
+- `_version.py` 0.4.2 → 0.5.0
+- `pyproject.toml` 0.4.2 → 0.5.0
+
+## [0.4.2] - 2026-08-10
+
 ## [0.4.2] - 2026-08-10
 
 ### TikHub Layer 3 增强（小云外围硬化 + 小 Q 核心增强）
