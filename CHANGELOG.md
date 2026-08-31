@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-09-01
+
+### 市场描述通俗化改写
+
+### Changed
+
+- **`SKILL.md` 头部描述通俗化**：原文偏技术（「双 ASR 交叉校验」「OpenAI 兼容
+  LLM」等），普通用户看不懂；改为以「一键提取视频文案和知识笔记」开头的
+  大白话表述——丢个链接进来，自动听懂内容、转成文字稿、整理出摘要与重点、
+  一键存进笔记软件；保留 11+ 平台清单与触发语句（搜索/评估依赖）
+- **`SKILL.md` 正文开头定位句同步通俗化**：不再以「通用视频知识提取与
+  研究平台框架」开头，改为场景化描述（课程、访谈、口播、测评都能处理）
+- 全量版本位点同步至 `v0.6.3`（pyproject / _version / install.sh /
+  SECURITY / issue 模板 / README 双语 / SKILL.md 快速开始安装命令）
+
 ## [0.6.2] - 2026-08-31
 
 ### 市场概述页中文化

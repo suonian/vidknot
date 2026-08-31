@@ -2,13 +2,14 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.2
+version: 0.6.3
 description: >
-  从 11+ 自媒体平台（YouTube、B站、抖音、小红书、快手、TikTok、Twitter/X、
-  Instagram、微信视频号、微博、Vimeo）提取视频知识笔记：下载音频、双 ASR
-  交叉校验（SiliconFlow + faster-whisper）、OpenAI 兼容 LLM 生成结构化笔记，
-  可保存到 Obsidian/飞书/Notion/语雀。当用户要求总结视频、提取视频笔记、
-  把视频转成文字稿或知识笔记时使用。
+  一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
+  转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
+  Obsidian、飞书、Notion、语雀。支持 YouTube、B站、抖音、小红书、快手、
+  TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo 等 11+ 平台，
+  不用手敲字幕、不用反复回看视频。当用户要求总结视频、提取视频文案、
+  生成视频笔记、把视频转成文字稿或知识笔记时使用。
 author: VidkNot Team
 license: MIT
 homepage: https://github.com/suonian/vidknot
@@ -17,9 +18,10 @@ repository: https://github.com/suonian/vidknot
 
 # VidkNot — 影音笔记舱（Video Knowledge, Knotted）
 
-通用视频知识提取与研究平台框架：从 **11+ 自媒体平台**提取知识，
-生成结构化笔记并保存到你常用的知识库
-（Obsidian / 飞书 / Notion / 语雀 / SQLite / 自定义）。
+把一个视频链接丢进来，VidkNot 会自动「听懂」视频里说的话：
+先转成完整文字稿，再整理成带主题、摘要、要点的笔记，
+一键存进你常用的知识库（Obsidian / 飞书 / Notion / 语雀 / SQLite / 自定义）。
+支持 YouTube、B站、抖音等 **11+ 平台**，课程、访谈、口播、测评都能处理。
 
 ## 什么时候使用本技能
 
@@ -66,7 +68,7 @@ repository: https://github.com/suonian/vidknot
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.2"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.3"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -238,7 +240,7 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.2** — 详见 [CHANGELOG.md](CHANGELOG.md)。
+最新版：**0.6.3** — 详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证
 
