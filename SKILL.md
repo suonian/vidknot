@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.1
+version: 0.6.2
 description: >
   从 11+ 自媒体平台（YouTube、B站、抖音、小红书、快手、TikTok、Twitter/X、
   Instagram、微信视频号、微博、Vimeo）提取视频知识笔记：下载音频、双 ASR
@@ -15,146 +15,145 @@ homepage: https://github.com/suonian/vidknot
 repository: https://github.com/suonian/vidknot
 ---
 
-# VidkNot — Video Knowledge, Knotted
+# VidkNot — 影音笔记舱（Video Knowledge, Knotted）
 
-A general research platform framework that extracts knowledge from
-**11+ self-media platforms** and saves structured notes to your
-favorite knowledge base (Obsidian / Feishu / Notion / Yuque / SQLite / custom).
+通用视频知识提取与研究平台框架：从 **11+ 自媒体平台**提取知识，
+生成结构化笔记并保存到你常用的知识库
+（Obsidian / 飞书 / Notion / 语雀 / SQLite / 自定义）。
 
-## When to use this skill
+## 什么时候使用本技能
 
-Use VidkNot when the user wants to:
+当用户希望：
 
-- Extract **structured notes** (topic / summary / key points / terms) from
-  a video link on YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok,
-  Twitter/X, Instagram, WeChat Channels, Weibo, or Vimeo.
-- Process a **batch of video links** (URLs.txt file or YAML subscription list)
-  into a unified notes corpus.
-- Run a **periodic monitor** that polls a YouTube channel / Bilibili user /
-  Xiaohongshu creator / etc. and ingests new videos automatically.
-- Sync processed notes to **Obsidian vault**, **Feishu document**,
-  **Notion page**, or **Yuque book**.
+- 从 YouTube、B站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、
+  微信视频号、微博或 Vimeo 的视频链接中提取**结构化笔记**
+  （主题 / 摘要 / 要点 / 术语）。
+- 批量处理**一批视频链接**（URLs.txt 文件或 YAML 订阅列表），
+  汇总成统一的笔记库。
+- 运行**周期监控**，轮询 YouTube 频道 / B站用户 / 小红书创作者等，
+  自动收录新视频。
+- 把处理好的笔记同步到 **Obsidian 仓库**、**飞书文档**、
+  **Notion 页面**或**语雀知识库**。
 
-Do NOT use VidkNot for:
+以下场景**不适用** VidkNot：
 
-- Real-time video / audio streaming (not a media player).
-- Live broadcast (livestream) ingestion (current code targets on-demand).
-- DRMed / paid content (use official APIs of the platform).
+- 实时视频 / 音频流播放（本工具不是播放器）。
+- 直播内容采集（当前代码面向点播内容）。
+- DRM 加密 / 付费内容（请使用平台官方 API）。
 
-### Long-form vs short videos (trigger guidance)
+### 长视频 vs 短视频（触发指引）
 
-| Scenario | Recommendation |
+| 场景 | 建议 |
 | --- | --- |
-| Short video (<10 min) | Default config; batch mode (`--batch`) for many links |
-| Medium (10–20 min) | Default config; Dual-ASR correction takes ~0.5–1× realtime |
-| Long-form (>20 min) | Prefer `faster-whisper` with a `large` model; consider splitting |
-| Very long (>1 h) | Split into segments first; raise `network.download_timeout` |
+| 短视频（<10 分钟） | 默认配置；链接多时用批处理模式（`--batch`） |
+| 中等（10–20 分钟） | 默认配置；双 ASR 校正约需 0.5–1 倍实时时长 |
+| 长视频（>20 分钟） | 优先用 `faster-whisper` + `large` 模型；可考虑分段 |
+| 超长（>1 小时） | 先分段处理；调大 `network.download_timeout` |
 
-### Boundaries & prerequisites
+### 边界与前提条件
 
-- **Cookies**: 抖音 / B站 / 小红书 work best with a logged-in cookie
-  (`cookies/<platform>.txt`, see `COOKIE_GUIDE.md`); TikTok / Twitter/X /
-  Instagram read Chrome browser cookies directly (must be logged in).
-  YouTube / Vimeo / generic links work without cookies.
-- **Duration**: no hard cap, but downloads over 1 h should raise
-  `network.download_timeout` (default 600 s, see `docs/CONFIG.md`).
-- **Paid / members-only / fans-only content is not supported** — see the
-  detection criteria in `docs/PLATFORMS.md`.
-- Full platform-by-platform status and cookie matrix: `docs/PLATFORMS.md`.
+- **Cookie**：抖音 / B站 / 小红书使用登录态 Cookie 效果最好
+  （`cookies/<platform>.txt`，见 `COOKIE_GUIDE.md`）；TikTok / Twitter/X /
+  Instagram 直接读取 Chrome 浏览器 Cookie（浏览器须已登录）。
+  YouTube / Vimeo / 通用链接无需 Cookie。
+- **时长**：无硬性上限，但超过 1 小时的下载应调大
+  `network.download_timeout`（默认 600 秒，见 `docs/CONFIG.md`）。
+- **不支持付费 / 仅会员 / 仅粉丝可见内容**——判断标准见
+  `docs/PLATFORMS.md`。
+- 各平台完整支持状态与 Cookie 依赖矩阵：`docs/PLATFORMS.md`。
 
-## Quick start (one minute)
+## 快速开始（一分钟）
 
 ```bash
-# 1. Install (one command)
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.1"
+# 1. 安装（一条命令）
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.2"
 
-# 2. Configure (only one API key required)
+# 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
 
-# 3. Try it (zero-config demo mode works without any key for the first test)
+# 3. 试跑（demo 模式零配置，首次测试无需任何 key）
 vidknot --demo "https://www.bilibili.com/video/BVxxxxx"
 
-# 4. Real run
+# 4. 正式运行
 vidknot "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 ```
 
-## Interfaces
+## 接口形态
 
-VidkNot exposes four interfaces for agents / scripts:
+VidkNot 为 Agent / 脚本提供四种接口：
 
-| Interface | Invocation | Use case |
+| 接口 | 调用方式 | 适用场景 |
 | --- | --- | --- |
-| **CLI** | `vidknot <url> [--destination <obsidian|feishu|notion|yuque|none>]` | One-shot CLI |
-| **Python API** | `from vidknot import VideoKnowledgePipeline; pipeline.run(url)` | Embedded scripting |
-| **FastAPI** | `uvicorn vidknot.api:app --reload` | HTTP service for other tools |
-| **MCP** | `vidknot --mcp` | Claude / Qoder / Cursor / Cline etc. via Model Context Protocol |
+| **CLI** | `vidknot <url> [--destination <obsidian|feishu|notion|yuque|none>]` | 单次命令行处理 |
+| **Python API** | `from vidknot import VideoKnowledgePipeline; pipeline.run(url)` | 嵌入式脚本 |
+| **FastAPI** | `uvicorn vidknot.api:app --reload` | 为其他工具提供 HTTP 服务 |
+| **MCP** | `vidknot --mcp` | Claude / Qoder / Cursor / Cline 等通过 Model Context Protocol 调用 |
 
-### MCP usage
+### MCP 用法
 
 ```bash
 vidknot --mcp
 ```
 
-Once the MCP server is running, the agent gains these tools:
+MCP 服务启动后，Agent 获得以下工具：
 
 - `vidknot_extract(url: str, destination: str = "none") -> str` —
-  full pipeline (download + ASR + LLM + save), returns Markdown
+  完整流水线（下载 + ASR + LLM + 保存），返回 Markdown
 - `vidknot_transcribe_only(url: str) -> str` —
-  only download + transcribe (no LLM, no save)
-- `vidknot_status() -> dict` — version, configured providers, last run
+  仅下载 + 转写（不调 LLM、不保存）
+- `vidknot_status() -> dict` — 版本、已配置的提供者、上次运行信息
 
-## Configuration
+## 配置
 
-Minimal configuration (only **1** key required):
+最小配置（只需 **1** 个 key）：
 
 ```bash
 # .env
 SILICONFLOW_API_KEY=sk-xxxxxxxx
 ```
 
-Full configuration (4 keys, recommended):
+完整配置（4 个 key，推荐）：
 
 ```bash
 # .env
-# Required: ASR
+# 必填：ASR（语音转文字）
 SILICONFLOW_API_KEY=sk-xxxxxxxx
 
-# Required (for LLM-generated notes): any OpenAI-compatible endpoint
+# 必填（生成 LLM 笔记用）：任何 OpenAI 兼容端点
 LLM_API_KEY=sk-xxxxxxxx
 LLM_BASE_URL=https://api.openai.com/v1
 VIDKNOT_LLM_MODEL=gpt-4o-mini
 
-# Optional: storage destinations
+# 可选：存储目标
 OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
-# or
+# 或
 FEISHU_APP_ID=cli_xxxx
 FEISHU_APP_SECRET=xxxxxxxx
 
-# Optional: vidknot-specific knobs
+# 可选：vidknot 专属开关
 VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
 ```
 
-See `.env.example` for the full reference and `docs/CONFIG.md` for
-detailed documentation of every variable.
+完整变量参考见 `.env.example`，逐项详解见 `docs/CONFIG.md`。
 
-## Examples
+## 使用示例
 
 ### CLI
 
 ```bash
-# One video, save to Obsidian
+# 单个视频，保存到 Obsidian
 vidknot "https://www.bilibili.com/video/BV1xx411c7mD"
 
-# One video, raw transcription only
+# 单个视频，只输出原始转写
 vidknot --raw "https://www.youtube.com/watch?v=abc" -l zh
 
-# One video, save to Feishu doc
+# 单个视频，保存到飞书文档
 vidknot "https://v.douyin.com/abc123" -d feishu
 
-# Batch from urls.txt
+# 从 urls.txt 批量处理
 vidknot --batch urls.txt -d obsidian --max-workers 3
 
-# Local mp4
+# 本地 mp4
 vidknot --batch-dir ./videos/ -d feishu
 ```
 
@@ -168,20 +167,20 @@ result = pipeline.run("https://www.xiaohongshu.com/explore/abc")
 print(result["markdown"])
 ```
 
-### MCP (agent use)
+### MCP（Agent 调用）
 
 ```python
-# From an MCP-aware agent (Claude / Qoder / Cursor / etc.)
+# 在支持 MCP 的 Agent（Claude / Qoder / Cursor 等）中
 result = call_tool("vidknot_extract", url="https://www.bilibili.com/video/BV1xx")
 save_to_memory(result)
 ```
 
-## Architecture (v0.4.x)
+## 架构（v0.4.x）
 
 ```
-        11+ Self-Media Platforms
+        11+ 自媒体平台
         ┌──────────────────────┐
-        │ YouTube / Bilibili    │  Extract
+        │ YouTube / Bilibili    │  提取
         │ Douyin / Xiaohongshu  │  ───────►
         │ Kuaishou / TikTok     │           │
         │ Twitter/X / Instagram │           │
@@ -190,13 +189,13 @@ save_to_memory(result)
         └──────────────────────┘           │
                                             ▼
         ┌─────────────────────────────────────────────────────────┐
-        │                  core/  (pipeline)                      │
-        │  downloader → transcriber (dual-ASR) → corrector        │
-        │  → processor (LLM via OpenAI-compat) → writer           │
+        │                  core/（流水线）                         │
+        │  downloader → transcriber (双 ASR) → corrector          │
+        │  → processor (LLM, OpenAI 兼容) → writer                │
         └─────────────────────────────────────────────────────────┘
                                             │
                                             ▼
-        4+ Storage Targets                    + v0.4.0 framework
+        4+ 存储目标                           + v0.4.0 框架能力
         ┌──────────────────────┐            ┌──────────────────────┐
         │ Obsidian              │            │ core/backend/         │
         │ Feishu (飞书)         │  ────►     │ core/source/          │
@@ -205,42 +204,42 @@ save_to_memory(result)
         └──────────────────────┘            └──────────────────────┘
 ```
 
-## Configuration discovery
+## 配置文件发现
 
-When the agent receives this skill, it should look for:
+Agent 拿到本技能后，应查找：
 
-1. `pyproject.toml` → install dependencies, find entry points
-2. `.env.example` → template for required environment variables
-3. `docs/CONFIG.md` → full configuration reference
-4. `SKILL.md` (this file) → when / how to use
+1. `pyproject.toml` → 安装依赖、定位入口点
+2. `.env.example` → 必填环境变量模板
+3. `docs/CONFIG.md` → 完整配置参考
+4. `SKILL.md`（本文件）→ 何时 / 如何使用
 
-## Files in this skill
+## 本技能包含的文件
 
-| File | Purpose |
+| 文件 | 用途 |
 | --- | --- |
-| `SKILL.md` | This file (YAML frontmatter + usage docs) |
+| `SKILL.md` | 本文件（YAML frontmatter + 使用说明） |
 | `README.md` / `README.en.md` | 中文默认首页 / 英文辅助 |
-| `CHANGELOG.md` | Version history |
-| `CONTRIBUTING.md` | Contribution guide |
-| `SECURITY.md` | Security reporting |
-| `DISCLAIMER.md` | Personal-learning-only disclaimer |
-| `COOKIE_GUIDE.md` | Cookie handling guide |
-| `API_GUIDE.md` | API key configuration |
-| `INSTALL.md` | Install instructions |
-| `docs/` | Supplementary docs (PRIVACY, BACKENDS, CONFIG, EXAMPLES) |
-| `examples/sources.yaml.example` | YAML subscription source template |
-| `scripts/install.sh` | One-line install + verify script |
+| `CHANGELOG.md` | 版本历史 |
+| `CONTRIBUTING.md` | 贡献指南 |
+| `SECURITY.md` | 安全问题报告 |
+| `DISCLAIMER.md` | 仅限个人学习用途声明 |
+| `COOKIE_GUIDE.md` | Cookie 处理指南 |
+| `API_GUIDE.md` | API key 配置 |
+| `INSTALL.md` | 安装说明 |
+| `docs/` | 补充文档（PRIVACY、BACKENDS、CONFIG、EXAMPLES 等） |
+| `examples/sources.yaml.example` | YAML 订阅源模板 |
+| `scripts/install.sh` | 一键安装 + 验证脚本 |
 
-## Versioning
+## 版本规则
 
-This skill follows [Semantic Versioning](https://semver.org/):
+本技能遵循[语义化版本](https://semver.org/lang/zh-CN/)：
 
-- MAJOR: breaking changes to public API
-- MINOR: new features, backward-compatible
-- PATCH: bug fixes
+- MAJOR：公共 API 破坏性变更
+- MINOR：向后兼容的新功能
+- PATCH：缺陷修复
 
-Latest: **0.6.1** — see [CHANGELOG.md](CHANGELOG.md).
+最新版：**0.6.2** — 详见 [CHANGELOG.md](CHANGELOG.md)。
 
-## License
+## 许可证
 
-MIT — see [LICENSE](LICENSE).
+MIT — 见 [LICENSE](LICENSE)。

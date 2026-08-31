@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-08-31
+
+### 市场概述页中文化
+
+### Changed
+
+- **`SKILL.md` 全文中文化**：市场「概述」页直接渲染 SKILL.md 正文，
+  此前正文为英文导致用户看到全英文页面；现已全部译为中文
+  （使用指引、边界条件、快速开始、接口形态、MCP 用法、配置、
+  示例、架构图、文件清单、版本规则、许可证），
+  frontmatter description 保持中文不变
+- 全量版本位点同步至 `v0.6.2`（pyproject / _version / install.sh /
+  SECURITY / issue 模板 / README 双语 / SKILL.md 快速开始安装命令）
+
 ## [0.6.1] - 2026-08-31
 
 ### 修复时长格式化崩溃 + 展示信息中文化
