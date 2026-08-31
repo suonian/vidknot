@@ -2,14 +2,13 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.0
+version: 0.6.1
 description: >
-  Extract structured knowledge notes from 11+ self-media platforms
-  (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X,
-  Instagram, WeChat Channels, Weibo, Vimeo). Dual-ASR cross-validation
-  (SiliconFlow + faster-whisper), OpenAI-compatible LLM, pluggable
-  storage backends, async periodic scheduler, batch runner,
-  credential-leak-proof source loader.
+  从 11+ 自媒体平台（YouTube、B站、抖音、小红书、快手、TikTok、Twitter/X、
+  Instagram、微信视频号、微博、Vimeo）提取视频知识笔记：下载音频、双 ASR
+  交叉校验（SiliconFlow + faster-whisper）、OpenAI 兼容 LLM 生成结构化笔记，
+  可保存到 Obsidian/飞书/Notion/语雀。当用户要求总结视频、提取视频笔记、
+  把视频转成文字稿或知识笔记时使用。
 author: VidkNot Team
 license: MIT
 homepage: https://github.com/suonian/vidknot
@@ -67,7 +66,7 @@ Do NOT use VidkNot for:
 
 ```bash
 # 1. Install (one command)
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.0"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.1"
 
 # 2. Configure (only one API key required)
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -240,7 +239,7 @@ This skill follows [Semantic Versioning](https://semver.org/):
 - MINOR: new features, backward-compatible
 - PATCH: bug fixes
 
-Latest: **0.6.0** — see [CHANGELOG.md](CHANGELOG.md).
+Latest: **0.6.1** — see [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

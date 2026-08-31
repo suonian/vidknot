@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-08-31
+
+### 修复时长格式化崩溃 + 展示信息中文化
+
+### Fixed
+
+- **视频时长格式化崩溃** (`core/processor.py`)
+  - `_build_prompt` 中 duration 为 float（yt-dlp 返回值）时，
+    `f"{hours:02d}"` 抛 `ValueError`，导致 B 站等实转链路在笔记生成阶段失败
+  - 修复：先 `int(duration)` 再拆分时/分/秒
+- **SECURITY.md 支持版本表过时**：仍标 `v0.3.x Active`，已更新为 `v0.6.x`
+
+### Changed
+
+- **展示信息中文化**
+  - GitHub 仓库 About 描述改为中文优先
+  - `SKILL.md` frontmatter description 改为中文（市场首页展示）
+  - 市场副本首屏 `README.md` 改为中文版
+- 全量版本位点同步至 `v0.6.1`（含补齐 `v0.6.0` 缺失的 git tag）
+
+### Added
+
+- **3 个新测试** (`tests/test_processor.py`)：float/int/缺失 duration 格式化
+  回归（403 → 406）
+
 ## [0.6.0] - 2026-08-31
 
 ### 评估满分优化：错误引导 / 稳定性配置 / FFmpeg 兜底 / 大文件拆分

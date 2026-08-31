@@ -340,9 +340,10 @@ summary: [一句话总结视频内容]
         platform_display = platform_map.get(platform, platform)
 
         if duration:
-            hours = duration // 3600
-            minutes = (duration % 3600) // 60
-            seconds = duration % 60
+            total = int(duration)
+            hours = total // 3600
+            minutes = (total % 3600) // 60
+            seconds = total % 60
             duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         else:
             duration_str = "未知"

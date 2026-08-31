@@ -4,9 +4,9 @@
 
 | Version | Supported |
 | --- | --- |
-| `v0.3.x` | ✅ Active |
-| `v0.2.x` | ⚠️ Critical fixes only |
-| `< v0.2.0` | ❌ End of life |
+| `v0.6.x` | ✅ Active |
+| `v0.5.x` | ⚠️ Security fixes only |
+| `<= v0.4.x` | ❌ End of life |
 
 ## Reporting a vulnerability
 
@@ -16,7 +16,7 @@ Use one of these private channels instead:
 
 - GitHub Security Advisories: <https://github.com/suonian/vidknot/security/advisories/new>
 - Email: see the latest maintainer contact published in `git log --format='%ae'` for the
-  latest tagged commit (e.g. `v0.6.0`).
+  latest tagged commit (e.g. `v0.6.1`).
 
 When reporting, please include:
 
