@@ -1,5 +1,7 @@
 ---
 name: vidknot
+displayName: VidkNot（影音笔记舱）
+slug: vidknot
 version: 0.5.0
 description: >
   Extract structured knowledge notes from 11+ self-media platforms
