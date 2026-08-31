@@ -137,6 +137,17 @@ class ConfigManager:
                 "stt_preference": "local",  # local / siliconflow
                 "default_destination": "obsidian",
             },
+            "network": {
+                # 超时默认值不低于历史硬编码值，避免慢网络下新增超时失败
+                "http_timeout": 30,        # 平台解析类 HTTP 请求（秒）
+                "download_timeout": 600,   # yt-dlp / FFmpeg 等下载转码子进程（秒）
+                "api_timeout": 20,         # 第三方解析 API（秒）
+                "max_retries": 2,          # 瞬断重试次数
+                "backoff_base": 1.0,       # 指数退避基数（秒）
+            },
+            "cache": {
+                "max_age_days": 30,        # 缓存过期天数（CacheManager）
+            },
             "local_whisper": {
                 "model_size": "turbo",
                 "device": "auto",

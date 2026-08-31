@@ -14,19 +14,58 @@ path as of the current release, and which require user-supplied data
 
 ## Quick matrix
 
-| Platform | Type | Download status | Notes |
-| --- | --- | --- | --- |
-| 抖音 (Douyin) | Short video | ✅ **Layer 1 verified** | `f2 dy --mode one` + Netscape cookie. See `docs/DOUYIN_FALLBACK.md`. |
-| B站 (Bilibili) | Long / short video | ⚠️ Framework ready | Requires user B站 cookie. Use `yt-dlp` with the cookie file. |
-| 小红书 (Xiaohongshu) | Image + short video | ✅ Image + video URLs extracted from `__INITIAL_STATE__` (v0.3.3) | Image download needs cookie + `xsec_token`. Video direct link works without cookie in many cases. |
-| YouTube | Long-form video | ✅ Stable | yt-dlp standard path. Subtitles first. |
-| Vimeo | Long-form video | ✅ Stable | yt-dlp standard path. |
-| TikTok | Short video | ✅ Stable | yt-dlp. International, no XBOGUS required. |
-| Twitter / X | Short video | ✅ Stable | yt-dlp. |
-| Instagram (Reels) | Short video | ✅ Stable | yt-dlp, needs cookie for private. |
-| 视频号 (WeChat Channels) | Short video | ✅ | Requires cookie for non-public videos. |
-| 快手 (Kuaishou) | Short video | ⚠️ Framework ready | Depends on yt-dlp support. |
-| 微博 (Weibo) | Short video | ⚠️ Framework ready | Depends on yt-dlp support. |
+| Platform | Type | Download status | Cookie dependency | Notes |
+| --- | --- | --- | --- | --- |
+| 抖音 (Douyin) | Short video | ✅ **Layer 1 verified** | 可选（显著提升成功率）：自动 CDP / browser_cookie3 / Netscape 文件 | 四层 fallback。See `docs/DOUYIN_FALLBACK.md`. |
+| B站 (Bilibili) | Long / short video | ⚠️ Framework ready | 推荐：`cookies/bilibili.txt`（无 Cookie 时自动回退浏览器导出） | 字幕优先策略；依赖 yt-dlp 提取器。 |
+| 小红书 (Xiaohongshu) | Image + short video | ✅ Image + video URLs extracted from `__INITIAL_STATE__` (v0.3.3) | 需要登录 Cookie（web_session/a1 等）；图片笔记必须保留 `xsec_token` | 短链 `xhslink.cn/com` 自动 302 解析。 |
+| YouTube | Long-form video | ✅ Stable | 可选：`cookies/youtube.txt`；无 Cookie 时走 SABR bypass（android+web client） | 字幕优先策略默认开启。 |
+| Vimeo | Long-form video | ✅ Stable | 不需要 | yt-dlp standard path. |
+| TikTok | Short video | ✅ Stable | Chrome 浏览器 Cookie（`--cookies-from-browser`，需已登录） | International, no XBOGUS required. |
+| Twitter / X | Short video | ✅ Stable | Chrome 浏览器 Cookie（需已登录） | yt-dlp. |
+| Instagram (Reels) | Short video | ✅ Stable | Chrome 浏览器 Cookie；私密内容需已登录并关注 | yt-dlp. |
+| 视频号 (WeChat Channels) | Short video | ⚠️ 预留（暂不可自动化） | 不适用 | 微信封闭生态；用 res-downloader 等抓包工具导出后走本地批处理。 |
+| 快手 (Kuaishou) | Short video | ⚠️ Framework ready | 可选：`cookies/kuaishou.txt` | 依赖 yt-dlp 支持，未做实战验证。 |
+| 微博 (Weibo) | Short video | ⚠️ Framework ready | 可选：`cookies/weibo.txt` | 依赖 yt-dlp 支持，未做实战验证。 |
+| 其他任意链接 | Generic | ✅ 兜底 | 不需要 | 走 yt-dlp 通用提取，成功率视目标站而定。 |
+
+> **Cookie 获取方式**：见根目录 `COOKIE_GUIDE.md`（浏览器扩展导出 Netscape 格式，
+> 放到 `cookies/<平台名>.txt`）。⚠️ 平台未经实战验证不代表不可用，
+> 仅代表当前版本未包含真实链接回归记录。
+
+---
+
+## 时长与文件大小约束
+
+| 场景 | 建议 |
+| --- | --- |
+| 短视频（<10 分钟） | 默认配置即可，批量处理用 `--batch`（默认并发 3） |
+| 中等时长（10–20 分钟） | 默认配置即可；Dual-ASR 校正耗时约为音频时长 0.5–1 倍 |
+| 长视频（>20 分钟） | 建议 `config.yaml` 中切到 `faster-whisper` + `large` 模型；下载超时在 `network.download_timeout`（默认 600s）按需调大 |
+| 超长（>1 小时） | 建议先手动切片分段处理，避免单次转录内存峰值 |
+
+- 下载超时 / 重试统一由 `config.yaml` 的 `network:` 段控制（见 `docs/CONFIG.md`）。
+- 转写与笔记生成为纯音频处理，**不上传视频画面**，只关心音轨大小。
+
+---
+
+## 付费 / DRM 内容判断标准
+
+VidkNot **不支持**以下内容的提取，遇到时请直接告知用户而不是重试：
+
+| 判断标准 | 典型特征 |
+| --- | --- |
+| 会员专属 | 播放页显示「会员专享」「VIP」「大会员」；未登录试看 6 分钟 |
+| 付费合集 / 单集付费 | 显示「付费观看」「已购」「￥xx 解锁」 |
+| 仅粉丝可见 | 「仅粉丝可见」「加入粉丝团」提示 |
+| DRM 保护 | yt-dlp 报 `DRM` / `Widevine` / `no supported formats` |
+| 私密内容 | 需要授权关系（互关/白名单）才能打开 |
+
+识别信号（下载阶段）：
+
+- 错误信息包含 `登录` / `权限` / `403` / `鉴权` → 大概率是授权问题而非网络问题
+- 只拿到 6 分钟试看音频 → 该视频是会员内容，停止处理
+- 解析出的直链返回 `403 Forbidden` → Cookie 过期或内容受限
 
 ---
 
@@ -95,6 +134,7 @@ yt-dlp --cookies cookies/bilibili.txt \
 ### YouTube ✅
 
 `yt-dlp` 原生支持，最成熟路径。字幕优先策略默认开启。
+无 Cookie 时自动启用 SABR bypass（`player_client=android,web`）。
 
 ### 视频号 ⚠️
 
@@ -117,7 +157,7 @@ yt-dlp --cookies cookies/bilibili.txt \
 
 ## 已知限制
 
-- ❌ **付费 / 会员内容**：所有平台都无解
+- ❌ **付费 / 会员内容**：所有平台都无解（判断标准见上文）
 - ❌ **直播流**：实时 m3u8/HLS 需要单独处理
 - ❌ **DRM 保护**：所有平台都不支持
 - ⚠️ **私密笔记**（小红书）：即便有 Cookie 也可能被风控
@@ -125,4 +165,4 @@ yt-dlp --cookies cookies/bilibili.txt \
 
 ---
 
-*最后更新：2026-08-10 by 小云（Hermes agent）*
+*最后更新：2026-08-31（v0.6.0 评估优化：补 Cookie 依赖列、时长约束、付费内容判断标准；视频号状态如实更正为预留）*

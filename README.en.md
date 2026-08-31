@@ -1,11 +1,11 @@
 # VidkNot
 
-VidkNot is a **general research platform framework** (v0.5.0) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 adds Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`).
+VidkNot is a **general research platform framework** (v0.6.0) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 added Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`); v0.6.0 adds unified retry/timeout configuration, a bundled-FFmpeg optional extra, actionable error hints with a friendly CLI error path, and domestic-mirror install support.
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-294%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-403%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | [中文](README.md) | English |
 
@@ -26,13 +26,14 @@ VidkNot is a **general research platform framework** (v0.5.0) that extracts know
 | TikTok (International) | Short video | ✅ Stable via yt-dlp |
 | Twitter / X | Short video | ✅ Stable via yt-dlp |
 | Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
-| WeChat Channels (视频号) | Short video | ✅ |
-| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.5.0) |
+| WeChat Channels (视频号) | Short video | ⚠️ Reserved (closed WeChat ecosystem; export via packet-capture tools, then use local batch mode) |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.0) |
 | Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
 | Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
 | Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
 
-See [COOKIE_GUIDE.md](COOKIE_GUIDE.md) for the full capability matrix.
+See [docs/PLATFORMS.md](docs/PLATFORMS.md) for the full capability matrix
+(cookie requirements per platform, duration limits, paid-content criteria).
 
 ## Capabilities
 
@@ -46,15 +47,32 @@ See [COOKIE_GUIDE.md](COOKIE_GUIDE.md) for the full capability matrix.
 
 ## Installation
 
-> ️ **Prerequisite**: FFmpeg must be installed before running VidkNot, otherwise all platforms will fail.
+> ️ **Prerequisite**: FFmpeg must be available before running VidkNot, otherwise all platforms will fail.
 >
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
+>
+> **Don't want a system FFmpeg?** Use the bundled static build (binary ships in the wheel, works offline):
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.0"`
+>
+> Environment self-check: `python -m vidknot --check-env` (prints install commands for anything missing)
 
-The current GitHub release is `v0.5.0`. Install from GitHub:
+The current GitHub release is `v0.6.0`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.5.0"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.0"
 ```
+
+> 🇨🇳 **Mainland China note**: if GitHub is slow, point pip at a domestic
+> mirror for dependency downloads (the git repo itself still needs to be
+> reachable — use a mirror clone or a proxy):
+>
+> ```bash
+> pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.0"
+> ```
+>
+> The one-line `scripts/install.sh` auto-detects and switches to the
+> Tsinghua mirror.
 
 For development:
 
@@ -64,10 +82,10 @@ cd vidknot
 pip install -e ".[all]"
 ```
 
-FFmpeg must be available locally:
+Confirm FFmpeg is available:
 
 ```bash
-ffmpeg -version
+ffmpeg -version   # or: python -m vidknot --check-env
 ```
 
 ## Choosing an Interface

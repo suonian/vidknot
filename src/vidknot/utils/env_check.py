@@ -3,6 +3,12 @@ VidkNot 环境检测模块
 
 自动检测 FFmpeg 和其他依赖是否可用
 提供跨平台安装引导
+
+FFmpeg 解析优先级（get_ffmpeg_path）：
+1. FFMPEG_PATH 环境变量
+2. PATH 中的 ffmpeg
+3. Windows 常见安装路径
+4. imageio-ffmpeg 内置静态二进制（pip install 'vidknot[bundled-ffmpeg]'）
 """
 
 import os
@@ -12,21 +18,21 @@ import sys
 from pathlib import Path
 
 
-def check_ffmpeg() -> tuple[bool, str]:
-    """
-    检测 FFmpeg 是否可用
+def get_ffmpeg_path() -> str | None:
+    """解析可用的 FFmpeg 二进制路径，全部不可用时返回 None。
 
-    Returns:
-        (是否可用, FFmpeg 路径或错误信息)
+    调用方（下载器、yt-dlp ffmpeg_location、音频转码）应统一使用本函数，
+    而不是硬编码 "ffmpeg"，以支持 FFMPEG_PATH 与内置静态版本。
     """
-    # 1. 检查环境变量
+    # 1. 环境变量显式指定
     ffmpeg_path = os.getenv("FFMPEG_PATH")
     if ffmpeg_path and Path(ffmpeg_path).exists():
-        return True, ffmpeg_path
+        return ffmpeg_path
 
-    # 2. 尝试直接调用 ffmpeg
-    if shutil.which("ffmpeg"):
-        return True, shutil.which("ffmpeg")
+    # 2. PATH 查找
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
 
     # 3. Windows 常见路径
     if sys.platform == "win32":
@@ -37,8 +43,31 @@ def check_ffmpeg() -> tuple[bool, str]:
         ]
         for path in common_paths:
             if Path(path).exists():
-                return True, path
+                return path
 
+    # 4. imageio-ffmpeg 内置静态二进制（可选依赖，离线可用）
+    try:
+        import imageio_ffmpeg
+
+        bundled = imageio_ffmpeg.get_ffmpeg_exe()
+        if bundled and Path(bundled).exists():
+            return bundled
+    except Exception:
+        pass
+
+    return None
+
+
+def check_ffmpeg() -> tuple[bool, str]:
+    """
+    检测 FFmpeg 是否可用
+
+    Returns:
+        (是否可用, FFmpeg 路径或错误信息)
+    """
+    path = get_ffmpeg_path()
+    if path:
+        return True, path
     return False, "FFmpeg 未找到"
 
 
@@ -114,8 +143,13 @@ def check_all_requirements() -> tuple[bool, list[str]]:
 
 def get_install_guide() -> str:
     """获取 FFmpeg 安装指南"""
+    bundled_option = """
+通用方式 (任意平台, 无需系统权限):
+  pip install 'vidknot[bundled-ffmpeg]'
+  （使用 imageio-ffmpeg 内置静态二进制，离线可用，无需管理员权限）
+"""
     if sys.platform == "win32":
-        return """
+        return bundled_option + """
 FFmpeg 安装指南 (Windows):
 
 方式 1: Scoop (推荐)
@@ -136,13 +170,13 @@ FFmpeg 安装指南 (Windows):
   $env:FFMPEG_PATH = "C:\\path\\to\\ffmpeg.exe"
 """
     elif sys.platform == "darwin":
-        return """
+        return bundled_option + """
 FFmpeg 安装指南 (macOS):
 
   brew install ffmpeg
 """
     else:
-        return """
+        return bundled_option + """
 FFmpeg 安装指南 (Linux):
 
   # Debian/Ubuntu

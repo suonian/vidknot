@@ -10,6 +10,7 @@ VidkNot Cookie 提供者
 """
 
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -141,7 +142,8 @@ def _expand_netscape_domains(content: str) -> str:
                 f"iesdouyin.com\tFALSE\t/\t{secure}\t{expiry}\t{name}\t{value}"
             )
 
-    temp_file = tempfile.mktemp(suffix=".txt")
+    fd, temp_file = tempfile.mkstemp(suffix=".txt")
+    os.close(fd)
     with open(temp_file, "w", encoding="utf-8") as f:
         f.write("\n".join(result_lines) + "\n")
 
@@ -159,7 +161,8 @@ def _convert_json_to_netscape(json_content: str) -> str:
                 flat.extend(cookie_list)
         cookies = flat
 
-    temp_file = tempfile.mktemp(suffix=".txt")
+    fd, temp_file = tempfile.mkstemp(suffix=".txt")
+    os.close(fd)
     written = set()
 
     def _write_cookie(f, domain, path, secure, expiry, name, value):
@@ -258,7 +261,8 @@ def _from_cdp() -> str | None:
         raise CookieExportError("浏览器中未找到 douyin.com 的 Cookie（请先登录抖音）")
 
     # 写入 Netscape 格式临时文件
-    temp_file = tempfile.mktemp(suffix=".txt")
+    fd, temp_file = tempfile.mkstemp(suffix=".txt")
+    os.close(fd)
     written = set()
 
     def _write_cookie(f, domain, path, secure, expiry, name, value):
@@ -306,17 +310,22 @@ def _from_browser_cookie3() -> str | None:
             if not cookies:
                 continue
 
-            temp_file = tempfile.mktemp(suffix=".txt")
-            with open(temp_file, "w", encoding="utf-8") as f:
-                f.write(NETSCAPE_HEADER)
-                for c in cookies:
-                    domain_specified = "TRUE" if c.domain.startswith(".") else "FALSE"
-                    f.write(
-                        f"{c.domain}\t{domain_specified}\t{c.path}\t"
-                        f"{'TRUE' if c.secure else 'FALSE'}\t"
-                        f"{int(c.expires) if c.expires else 0}\t"
-                        f"{c.name}\t{c.value}\n"
-                    )
+            fd, temp_file = tempfile.mkstemp(suffix=".txt")
+            os.close(fd)
+            try:
+                with open(temp_file, "w", encoding="utf-8") as f:
+                    f.write(NETSCAPE_HEADER)
+                    for c in cookies:
+                        domain_specified = "TRUE" if c.domain.startswith(".") else "FALSE"
+                        f.write(
+                            f"{c.domain}\t{domain_specified}\t{c.path}\t"
+                            f"{'TRUE' if c.secure else 'FALSE'}\t"
+                            f"{int(c.expires) if c.expires else 0}\t"
+                            f"{c.name}\t{c.value}\n"
+                        )
+            except Exception:
+                Path(temp_file).unlink(missing_ok=True)
+                raise
             logger.info(f"[CookieProvider] browser_cookie3 从 {name} 获取成功")
             return temp_file
         except Exception as e:

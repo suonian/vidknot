@@ -162,6 +162,22 @@ def main():
 
 
 def run_cli(args):
+    """CLI 模式入口：顶层捕获 VidkNotError，输出带修正建议的友好错误"""
+    from .utils.exceptions import VidkNotError
+
+    try:
+        _run_cli_impl(args)
+    except VidkNotError as e:
+        logger.error(f"处理失败: {e.message}")
+        print(f"\n❌ 错误: {e.message}", file=sys.stderr)
+        if e.details:
+            print(f"🔍 详情: {e.details}", file=sys.stderr)
+        if e.hint:
+            print(f"💡 建议: {e.hint}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _run_cli_impl(args):
     """CLI 模式主逻辑（同步）"""
     from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
     from .utils.cache_manager import CacheManager
@@ -192,7 +208,7 @@ def run_cli(args):
     logger.info(f"目的地: {destination}")
 
     # 检查缓存
-    cache = CacheManager()
+    cache = CacheManager.from_config()
     if not args.no_cache:
         cached = cache.get(url, mode)
         if cached:

@@ -83,6 +83,32 @@ for source in bundle.by_platform("youtube"):
     print(source.name, source.url)
 ```
 
+## Network and cache (`network:` / `cache:`)
+
+Timeouts, retries, and cache expiry are centralized in two config
+sections (defaults shown):
+
+```yaml
+network:
+  http_timeout: 30        # platform parsing HTTP requests (seconds)
+  download_timeout: 600   # yt-dlp / FFmpeg download & transcode subprocesses
+  api_timeout: 20         # third-party parsing APIs
+  max_retries: 2          # retries for transient failures (total = +1)
+  backoff_base: 1.0       # exponential backoff base (1s / 2s / 4s ..., cap 30s)
+
+cache:
+  max_age_days: 30        # local result cache TTL; expired entries are
+                          # cleaned up lazily on read
+```
+
+Notes:
+
+- Permanent errors (HTTP 401/403/404) are never retried — they short-circuit
+  immediately (see `vidknot.utils.retry.retry_with_backoff`).
+- Raise `download_timeout` for long-form videos (>1h) on slow links.
+- Set `cache.max_age_days` higher to keep results longer; the cache is a
+  content cache keyed by URL + mode, not a credentials store.
+
 ## See also
 
 * `docs/BACKENDS.md` — backend storage configuration

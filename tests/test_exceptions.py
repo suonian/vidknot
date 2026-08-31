@@ -123,3 +123,48 @@ class TestConfigError:
         e = ConfigError("配置文件不存在", details="/path/to/config.yaml")
         assert isinstance(e, VidkNotError)
         assert "配置文件不存在" in str(e)
+
+
+class TestHint:
+    """测试异常修正建议（hint）机制"""
+
+    def test_explicit_hint_in_str(self):
+        e = VidkNotError("出错了", hint="请重试")
+        assert str(e) == "出错了 | 建议: 请重试"
+        assert e.hint == "请重试"
+
+    def test_hint_with_details(self):
+        e = VidkNotError("出错了", details="原因A", hint="请重试")
+        assert str(e) == "出错了 | 详情: 原因A | 建议: 请重试"
+
+    def test_no_hint_output_unchanged(self):
+        """无 hint 时输出格式与历史版本完全一致"""
+        assert str(VidkNotError("纯消息")) == "纯消息"
+        assert str(VidkNotError("消息", details="详情X")) == "消息 | 详情: 详情X"
+
+    def test_default_hint_fallback(self):
+        e = FFmpegNotFoundError("FFmpeg 未安装")
+        assert e.hint is not None
+        assert "ffmpeg" in str(e).lower()
+        assert "建议" in str(e)
+
+    def test_explicit_hint_overrides_default(self):
+        e = FFmpegNotFoundError("FFmpeg 未安装", hint="自定义建议")
+        assert e.hint == "自定义建议"
+        assert str(e) == "FFmpeg 未安装 | 建议: 自定义建议"
+
+    def test_llm_api_error_hint_passthrough(self):
+        e = LLMAPIError("限流", status_code=429, hint="稍后重试")
+        assert e.status_code == 429
+        assert e.hint == "稍后重试"
+        assert "稍后重试" in str(e)
+
+    def test_key_exceptions_have_default_hints(self):
+        """高频异常都应预置修正建议"""
+        for cls in (DownloadError, EmptyAudioError, FFmpegNotFoundError, DependencyError):
+            assert cls.default_hint, f"{cls.__name__} 缺少 default_hint"
+
+    def test_hint_does_not_break_message(self):
+        """MCP 端依赖 e.message，hint 不应污染 message"""
+        e = DownloadError("下载失败", hint="检查链接")
+        assert e.message == "下载失败"

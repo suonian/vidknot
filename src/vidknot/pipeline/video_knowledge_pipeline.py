@@ -68,7 +68,7 @@ class VideoKnowledgePipeline:
         self.downloader = VideoDownloader()
         self.transcriber = SiliconFlowASR()
         self.processor = ContentProcessor()
-        self.cache = CacheManager() if use_cache else None
+        self.cache = CacheManager.from_config() if use_cache else None
 
         self._feishu = None
         self._obsidian = None

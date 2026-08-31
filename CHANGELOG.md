@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-08-31
+
+### 评估满分优化：错误引导 / 稳定性配置 / FFmpeg 兜底 / 大文件拆分
+
+针对 skillhub 评估报告（v0.5.0）逐项优化：错误提示可引导修正、
+统一重试与超时配置、FFmpeg 免安装兜底、国内镜像安装、文档边界补齐。
+
+### Added
+
+- **异常 hint 体系** (`utils/exceptions.py`)
+  - `VidkNotError(message, details, hint)`，类级 `default_hint` 回退
+  - 19 个高频异常内置修正建议；`__str__` 追加 `| 建议: ...`（无 hint 时输出不变）
+- **统一重试工具** (`utils/retry.py`)
+  - `retry_with_backoff()`：指数退避 + 永久错误（401/403/404）短路，零新增依赖
+  - `get_network_config()`：network 配置段安全读取
+- **`network:` / `cache:` 配置段** (`config.yaml`)
+  - http_timeout / download_timeout / api_timeout / max_retries / backoff_base
+  - cache.max_age_days 控制结果缓存过期（`CacheManager.from_config()`）
+- **内置 FFmpeg 可选依赖** — `pip install 'vidknot[bundled-ffmpeg]'`
+  - imageio-ffmpeg 静态二进制，离线可用；`env_check.get_ffmpeg_path()`
+    四级解析（FFMPEG_PATH → which → Windows 常见路径 → imageio-ffmpeg）
+  - yt-dlp `ffmpeg_location` 与子进程调用全链路贯通
+- **CLI 友好错误** — `run_cli` 顶层捕获 `VidkNotError`，
+  输出「❌ 错误 / 🔍 详情 / 💡 建议」并以退出码 1 结束，不再裸 traceback
+- **FAQ 错误速查表** (`docs/FAQ.md`) — 错误 → 原因 → 解决，与异常 hint 对齐
+- **PLATFORMS.md 增强** — Cookie 依赖列、时长/文件大小约束、付费/DRM 判断标准
+- **install.sh 重写** — FFmpeg 自动安装（brew/apt/dnf/yum/pacman）、
+  pip 源自动探测（清华镜像）、bundled-ffmpeg 开关
+- **新测试 62 个**（341 → 403）：retry / douyin_api / xhs_parser /
+  异常 hint / ⚠️ 平台（快手/微博/B站）行为
+
+### Changed
+
+- **大文件拆分**（评估点名）
+  - `xiaohongshu.py` 620 → 471 行：解析逻辑抽取到 `core/xhs_parser.py`
+  - `douyin.py` 544 → 395 行：第三方 API 客户端抽取到 `core/douyin_api.py`
+    （重试改用 `utils.retry`；类上保留薄委托，测试零破坏）
+- **资源加固** — 所有下载/转码子进程补 timeout；`tempfile.mktemp` → `mkstemp`
+- **`_get_js_runtime_path` 修复** — macOS/Linux 上不再调用 Windows 专属 `where`
+- **文档如实修正** — 微信视频号状态由 ✅ 更正为 ⚠️ 预留（代码未实现自动下载）
+- 版本号 0.5.0 → 0.6.0（`pyproject.toml` / `_version.py` / SKILL.md / 双 README /
+  install.sh / SECURITY.md）
+
 ## [0.5.0] - 2026-08-26
 
 ### YouTube SABR Bypass + OpenCC 繁简转换 + 审计体系 + Cookie 健康度
@@ -39,8 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `_version.py` 0.4.2 → 0.5.0
 - `pyproject.toml` 0.4.2 → 0.5.0
-
-## [0.4.2] - 2026-08-10
 
 ## [0.4.2] - 2026-08-10
 

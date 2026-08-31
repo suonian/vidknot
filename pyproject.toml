@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vidknot"
-version = "0.5.0"
+version = "0.6.0"
 description = "VidkNot — Video Knowledge, Knotted. A general research platform framework for extracting knowledge from 11+ self-media platforms (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). Dual-ASR cross-validation, OpenAI-compatible LLM, pluggable storage backends (Obsidian / Feishu / Notion / Yuque / SQLite / custom), async periodic scheduler, batch runner, credential-leak-proof source loader. CLI / FastAPI / MCP / Python API."
 readme = "README.md"
 license = "MIT"
@@ -39,6 +39,8 @@ dependencies = [
 
 [project.optional-dependencies]
 feishu = ["feishu-docx>=0.2.7"]
+# 内置静态 FFmpeg（wheel 自带二进制，离线可用），无需系统安装
+bundled-ffmpeg = ["imageio-ffmpeg>=0.5.1"]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.21",
@@ -46,6 +48,7 @@ dev = [
 ]
 all = [
     "feishu-docx>=0.2.7",
+    "imageio-ffmpeg>=0.5.1",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.21",
     "ruff>=0.2.0",

@@ -84,10 +84,9 @@ class VideoDownloader:
         deno_path = os.path.expanduser("~/.deno/bin/deno.exe")
         if os.path.exists(deno_path):
             return deno_path
-        node_path = os.popen("where node").read().strip().split("\n")[0] if os.popen("where node").read().strip() else None
-        if node_path and os.path.exists(node_path):
-            return node_path
-        return None
+        import shutil
+
+        return shutil.which("node")
 
     def _yt_dlp_download(
         self,
@@ -121,6 +120,12 @@ class VideoDownloader:
         if js_runtime:
             ydl_opts["js_runtimes"] = {"deno": {"path": js_runtime}}
             logger.info(f"[yt-dlp] 使用 JS 运行时: {js_runtime}")
+
+        from ..utils.env_check import get_ffmpeg_path
+
+        ffmpeg_path = get_ffmpeg_path()
+        if ffmpeg_path:
+            ydl_opts["ffmpeg_location"] = str(Path(ffmpeg_path).parent)
 
         if cookie_file and Path(cookie_file).exists():
             ydl_opts["cookiefile"] = cookie_file
@@ -161,7 +166,10 @@ class VideoDownloader:
         except yt_dlp.utils.DownloadError as e:
             err_msg = str(e)
             if "cookies" in err_msg.lower() or "s_v_web_id" in err_msg:
-                raise DownloadError(f"Cookie 无效或已过期: {err_msg[-300:]}")
+                raise DownloadError(
+                    f"Cookie 无效或已过期: {err_msg[-300:]}",
+                    hint="请在浏览器中重新登录该平台，然后按 COOKIE_GUIDE.md 重新导出 Cookie",
+                )
             raise DownloadError(f"yt-dlp 下载失败: {err_msg[-300:]}")
 
         if audio_path is None or not audio_path.exists():
@@ -172,6 +180,11 @@ class VideoDownloader:
     def _download_with_browser_cookie(self, url: str, quality: str, platform: str) -> tuple[Path, dict[str, Any]]:
         """使用浏览器 Cookie 下载（通过命令行）"""
         logger.info(f"[Download] 尝试使用浏览器 Cookie 下载: {platform}")
+
+        from ..utils.env_check import get_ffmpeg_path
+        from ..utils.retry import get_network_config
+
+        download_timeout = get_network_config(self._config)["download_timeout"]
 
         output_path = self.output_dir / f"{platform}_video.%(ext)s"
         cmd = [
@@ -184,6 +197,10 @@ class VideoDownloader:
             url,
         ]
 
+        ffmpeg_path = get_ffmpeg_path()
+        if ffmpeg_path:
+            cmd.extend(["--ffmpeg-location", str(Path(ffmpeg_path).parent)])
+
         try:
             result = subprocess.run(
                 cmd,
@@ -191,11 +208,18 @@ class VideoDownloader:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                timeout=download_timeout,
             )
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout
-                raise DownloadError(f"yt-dlp 下载失败: {error_msg[-500:]}")
+                raise DownloadError(
+                    f"yt-dlp 下载失败: {error_msg[-500:]}",
+                    hint=(
+                        "请确认已在 Chrome 中登录该平台；"
+                        "或将 Cookie 导出为文件后放到 cookies/ 目录（见 COOKIE_GUIDE.md）"
+                    ),
+                )
 
             title = ""
             uploader = ""
@@ -240,6 +264,11 @@ class VideoDownloader:
 
         except subprocess.CalledProcessError as e:
             raise DownloadError(f"yt-dlp 下载失败: {e.stderr[-500:]}")
+        except subprocess.TimeoutExpired as e:
+            raise DownloadError(
+                f"yt-dlp 下载超时（{download_timeout} 秒）",
+                hint="请检查网络连接后重试；长视频可在 config.yaml network.download_timeout 中调大超时",
+            ) from e
         except Exception as e:
             raise DownloadError(f"下载失败: {e}")
 
@@ -247,17 +276,33 @@ class VideoDownloader:
 
     def _extract_audio(self, video_path: Path, base_name: str) -> Path:
         """用 FFmpeg 将视频文件转换为音频"""
+        from ..utils.env_check import get_ffmpeg_path
+        from ..utils.exceptions import FFmpegNotFoundError
+        from ..utils.retry import get_network_config
+
+        ffmpeg_bin = get_ffmpeg_path()
+        if not ffmpeg_bin:
+            raise FFmpegNotFoundError("FFmpeg 未找到，无法转码音频")
+
+        download_timeout = get_network_config(self._config)["download_timeout"]
         audio_path = self.output_dir / f"{base_name}.mp3"
-        result = subprocess.run(
-            [
-                "ffmpeg", "-y", "-i", str(video_path),
-                "-vn", "-acodec", "libmp3lame", "-q:a", "0",
-                str(audio_path),
-            ],
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+        try:
+            result = subprocess.run(
+                [
+                    ffmpeg_bin, "-y", "-i", str(video_path),
+                    "-vn", "-acodec", "libmp3lame", "-q:a", "0",
+                    str(audio_path),
+                ],
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=download_timeout,
+            )
+        except subprocess.TimeoutExpired as e:
+            raise AudioExtractError(
+                f"FFmpeg 转码超时（{download_timeout} 秒）",
+                hint="大文件转码耗时较长，可在 config.yaml network.download_timeout 中调大超时",
+            ) from e
         if result.returncode != 0:
             raise AudioExtractError(f"FFmpeg 转换失败: {result.stderr[-200:]}")
         try:

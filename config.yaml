@@ -4,6 +4,15 @@ settings:
   # Dual-ASR correction pipeline
   enable_correction: true
   correction_version: v4  # v4 = conservative, v3 = aggressive
+network:
+  # 网络超时与重试（秒）。瞬断场景自动指数退避重试，永久错误（401/403/404）不重试
+  http_timeout: 30        # 平台解析类 HTTP 请求
+  download_timeout: 600   # yt-dlp / FFmpeg 下载转码子进程
+  api_timeout: 20         # 第三方解析 API
+  max_retries: 2          # 瞬断重试次数
+  backoff_base: 1.0       # 指数退避基数（1s / 2s / 4s ...）
+cache:
+  max_age_days: 30        # 本地缓存过期天数，过期条目在读取时自动清理
 siliconflow:
   api_key: YOUR_SILICONFLOW_KEY
   model: FunAudioLLM/SenseVoiceSmall

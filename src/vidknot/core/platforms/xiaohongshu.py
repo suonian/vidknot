@@ -12,9 +12,8 @@
 - 需要登录 Cookie（web_session, a1, webId 等）
 - 短链接 xhslink.cn/xhslink.com 需先 302 解析
 
-视频笔记数据路径（__INITIAL_STATE__）：
-  note.noteDetailMap[<note_id>].note.video.media.stream.h264[0].master_url
-  或 backup_urls[0]
+纯解析逻辑（__INITIAL_STATE__ / URL / Cookie 文件）位于
+core/xhs_parser.py；本文件只负责下载编排与多级兜底。
 """
 
 import re
@@ -23,50 +22,10 @@ from typing import Any
 
 from ...utils.exceptions import DownloadError
 from ...utils.logger import get_logger
+from .. import xhs_parser
 from .base import BasePlatform
 
 logger = get_logger(__name__)
-
-
-def _extract_balanced_json(text: str) -> str | None:
-    """从 text 起点提取第一对花括号包裹的平衡 JSON 字符串。
-
-    处理字符串字面量内的括号和转义，避免被字符串里的 ｛｝ 干扰。
-    成功返回 JSON 文本，失败返回 None。
-    """
-    # 跳过开头的空白
-    i = 0
-    while i < len(text) and text[i].isspace():
-        i += 1
-    if i >= len(text) or text[i] != "{":
-        return None
-
-    depth = 0
-    start = i
-    in_str = False
-    str_quote = ""
-    escape = False
-    while i < len(text):
-        ch = text[i]
-        if in_str:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == str_quote:
-                in_str = False
-        else:
-            if ch in ('"', "'"):
-                in_str = True
-                str_quote = ch
-            elif ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    return text[start:i + 1]
-        i += 1
-    return None
 
 
 class XiaoHongShuPlatform(BasePlatform):
@@ -489,132 +448,24 @@ class XiaoHongShuPlatform(BasePlatform):
                 except Exception:
                     pass
 
+    # ===== 解析方法（实现位于 core/xhs_parser.py，此处为薄委托） =====
+
     @staticmethod
     def _load_cookies(cookie_file: str | None) -> dict[str, str] | None:
         """从 Netscape Cookie 文件加载 Cookie 字典"""
-        if not cookie_file or not Path(cookie_file).exists():
-            return None
-        cookies = {}
-        try:
-            with open(cookie_file, encoding="utf-8", errors="replace") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    parts = line.split("\t")
-                    if len(parts) >= 7 and "xiaohongshu" in parts[0].lower():
-                        cookies[parts[5]] = parts[6]
-        except Exception:
-            pass
-        return cookies or None
+        return xhs_parser.load_cookies(cookie_file)
 
     @staticmethod
     def _extract_from_state(html: str, note_id: str) -> tuple[str, list[str], str | None]:
-        """从 __INITIAL_STATE__ JSON 提取标题、图片 URL、视频 URL
-
-        Returns:
-            (title, image_urls, video_url) 元组
-        """
-        import json as _json
-
-        match = re.search(r'window\.__INITIAL_STATE__\s*=\s*', html)
-        if not match:
-            return "", [], None
-
-        # 从赋值点开始，用堆括号扫描提取完整 JSON
-        start = match.end()
-        json_text = _extract_balanced_json(html[start:])
-        if not json_text:
-            return "", [], None
-
-        # 处理小红书 JSON 中 undefined 需替换为 null
-        json_text = json_text.replace("undefined", "null")
-        try:
-            state = _json.loads(json_text)
-        except Exception:
-            return "", [], None
-
-        title = ""
-        image_urls: list[str] = []
-        video_url: str | None = None
-        # 遍历笔记数据查找 imageList 和 video
-        note_data = state.get("note", {}).get("noteDetailMap", {})
-        for key, val in note_data.items():
-            note_detail = val.get("note", {}) if isinstance(val, dict) else {}
-            # 提取标题
-            note_title = note_detail.get("title", "")
-            if note_title:
-                title = note_title
-            # 提取图片
-            image_list = note_detail.get("imageList", [])
-            for img in image_list:
-                url = img.get("urlDefault") or img.get("url", "")
-                if url and isinstance(url, str) and url.startswith("http"):
-                    image_urls.append(url)
-            # 提取视频直链（注意：key 是驼峰 camelCase）
-            video = note_detail.get("video", {})
-            if isinstance(video, dict):
-                media = video.get("media", {})
-                if isinstance(media, dict):
-                    stream = media.get("stream", {})
-                    if isinstance(stream, dict):
-                        # 优先 h264（兼容性最好）
-                        h264_list = stream.get("h264", []) or []
-                        for item in h264_list:
-                            if not isinstance(item, dict):
-                                continue
-                            master = item.get("masterUrl") or item.get("master_url")
-                            if master and isinstance(master, str):
-                                video_url = master
-                                break
-                            backups = item.get("backupUrls") or item.get("backup_urls") or []
-                            if backups:
-                                video_url = backups[0]
-                                break
-                        if not video_url:
-                            # 备用 h265
-                            h265_list = stream.get("h265", []) or []
-                            for item in h265_list:
-                                if not isinstance(item, dict):
-                                    continue
-                                master = item.get("masterUrl") or item.get("master_url")
-                                if master and isinstance(master, str):
-                                    video_url = master
-                                    break
-                                backups = item.get("backupUrls") or item.get("backup_urls") or []
-                                if backups:
-                                    video_url = backups[0]
-                                    break
-
-        return title, list(dict.fromkeys(image_urls)), video_url
+        """从 __INITIAL_STATE__ JSON 提取标题、图片 URL、视频 URL"""
+        return xhs_parser.extract_from_state(html, note_id)
 
     @staticmethod
     def _extract_images_by_regex(html: str) -> list[str]:
         """通过正则匹配图片 URL（回退方案，覆盖所有已知 CDN）"""
-        image_patterns = [
-            # 所有已知小红书图片 CDN 域名
-            r'"url[^"]*":"(https?://sns-webpic[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
-            r'"url[^"]*":"(https?://sns-img[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
-            r'"url[^"]*":"(https?://sns-web[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
-            r'"url[^"]*":"(https?://sns\.xiaohongshu\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
-            r'"url[^"]*":"(https?://ci\.xiaohongshu\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
-        ]
-        image_urls: list[str] = []
-        for pattern in image_patterns:
-            image_urls.extend(re.findall(pattern, html))
-        return list(dict.fromkeys(image_urls))
+        return xhs_parser.extract_images_by_regex(html)
 
     @staticmethod
     def _extract_note_id(url: str) -> str:
         """从 URL 提取小红书笔记 ID"""
-        patterns = [
-            r"/discovery/item/([a-zA-Z0-9]+)",
-            r"/explore/([a-zA-Z0-9]+)",
-            r"xhslink\.(?:com|cn)/[a-zA-Z]+/([a-zA-Z0-9]+)",
-            r"xiaohongshu\.com/discovery/item/([a-zA-Z0-9]+)",
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, url)
-            if match:
-                return match.group(1)
-        return "unknown"
+        return xhs_parser.extract_note_id(url)

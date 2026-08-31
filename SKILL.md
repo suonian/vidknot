@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.5.0
+version: 0.6.0
 description: >
   Extract structured knowledge notes from 11+ self-media platforms
   (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X,
@@ -42,11 +42,32 @@ Do NOT use VidkNot for:
 - Live broadcast (livestream) ingestion (current code targets on-demand).
 - DRMed / paid content (use official APIs of the platform).
 
+### Long-form vs short videos (trigger guidance)
+
+| Scenario | Recommendation |
+| --- | --- |
+| Short video (<10 min) | Default config; batch mode (`--batch`) for many links |
+| Medium (10–20 min) | Default config; Dual-ASR correction takes ~0.5–1× realtime |
+| Long-form (>20 min) | Prefer `faster-whisper` with a `large` model; consider splitting |
+| Very long (>1 h) | Split into segments first; raise `network.download_timeout` |
+
+### Boundaries & prerequisites
+
+- **Cookies**: 抖音 / B站 / 小红书 work best with a logged-in cookie
+  (`cookies/<platform>.txt`, see `COOKIE_GUIDE.md`); TikTok / Twitter/X /
+  Instagram read Chrome browser cookies directly (must be logged in).
+  YouTube / Vimeo / generic links work without cookies.
+- **Duration**: no hard cap, but downloads over 1 h should raise
+  `network.download_timeout` (default 600 s, see `docs/CONFIG.md`).
+- **Paid / members-only / fans-only content is not supported** — see the
+  detection criteria in `docs/PLATFORMS.md`.
+- Full platform-by-platform status and cookie matrix: `docs/PLATFORMS.md`.
+
 ## Quick start (one minute)
 
 ```bash
 # 1. Install (one command)
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.5.0"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.0"
 
 # 2. Configure (only one API key required)
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -219,7 +240,7 @@ This skill follows [Semantic Versioning](https://semver.org/):
 - MINOR: new features, backward-compatible
 - PATCH: bug fixes
 
-Latest: **0.5.0** — see [CHANGELOG.md](CHANGELOG.md).
+Latest: **0.6.0** — see [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

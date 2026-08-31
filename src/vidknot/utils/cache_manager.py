@@ -27,6 +27,23 @@ class CacheManager:
         self.max_age_days = max_age_days
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
+    @classmethod
+    def from_config(cls, cache_dir: str = "./.vidknot_cache") -> "CacheManager":
+        """基于全局配置创建缓存管理器（读取 cache.max_age_days）。
+
+        配置不可用时回退到默认 30 天，保证行为不因配置缺失而中断。
+        """
+        max_age_days = 30
+        try:
+            from .config_manager import ConfigManager
+
+            configured = ConfigManager().get("cache", "max_age_days", default=30)
+            if isinstance(configured, int) and configured > 0:
+                max_age_days = configured
+        except Exception:
+            pass
+        return cls(cache_dir=cache_dir, max_age_days=max_age_days)
+
     def _get_cache_key(self, url: str, mode: str = "summary") -> str:
         """生成缓存键"""
         key_str = f"{url}_{mode}"

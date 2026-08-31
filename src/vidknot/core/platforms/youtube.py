@@ -164,6 +164,12 @@ class YouTubePlatform(BasePlatform):
             }],
         }
 
+        from ...utils.env_check import get_ffmpeg_path
+
+        ffmpeg_path = get_ffmpeg_path()
+        if ffmpeg_path:
+            ydl_opts["ffmpeg_location"] = str(Path(ffmpeg_path).parent)
+
         metadata: dict[str, Any] = {}
         audio_path: Path | None = None
 

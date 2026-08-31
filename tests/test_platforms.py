@@ -18,10 +18,13 @@ import pytest
 
 from vidknot.core.platforms import PlatformRegistry
 from vidknot.core.platforms.base import BasePlatform, YtDlpPlatform
+from vidknot.core.platforms.bilibili import BilibiliPlatform
 from vidknot.core.platforms.douyin import DouyinPlatform
 from vidknot.core.platforms.generic import GenericPlatform
+from vidknot.core.platforms.kuaishou import KuaishouPlatform
 from vidknot.core.platforms.twitter import TwitterPlatform
 from vidknot.core.platforms.wechat_video import WeChatVideoPlatform
+from vidknot.core.platforms.weibo import WeiboPlatform
 from vidknot.core.platforms.xiaohongshu import XiaoHongShuPlatform
 from vidknot.core.platforms.youtube import YouTubePlatform
 from vidknot.core.transcriber import (
@@ -565,6 +568,97 @@ class TestOtherPlatforms:
         with patch.object(Path, "exists", return_value=False):
             FakePlatform().download("https://fake.com/v", dl)
         dl._yt_dlp_download.assert_called_once()
+
+
+class TestUnverifiedPlatforms:
+    """⚠️ 未经实战验证平台（快手 / 微博 / B站）的 mock 级行为测试（无网络）"""
+
+    def test_kuaishou_domains(self):
+        p = KuaishouPlatform()
+        assert p.can_handle("https://www.kuaishou.com/short-video/3xabc")
+        assert not p.can_handle("https://example.com/kuaishou")
+
+    def test_kuaishou_cookie_file_path(self):
+        """快手走 YtDlpPlatform 标准 Cookie 文件路径"""
+        dl = MagicMock()
+        dl._try_export_cookies = MagicMock(return_value=None)
+        dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
+        KuaishouPlatform().download("https://www.kuaishou.com/v", dl)
+        dl._yt_dlp_download.assert_called_once()
+
+    def test_kuaishou_temp_cookie_cleanup(self, tmp_path):
+        """临时 Cookie 文件在结束后应被清理"""
+        cookie = tmp_path / "temp_cookies_ks.txt"
+        cookie.write_text("cookie")
+        dl = MagicMock()
+        dl._try_export_cookies = MagicMock(return_value=str(cookie))
+        dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
+        KuaishouPlatform().download("https://www.kuaishou.com/v", dl)
+        assert not cookie.exists()
+
+    def test_weibo_domains(self):
+        p = WeiboPlatform()
+        assert p.can_handle("https://weibo.com/123/abc")
+        assert p.can_handle("https://m.weibo.cn/detail/123")
+        assert not p.can_handle("https://example.com/weibo")
+
+    def test_weibo_cookie_file_path(self):
+        dl = MagicMock()
+        dl._try_export_cookies = MagicMock(return_value=None)
+        dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
+        WeiboPlatform().download("https://weibo.com/123/abc", dl)
+        dl._yt_dlp_download.assert_called_once()
+
+    def test_weibo_temp_cookie_cleanup(self, tmp_path):
+        cookie = tmp_path / "temp_cookies_wb.txt"
+        cookie.write_text("cookie")
+        dl = MagicMock()
+        dl._try_export_cookies = MagicMock(return_value=str(cookie))
+        dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
+        WeiboPlatform().download("https://weibo.com/123/abc", dl)
+        assert not cookie.exists()
+
+    def test_bilibili_subtitle_priority_success(self):
+        """字幕优先：拿到 CC 字幕时直接返回文本，不下载音频"""
+        dl = MagicMock()
+        p = BilibiliPlatform()
+        p._fetch_subtitles = MagicMock(return_value=("字幕正文", {"title": "t"}))
+        audio, metadata = p.download("https://www.bilibili.com/video/BV1x", dl)
+        assert audio is None
+        assert metadata["subtitle_text"] == "字幕正文"
+        assert metadata["transcription_source"] == "bilibili_cc_subtitle"
+
+    def test_bilibili_subtitle_fail_fallback_cookie_file(self):
+        """字幕失败 → 有 Cookie 文件时走 yt-dlp 下载"""
+        dl = MagicMock()
+        dl._find_cookie_file = MagicMock(return_value="/cookies/bilibili.txt")
+        dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
+        p = BilibiliPlatform()
+        p._fetch_subtitles = MagicMock(side_effect=DownloadError("无字幕"))
+        p.download("https://www.bilibili.com/video/BV1x", dl)
+        dl._yt_dlp_download.assert_called_once()
+        dl._download_with_browser_cookie.assert_not_called()
+
+    def test_bilibili_subtitle_fail_fallback_browser_cookie(self):
+        """字幕失败且无 Cookie 文件 → 走浏览器 Cookie 下载"""
+        dl = MagicMock()
+        dl._find_cookie_file = MagicMock(return_value=None)
+        dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
+        p = BilibiliPlatform()
+        p._fetch_subtitles = MagicMock(side_effect=DownloadError("无字幕"))
+        p.download("https://www.bilibili.com/video/BV1x", dl)
+        dl._download_with_browser_cookie.assert_called_once()
+
+    def test_bilibili_force_audio_skips_subtitles(self):
+        """force_audio=True 时跳过字幕优先，直接下载音频"""
+        dl = MagicMock()
+        dl._find_cookie_file = MagicMock(return_value=None)
+        dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
+        p = BilibiliPlatform()
+        p._fetch_subtitles = MagicMock()
+        p.download("https://www.bilibili.com/video/BV1x", dl, force_audio=True)
+        p._fetch_subtitles.assert_not_called()
+        dl._download_with_browser_cookie.assert_called_once()
 
 
 class TestSubtitleExtractor:

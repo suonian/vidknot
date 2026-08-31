@@ -2,12 +2,38 @@
 
 ## 快速导航
 
+- [错误速查表](#错误速查表)
 - [安装与环境](#安装与环境)
 - [平台支持](#平台支持)
 - [Cookie 与认证](#cookie-与认证)
 - [API 与配置](#api-与配置)
 - [输出与保存](#输出与保存)
 - [反模式（不要这样做）](#反模式不要这样做)
+
+---
+
+## 错误速查表
+
+CLI / API 报错时按此表自查。v0.6.0 起，CLI 会在出错时直接输出
+「错误信息 + 建议」，建议文案与本表一致。
+
+| 错误信息（关键词） | 原因 | 解决 |
+| --- | --- | --- |
+| `ffmpeg: command not found` / FFmpeg 缺失 | 未安装 FFmpeg | `brew install ffmpeg` / `apt install ffmpeg`，或 `pip install 'vidknot[bundled-ffmpeg]'` 使用内置静态版本 |
+| `Cookie 无效或已过期` / `Fresh cookies needed` | Cookie 过期（抖音约 2-4 周） | 浏览器重新登录该平台，按 `COOKIE_GUIDE.md` 重新导出到 `cookies/<平台>.txt` |
+| `无法获取抖音 Cookie` | CDP / browser_cookie3 都失败 | 完全退出 Chrome 后重试；或手动导出 Netscape 文件 |
+| `未配置 SILICONFLOW_API_KEY` | 缺少转写 API Key | `.env` 中设置 `SILICONFLOW_API_KEY`（硅基流动免费注册），见 `docs/CONFIG.md` |
+| `音频文件为空或无语音内容` | 纯音乐 / 无声视频 | 更换有人声的内容重试 |
+| `下载超时（600 秒）` | 网络慢或视频过长 | 检查网络；长视频在 `config.yaml` `network.download_timeout` 调大 |
+| `微信视频号暂不支持自动下载` | 微信封闭生态 | 用 res-downloader / putyy 抓包导出后，走本地批量目录处理 |
+| `所有第三方 API 均失败` | 免费层与付费兜底都失败 | 检查链接是否有效；如启用 TikHub 检查 `TIKHUB_API_KEY` 额度 |
+| `SABR-only` / YouTube 无法下载 | YouTube 限制 web client | 自动降级处理；仍失败则导出 `cookies/youtube.txt` 后重试 |
+| `会员 / 付费 / 403 权限` 类错误 | 付费内容或授权限制 | VidkNot 不支持付费/会员内容，见 `docs/PLATFORMS.md` 判断标准 |
+| `笔记生成失败` / LLM 错误 | LLM 余额不足或配置错误 | 检查 provider 配置与余额；`config.yaml` 可切换 provider |
+| `依赖检查失败` | 缺 yt-dlp / faster-whisper | 运行 `python -m vidknot --check-env` 查看安装指引 |
+
+> 提示：所有异常都带 `hint` 字段；MCP / Python API 调用方可读取
+> `e.hint` 获得修正建议（`e.message` 是错误本体，`e.details` 是补充详情）。
 
 ---
 
@@ -24,8 +50,9 @@
 | macOS | `brew install ffmpeg` |
 | Ubuntu/Debian | `sudo apt install ffmpeg` |
 | Windows | `winget install Gyan.FFmpeg` |
+| 任意（免系统安装） | `pip install 'vidknot[bundled-ffmpeg]'`（内置静态二进制） |
 
-安装后验证：`ffmpeg -version`
+安装后验证：`ffmpeg -version`（或 `python -m vidknot --check-env`）
 
 ### Q: faster-whisper 首次运行很慢
 
