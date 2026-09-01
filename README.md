@@ -1,6 +1,6 @@
 # VidkNot
 
-视频知识提取与研究平台（v0.6.3 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.5.0 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）；v0.6.0 新增统一重试/超时配置、内置 FFmpeg 可选依赖（`[bundled-ffmpeg]`）、异常修正建议（hint）与 CLI 友好错误、国内镜像安装支持；v0.6.1 修复视频时长格式化崩溃，市场展示信息中文化；v0.6.2 SKILL.md 全文中文化（市场概述页中文展示）；v0.6.3 市场描述通俗化改写，突出「一键提取视频文案」等普通人易懂表述。
+视频知识提取与研究平台（v0.6.4 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.5.0 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）；v0.6.0 新增统一重试/超时配置、内置 FFmpeg 可选依赖（`[bundled-ffmpeg]`）、异常修正建议（hint）与 CLI 友好错误、国内镜像安装支持；v0.6.1 修复视频时长格式化崩溃，市场展示信息中文化；v0.6.2 SKILL.md 全文中文化（市场概述页中文展示）；v0.6.3 市场描述通俗化改写，突出「一键提取视频文案」等普通人易懂表述；v0.6.4 文档深度优化：集中反模式章节、MCP 工具文档与实现对齐、错误分类速查、平台限制说明写透。
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
@@ -27,7 +27,7 @@
 | Twitter / X | 短视频 | ✅ yt-dlp 稳定支持 |
 | Instagram | Reels | ✅ yt-dlp 稳定支持 |
 | 微信视频号 | 短视频 | ⚠️ 预留接口（微信封闭生态，需抓包工具导出后走本地批处理） |
-| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.6.3 仍生效）|
+| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.6.4 仍生效）|
 | 小红书（视频笔记） | 短视频 | ✅ 从 `__INITIAL_STATE__` 拿无水印直链 |
 | 快手、微博 | 短视频 | ⚠️ 框架已就位，依赖 yt-dlp |
 | 任何 yt-dlp 支持的站点 | 混合 | ✅ GenericPlatform 兜底 |
@@ -52,14 +52,14 @@
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **不想装系统 FFmpeg？** 使用内置静态版本（wheel 自带二进制，离线可用）：
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.3"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.4"`
 >
 > 环境自检：`python -m vidknot --check-env`（会给出缺失项的安装命令）
 
-当前 GitHub 版本为 `v0.6.3`。从 GitHub 安装：
+当前 GitHub 版本为 `v0.6.4`。从 GitHub 安装：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.3"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.4"
 ```
 
 > 🇨🇳 **大陆网络提示**：如访问 GitHub 缓慢，可给 pip 指定国内镜像加速依赖下载
@@ -67,8 +67,12 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.3"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.3"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.4"
 > ```
+>
+> 清华镜像同样覆盖 yt-dlp、faster-whisper 等海外依赖，无需逐个找源。
+> 本地 ASR 模型默认从 Hugging Face 下载，大陆可改走镜像站：
+> `export HF_ENDPOINT=https://hf-mirror.com`（首次下载前设置一次即可）。
 >
 > 一键脚本 `scripts/install.sh` 会自动探测并切换到清华镜像。
 

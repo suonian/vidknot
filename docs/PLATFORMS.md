@@ -24,9 +24,9 @@ path as of the current release, and which require user-supplied data
 | TikTok | Short video | ✅ Stable | Chrome 浏览器 Cookie（`--cookies-from-browser`，需已登录） | International, no XBOGUS required. |
 | Twitter / X | Short video | ✅ Stable | Chrome 浏览器 Cookie（需已登录） | yt-dlp. |
 | Instagram (Reels) | Short video | ✅ Stable | Chrome 浏览器 Cookie；私密内容需已登录并关注 | yt-dlp. |
-| 视频号 (WeChat Channels) | Short video | ⚠️ 预留（暂不可自动化） | 不适用 | 微信封闭生态；用 res-downloader 等抓包工具导出后走本地批处理。 |
-| 快手 (Kuaishou) | Short video | ⚠️ Framework ready | 可选：`cookies/kuaishou.txt` | 依赖 yt-dlp 支持，未做实战验证。 |
-| 微博 (Weibo) | Short video | ⚠️ Framework ready | 可选：`cookies/weibo.txt` | 依赖 yt-dlp 支持，未做实战验证。 |
+| 视频号 (WeChat Channels) | Short video | ⚠️ 预留（暂不可自动化） | 不适用 | 微信封闭生态，**无任何自动化下载路径**；只能用 res-downloader / putyy 等抓包工具手动导出后，走 `--batch-dir` 本地批处理 |
+| 快手 (Kuaishou) | Short video | ⚠️ 框架就绪（未验证） | 可选：`cookies/kuaishou.txt` | 仅注册了 yt-dlp 通用提取，**无实战回归记录**，成功率未知；失败时无专属兜底，只能靠通用层或 TikHub 付费 API |
+| 微博 (Weibo) | Short video | ⚠️ 框架就绪（未验证） | 可选：`cookies/weibo.txt` | 同快手：yt-dlp 通用路径，未做实战验证；公开微博视频成功率尚可，受限内容需 Cookie |
 | 其他任意链接 | Generic | ✅ 兜底 | 不需要 | 走 yt-dlp 通用提取，成功率视目标站而定。 |
 
 > **Cookie 获取方式**：见根目录 `COOKIE_GUIDE.md`（浏览器扩展导出 Netscape 格式，
@@ -138,7 +138,29 @@ yt-dlp --cookies cookies/bilibili.txt \
 
 ### 视频号 ⚠️
 
-无公开 API，需要浏览器抓取或用户提供的视频源。
+无公开 API，也没有可用的网页解析入口，**当前版本没有任何自动化路径**。
+处理流程只能手动：
+
+1. 用 res-downloader / putyy 等抓包工具在播放时导出视频文件
+2. 把导出文件放进本地目录
+3. `vidknot --batch-dir ./videos/ -d obsidian` 走本地批处理
+
+### 快手 / 微博 ⚠️
+
+「框架就绪」的含义：**代码里注册了平台并走 yt-dlp 通用提取，
+但没有任何真实链接的回归验证记录**，成功率和失效周期都未知。
+
+使用前的自检方式：
+
+```bash
+# 先用 yt-dlp 单独验证链接能否解析（不消耗转写额度）
+yt-dlp --cookies cookies/kuaishou.txt -F "https://www.kuaishou.com/short-video/xxx"
+yt-dlp --cookies cookies/weibo.txt -F "https://weibo.com/tv/show/xxx"
+```
+
+失败时的兜底路径：通用链接提取（自动）→ TikHub 付费 API（需配置
+`TIKHUB_API_KEY` 并开启 `enable_third_party`）。不建议把快手/微博
+链接放进重要批量任务，除非先单条验证过。
 
 ---
 
@@ -165,4 +187,4 @@ yt-dlp --cookies cookies/bilibili.txt \
 
 ---
 
-*最后更新：2026-08-31（v0.6.0 评估优化：补 Cookie 依赖列、时长约束、付费内容判断标准；视频号状态如实更正为预留）*
+*最后更新：2026-09-01（v0.6.4：写透快手/微博「框架就绪未验证」的限制程度与自检命令；视频号补充手动导出流程）*

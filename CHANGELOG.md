@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-09-01
+
+### 文档深度优化（纯文档，无代码变更）
+
+### Changed
+
+- **`SKILL.md` 新增集中「应避免的用法（反模式）」章节**：原先反模式说明
+  分散在正文、FAQ、PLATFORMS 三处；现集中为一张 ❌/✅ 对照表（8 条），
+  覆盖不支持场景与常见错误用法，并交叉引用 `docs/FAQ.md`
+- **`SKILL.md` MCP 工具文档与实现对齐**：原文档列出的
+  `vidknot_extract` / `vidknot_transcribe_only` / `vidknot_status`
+  并不存在；更正为实际注册的 `video_knowledge` / `video_to_notes` /
+  `batch_process` / `platform_status` / `search_video`（含真实签名与
+  返回格式），并扩充 Agent 端调用示例（单条 + 批量）
+- **`SKILL.md` 配置章节分组重构**：按 ①必填 / ②可选存储目标 /
+  ③可选高级开关 三段展示，避免环境变量一次性堆叠
+- **`docs/PLATFORMS.md` 限制程度写透**：快手/微博「框架就绪」含义、
+  无回归记录的明示、使用前 `yt-dlp -F` 自检命令与失败兜底路径；
+  视频号补充手动导出三步流程
+- **`docs/EXAMPLES.md` 补两个完整案例**：批量处理（含注释的
+  `urls.txt` → 命令 → 汇总输出 → 失败逐条隔离）；超长视频
+  （>1 小时）`ffmpeg` 无损分段 + `--batch-dir` 处理
+- **`docs/FAQ.md` 错误速查表新增「类型」列**：区分临时故障（可重试）/
+  配置错误 / 能力边界，并附类型说明
+- **`README.md` / `README.en.md` 国内镜像说明增强**：清华镜像同样覆盖
+  yt-dlp / faster-whisper 海外依赖；本地 ASR 模型可走
+  `HF_ENDPOINT=https://hf-mirror.com`
+- 全量版本位点同步至 `v0.6.4`（pyproject / _version / install.sh /
+  SECURITY / issue 模板 / README 双语 / SKILL.md 快速开始安装命令）
+
 ## [0.6.3] - 2026-09-01
 
 ### 市场描述通俗化改写

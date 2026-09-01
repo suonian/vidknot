@@ -14,7 +14,7 @@
 #   bash scripts/install.sh
 #
 # 高级选项:
-#   VERSION=v0.6.3 bash scripts/install.sh    # 指定版本
+#   VERSION=v0.6.4 bash scripts/install.sh    # 指定版本
 #   SKIP_DEMO=1 bash scripts/install.sh       # 跳过 demo 验证
 #   PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple  # 指定 pip 源
 #
@@ -27,7 +27,7 @@
 set -euo pipefail
 
 # 配置
-VERSION="${VERSION:-v0.6.3}"
+VERSION="${VERSION:-v0.6.4}"
 REPO_URL="${REPO_URL:-https://github.com/suonian/vidknot.git}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 SKIP_DEMO="${SKIP_DEMO:-0}"

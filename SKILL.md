@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.3
+version: 0.6.4
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -37,11 +37,8 @@ repository: https://github.com/suonian/vidknot
 - 把处理好的笔记同步到 **Obsidian 仓库**、**飞书文档**、
   **Notion 页面**或**语雀知识库**。
 
-以下场景**不适用** VidkNot：
-
-- 实时视频 / 音频流播放（本工具不是播放器）。
-- 直播内容采集（当前代码面向点播内容）。
-- DRM 加密 / 付费内容（请使用平台官方 API）。
+本技能能做什么、不能做什么的完整清单（含常见错误用法），
+见下方 [应避免的用法（反模式）](#应避免的用法反模式) 章节。
 
 ### 长视频 vs 短视频（触发指引）
 
@@ -68,7 +65,7 @@ repository: https://github.com/suonian/vidknot
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.3"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.4"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -79,6 +76,32 @@ vidknot --demo "https://www.bilibili.com/video/BVxxxxx"
 # 4. 正式运行
 vidknot "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 ```
+
+> 不想装 FFmpeg？用 `pip install 'vidknot[bundled-ffmpeg]'` 即可
+> （自带静态 FFmpeg，免系统安装）。
+
+## 应避免的用法（反模式）
+
+以下场景**不要用**本技能，会直接失败或产生误导：
+
+| ❌ 不要这样做 | ✅ 应该这样做 |
+| --- | --- |
+| 用它播放视频 / 音频 | 本工具不是播放器，只产出文字稿与笔记 |
+| 采集直播或实时流 | 当前面向点播（已发布）内容；直播等回放生成后再处理 |
+| 下载 DRM / 付费 / 会员 / 仅粉丝可见内容 | 判断标准见 `docs/PLATFORMS.md`；改用平台官方 API |
+| 用小红书短链接（`xhslink.com/...`） | 短链易过期被风控；使用带 `xsec_token` 的完整 URL |
+| 把 TikHub 等付费第三方 API 当首选 | 它只是免费层（yt-dlp / f2 / iesdouyin）全失败后的兜底 |
+| 处理无授权的视频内容 | 只处理你有权访问的内容，遵守平台条款，商用前确认版权 |
+| 没装 FFmpeg 就排查其他问题 | 没有 FFmpeg 无法提取音频，先 `brew install ffmpeg` 或装 `[bundled-ffmpeg]` |
+| Cookie 过期后反复重试下载 | 报错含 `403` / `Fresh cookies needed` / `登录` 时先重新导出 Cookie（见 `COOKIE_GUIDE.md`） |
+
+Cookie 并不是所有平台的硬门槛：YouTube / Vimeo / 通用链接**无需**
+Cookie；只有抖音 / B站 / 小红书建议提供（导出方法三步见
+`COOKIE_GUIDE.md`），TikTok / Twitter/X / Instagram 直接复用你已登录的
+Chrome。配置不全时可先用 `vidknot --demo` 验证环境。
+
+更多反模式与错误速查见 `docs/FAQ.md` 的「反模式（不要这样做）」与
+「错误速查表」。
 
 ## 接口形态
 
@@ -97,43 +120,65 @@ VidkNot 为 Agent / 脚本提供四种接口：
 vidknot --mcp
 ```
 
-MCP 服务启动后，Agent 获得以下工具：
+MCP 服务启动后（stdio 传输），Agent 获得以下工具：
 
-- `vidknot_extract(url: str, destination: str = "none") -> str` —
-  完整流水线（下载 + ASR + LLM + 保存），返回 Markdown
-- `vidknot_transcribe_only(url: str) -> str` —
-  仅下载 + 转写（不调 LLM、不保存）
-- `vidknot_status() -> dict` — 版本、已配置的提供者、上次运行信息
+- `video_knowledge(url, destination="obsidian", format="structured", language="auto", feishu_folder=None, obsidian_tags=None) -> str` —
+  完整流水线（下载 + ASR + LLM + 保存），返回 Markdown 笔记；
+  `destination` 可选 `feishu/obsidian/both/none`
+- `video_to_notes(...)` — 同上（别名工具，参数一致）
+- `batch_process(urls: list[str], destination="none", format="structured", language="auto", max_workers=3) -> str` —
+  并发批处理，返回 JSON：`{"total": N, "success": N, "results": [{url, success, title, error}, ...]}`
+- `platform_status() -> str` — 查询各平台支持状态（域名、字幕支持、
+  Cookie 配置、转录策略），返回 JSON
+- `search_video(query, platform) -> str` — 预留接口（未实现，直接提示
+  改用 URL 调用）
 
 ## 配置
 
-最小配置（只需 **1** 个 key）：
+配置按「先跑通，再按需加」分三组，日常只需第 ① 组。
+
+### ① 必填（能跑通的最小配置）
 
 ```bash
-# .env
+# .env —— 只要 1 个 key（语音转文字）
 SILICONFLOW_API_KEY=sk-xxxxxxxx
 ```
 
-完整配置（4 个 key，推荐）：
+要生成结构化笔记时再补上 LLM（任何 OpenAI 兼容端点）：
 
 ```bash
-# .env
-# 必填：ASR（语音转文字）
-SILICONFLOW_API_KEY=sk-xxxxxxxx
-
-# 必填（生成 LLM 笔记用）：任何 OpenAI 兼容端点
 LLM_API_KEY=sk-xxxxxxxx
 LLM_BASE_URL=https://api.openai.com/v1
 VIDKNOT_LLM_MODEL=gpt-4o-mini
+```
 
-# 可选：存储目标
+### ② 可选：存储目标（用哪个配哪个）
+
+```bash
+# Obsidian
 OBSIDIAN_VAULT_PATH=/path/to/obsidian/vault
-# 或
+
+# 飞书文档
 FEISHU_APP_ID=cli_xxxx
 FEISHU_APP_SECRET=xxxxxxxx
 
-# 可选：vidknot 专属开关
+# Notion
+NOTION_TOKEN=secret_xxxx
+NOTION_PAGE_ID=xxxx
+
+# 语雀
+YUQUE_TOKEN=xxxx
+YUQUE_LOGIN=xxxx
+```
+
+### ③ 可选：高级开关
+
+```bash
+# 抖音 Cookie（提升成功率；其他平台见 COOKIE_GUIDE.md）
 VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
+
+# 转写引擎切换（留空则用本地 faster-whisper，免云端 key）
+SILICONFLOW_API_KEY=
 ```
 
 完整变量参考见 `.env.example`，逐项详解见 `docs/CONFIG.md`。
@@ -171,10 +216,24 @@ print(result["markdown"])
 
 ### MCP（Agent 调用）
 
+在支持 MCP 的 Agent（Claude / Qoder / Cursor / Cline 等）中：
+
 ```python
-# 在支持 MCP 的 Agent（Claude / Qoder / Cursor 等）中
-result = call_tool("vidknot_extract", url="https://www.bilibili.com/video/BV1xx")
-save_to_memory(result)
+# 单个视频：提取并保存到 Obsidian
+note = call_tool(
+    "video_knowledge",
+    url="https://www.bilibili.com/video/BV1xx",
+    destination="obsidian",       # feishu / obsidian / both / none
+)
+
+# 批量：一次处理多个链接，单个失败不影响其他
+summary = call_tool(
+    "batch_process",
+    urls=["https://...link1", "https://...link2"],
+    destination="obsidian",
+    max_workers=3,
+)
+# summary 是 JSON 字符串：{"total": 2, "success": 2, "results": [...]}
 ```
 
 ## 架构（v0.4.x）
@@ -240,7 +299,7 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.3** — 详见 [CHANGELOG.md](CHANGELOG.md)。
+最新版：**0.6.4** — 详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证
 
