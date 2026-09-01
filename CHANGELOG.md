@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 多源版本审计修复：CI 恢复全绿 / LICENSE 恢复 MIT 识别 / 测试环境无关化
+
+针对本地 / GitHub / SkillHub 三端一致性审计发现的工程问题逐项修复；
+功能行为无变化（CI、测试与文档基建为主）。
+
+### Fixed
+
+- **CI `Lint with ruff` 失败**（main 持续红灯根因，run 33455743908）
+  - `utils/__init__.py`：`__all__` 补齐 `get_ffmpeg_path` /
+    `retry_with_backoff` / `get_network_config` re-export（F401×3），
+    import 块排序（I001）
+  - `utils/retry.py`：`typing.Callable` → `collections.abc.Callable`（UP035）
+- **CI `Test with pytest` 失败**（lint 修复后暴露，此前被 fail-fast 长期掩盖）
+  - `tests/test_f2_helper_cli.py`：3 个 `download_one` 测试依赖开发机
+    `.venv-f2/bin/f2` 真实存在，CI 环境必然失败；新增 `fake_f2_bin`
+    fixture 传入 `f2_bin` 参数，测试彻底环境无关
+  - 验证方式：`F2_BIN=/nonexistent/f2 pytest -q` 模拟 CI 无 f2 环境
+    → 406 passed
+- **`INSTALL.md` 5 处过时版本号**：`v0.2.1` → `v0.6.4`（第 3/42/45/51/65 行，
+  对应 SkillHub usability/accuracy 评估扣分点）
+- **测试目录 lint 清理**：`test_douyin_api.py` / `test_processor.py` 移除
+  未使用 import（F401）；`test_retry.py` 局部异常类 `Permanent` →
+  `PermanentError`（N818）——`ruff check src/ scripts/ tests/` 全范围 0 errors
+
+### Changed
+
+- **LICENSE 纯标准化**：原双语（英文+中文翻译）+ 附加说明致 GitHub
+  licensee 识别为 NOASSERTION；现只保留标准 MIT 英文文本（GitHub 已恢复
+  识别 `license: MIT`），中文参考翻译移入 `README.md` License 小节折叠块
+- **CI 升级 `actions/setup-python` v5 → v7**（合并 dependabot #6）
+- **`.gitignore` 新增 `skills/` 与 `vibe_images/`**：SkillHub CLI 本地
+  安装副本与临时附件不入库
+
+### Added
+
+- **审计 P0 修复脚本** (`scripts/fix_audit_p0.sh`)：幂等修复 ruff 错误与
+  INSTALL.md 版本号（前置检查 + 自动验证）；配套 PR 模板
+  (`scripts/pr_template_audit_fix.md`)
+
+### Removed
+
+- **残留分支 `codex/merge-dual-asr-correction`** 及其 worktree
+  `vidknot-squash-merge`：补丁已等价合并进 main（`git cherry` 证实）
+
 ## [0.6.4] - 2026-09-01
 
 ### 文档深度优化（纯文档，无代码变更）
