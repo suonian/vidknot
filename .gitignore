@@ -82,3 +82,7 @@ nul
 cookies/
 *.cookie
 *.cookies
+
+# SkillHub CLI 本地安装副本与临时附件（不入库）
+skills/
+vibe_images/
