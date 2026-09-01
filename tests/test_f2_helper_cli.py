@@ -33,6 +33,18 @@ def cookie_file(tmp_path: Path) -> Path:
     return p
 
 
+@pytest.fixture()
+def fake_f2_bin(tmp_path: Path) -> Path:
+    """创建假 f2 可执行文件，满足 download_one 的存在性预检。
+
+    CI 环境未安装 f2（.venv-f2 仅存在于开发机）；subprocess.run 在测试中
+    已被 mock，此文件仅用于通过二进制存在性检查，使测试环境无关。
+    """
+    p = tmp_path / "f2"
+    p.write_text("#!/bin/sh\nexit 0\n")
+    return p
+
+
 class TestReadCookieFile:
     def test_converts_netscape_to_string(self, cookie_file: Path):
         cookie_str = read_cookie_file(cookie_file)
@@ -97,7 +109,9 @@ class TestDownloadOne:
                 with pytest.raises(F2DownloadError, match="f2 executable not found"):
                     download_one("123", cookie_file=cookie_file)
 
-    def test_returns_result_on_success(self, tmp_path: Path, cookie_file: Path):
+    def test_returns_result_on_success(
+        self, tmp_path: Path, cookie_file: Path, fake_f2_bin: Path
+    ):
         sub = tmp_path / "douyin" / "one" / "木子不写代码"
         sub.mkdir(parents=True)
         video = sub / "12345_some_clip_video.mp4"
@@ -112,6 +126,7 @@ class TestDownloadOne:
                 "12345",
                 cookie_file=cookie_file,
                 output_dir=tmp_path,
+                f2_bin=str(fake_f2_bin),
             )
 
         assert isinstance(result, F2DownloadResult)
@@ -119,7 +134,7 @@ class TestDownloadOne:
         assert result.aweme_id == "12345"
 
     def test_raises_on_subprocess_timeout(
-        self, tmp_path: Path, cookie_file: Path
+        self, tmp_path: Path, cookie_file: Path, fake_f2_bin: Path
     ):
         with patch(
             "scripts.f2_helper_cli.subprocess.run",
@@ -127,14 +142,15 @@ class TestDownloadOne:
         ):
             with pytest.raises(F2DownloadError, match="timed out"):
                 download_one(
-"12345",
+                    "12345",
                     cookie_file=cookie_file,
                     output_dir=tmp_path,
                     timeout_seconds=30,
+                    f2_bin=str(fake_f2_bin),
                 )
 
     def test_raises_when_no_video_written(
-        self, tmp_path: Path, cookie_file: Path
+        self, tmp_path: Path, cookie_file: Path, fake_f2_bin: Path
     ):
         fake_proc = MagicMock()
         fake_proc.returncode = 0
@@ -143,9 +159,10 @@ class TestDownloadOne:
         with patch("scripts.f2_helper_cli.subprocess.run", return_value=fake_proc):
             with pytest.raises(F2DownloadError, match="no \\*_video.mp4"):
                 download_one(
-"12345",
+                    "12345",
                     cookie_file=cookie_file,
                     output_dir=tmp_path,
+                    f2_bin=str(fake_f2_bin),
                 )
 
 

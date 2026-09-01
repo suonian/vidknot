@@ -1,6 +1,5 @@
 """core/douyin_api.py 单元测试（无网络，httpx 全 mock）"""
 
-from pathlib import Path
 
 import pytest
 

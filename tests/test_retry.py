@@ -54,20 +54,20 @@ class TestRetryWithBackoff:
         assert len(calls) == 3
 
     def test_permanent_exception_not_retried(self):
-        class Permanent(Exception):
+        class PermanentError(Exception):
             pass
 
         calls = []
 
         def fn():
             calls.append(1)
-            raise Permanent("401")
+            raise PermanentError("401")
 
-        with pytest.raises(Permanent):
+        with pytest.raises(PermanentError):
             retry_with_backoff(
                 fn,
                 max_retries=3,
-                permanent_exceptions=(Permanent,),
+                permanent_exceptions=(PermanentError,),
                 tag="t",
             )
         assert len(calls) == 1
