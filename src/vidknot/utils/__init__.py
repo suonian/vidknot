@@ -11,7 +11,6 @@ from .env_check import (
     get_ffmpeg_path,
     get_install_guide,
 )
-from .retry import get_network_config, retry_with_backoff
 from .exceptions import (
     AudioExtractError,
     ConfigError,
@@ -35,6 +34,7 @@ from .exceptions import (
     VidkNotError,
 )
 from .logger import get_logger, log_download_progress, log_step
+from .retry import get_network_config, retry_with_backoff
 
 __all__ = [
     # Cache
@@ -48,6 +48,10 @@ __all__ = [
     "check_whisper",
     "check_all_requirements",
     "get_install_guide",
+    "get_ffmpeg_path",
+    # Retry
+    "retry_with_backoff",
+    "get_network_config",
     # Logging
     "get_logger",
     "log_step",
