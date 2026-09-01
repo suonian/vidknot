@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.5] - 2026-09-01
 
 ### 多源版本审计修复：CI 恢复全绿 / LICENSE 恢复 MIT 识别 / 测试环境无关化
 

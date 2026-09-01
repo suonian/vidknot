@@ -1,6 +1,6 @@
 # VidkNot
 
-VidkNot is a **general research platform framework** (v0.6.4) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 added Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`); v0.6.0 adds unified retry/timeout configuration, a bundled-FFmpeg optional extra, actionable error hints with a friendly CLI error path, and domestic-mirror install support; v0.6.1 fixes a video-duration formatting crash and localizes marketplace display copy to Chinese; v0.6.2 fully translates SKILL.md into Chinese so the marketplace overview page displays in Chinese; v0.6.3 rewrites the marketplace description in plain, everyday language so non-technical users instantly understand what the tool does; v0.6.4 deepens the documentation: a consolidated anti-pattern section, MCP tool docs aligned with the real implementation, an error-classification quick table, and fully spelled-out platform limitation levels.
+VidkNot is a **general research platform framework** (v0.6.5) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 added Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`); v0.6.0 adds unified retry/timeout configuration, a bundled-FFmpeg optional extra, actionable error hints with a friendly CLI error path, and domestic-mirror install support; v0.6.1 fixes a video-duration formatting crash and localizes marketplace display copy to Chinese; v0.6.2 fully translates SKILL.md into Chinese so the marketplace overview page displays in Chinese; v0.6.3 rewrites the marketplace description in plain, everyday language so non-technical users instantly understand what the tool does; v0.6.4 deepens the documentation: a consolidated anti-pattern section, MCP tool docs aligned with the real implementation, an error-classification quick table, and fully spelled-out platform limitation levels; v0.6.5 multi-source audit fixes: CI fully green again, LICENSE restored to proper MIT detection, and environment-independent f2 tests.
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
@@ -27,7 +27,7 @@ VidkNot is a **general research platform framework** (v0.6.4) that extracts know
 | Twitter / X | Short video | ✅ Stable via yt-dlp |
 | Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
 | WeChat Channels (视频号) | Short video | ⚠️ Reserved (closed WeChat ecosystem; export via packet-capture tools, then use local batch mode) |
-| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.4) |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.5) |
 | Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
 | Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
 | Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
@@ -52,14 +52,14 @@ See [docs/PLATFORMS.md](docs/PLATFORMS.md) for the full capability matrix
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **Don't want a system FFmpeg?** Use the bundled static build (binary ships in the wheel, works offline):
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.4"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.5"`
 >
 > Environment self-check: `python -m vidknot --check-env` (prints install commands for anything missing)
 
-The current GitHub release is `v0.6.4`. Install from GitHub:
+The current GitHub release is `v0.6.5`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.4"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.5"
 ```
 
 > 🇨🇳 **Mainland China note**: if GitHub is slow, point pip at a domestic
@@ -68,7 +68,7 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.4"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.4"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.5"
 > ```
 >
 > The Tsinghua mirror also covers overseas dependencies such as yt-dlp and
