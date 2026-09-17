@@ -83,6 +83,13 @@ class TestVideoKnowledgePipelineFwDestinations:
 class TestRunCliImplFwDestination:
     """测试 _run_cli_impl 输出逻辑(issue #8)"""
 
+    @pytest.fixture(autouse=True)
+    def _skip_env_check(self):
+        """绕过 CLI 环境依赖检查（CI runner 无 f2/ffmpeg，与本类所测输出逻辑无关）"""
+        with patch("vidknot.utils.env_check.check_all_requirements", return_value=(True, [])), \
+             patch("vidknot.utils.env_check.check_ffmpeg", return_value=(True, "/usr/bin/ffmpeg")):
+            yield
+
     def _make_args(self, **overrides):
         args = MagicMock()
         args.url = "https://example.com"
@@ -180,7 +187,9 @@ class TestRunCliImplFwDestination:
 
         # FasterWhisperASR 不应被实例化(会触发 .transcribe)
         with patch.object(__main__, "process_video", return_value=mock_result), \
-             patch("vidknot.core.transcriber.FasterWhisperASR") as mock_fw:
+             patch("vidknot.core.transcriber.FasterWhisperASR") as mock_fw, \
+             patch("vidknot.pipeline.video_knowledge_pipeline.VideoKnowledgePipeline.save",
+                   return_value="mock://saved"):
             try:
                 __main__._run_cli_impl(mock_args)
             except SystemExit:
