@@ -44,29 +44,13 @@ class TestCliDestinationChoices:
         assert args.destination == "fw_file"
 
     def test_real_main_parser_accepts_fw(self):
-        """真实 main() 的 parser 应接受 fw"""
-        # 通过 main() 的 argparse 选项模拟
-        # 直接解析 -d fw 看是否被接受
-        with patch("sys.argv", ["vidknot", "https://example.com", "-d", "fw"]):
+        """真实 main() 的 parser 应接受 -d fw（argparse 拒绝时以 code 2 退出）"""
+        with patch("sys.argv", ["vidknot", "https://example.com", "-d", "fw"]), \
+             patch.object(__main__, "_run_cli_impl"):
             try:
-                args = __main__.main.__wrapped__ if hasattr(__main__.main, "__wrapped__") else None
-            except Exception:
-                pass
-
-        # 简单校验:解析不抛错
-        import sys as _sys
-        original_argv = _sys.argv
-        try:
-            _sys.argv = ["vidknot", "https://example.com", "-d", "fw"]
-            with patch.object(__main__, "process_video", return_value={}), \
-                 patch.object(__main__, "_run_cli_impl"):
-                # 调用 main 会进入分支,直接 patch 走通
-                try:
-                    __main__.main()
-                except SystemExit:
-                    pass
-        finally:
-            _sys.argv = original_argv
+                __main__.main()
+            except SystemExit as e:
+                assert e.code != 2, "argparse 拒绝了 -d fw"
 
 
 class TestVideoKnowledgePipelineFwDestinations:

@@ -11,8 +11,6 @@
 """
 
 import re
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -67,8 +65,8 @@ class TestSubdirNamingConvention:
         """默认 subdir 应含 uuid 后缀(并发冲突防护)"""
         # 通过 _run_cli_impl 模拟(直接看生成的 subdir)
         # 这里只测子目录生成的部分
-        from datetime import datetime
         import uuid
+        from datetime import datetime
 
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         unique_suffix = uuid.uuid4().hex[:6]

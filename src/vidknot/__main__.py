@@ -226,8 +226,8 @@ def _run_cli_impl(args):
         result = process_video(url, mode, args.language, args=args)
 
     # 根据目的地路由(issue #8 fix: fw/fw_file/none 都是"不保存"语义,跳过 pipeline)
-    SAVE_DESTINATIONS = {"feishu", "yuque", "notion", "obsidian", "both"}
-    if destination in SAVE_DESTINATIONS:
+    save_destinations = {"feishu", "yuque", "notion", "obsidian", "both"}
+    if destination in save_destinations:
         # 从环境变量构建飞书配置
         feishu_config = None
         if destination in ("feishu", "both"):
