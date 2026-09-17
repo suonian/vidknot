@@ -190,6 +190,8 @@ TIKHUB_API_KEY                       # 抖音兜底（付费）
 | `notion` | 保存到 Notion 页面 |
 | `yuque` | 保存到语雀知识库 |
 | `none` | 仅输出到终端，不保存 |
+| `fw` | 不保存：输出 SiliconFlow 完整文本 + FasterWhisper 时间戳段（v0.6.6）|
+| `fw_file` | 不保存：把 FW 时间戳段写到 `<输出文件>.fw.txt`，须配合 `-o`（v0.6.6）|
 
 ### Q: 不想保存，只想看结果？
 

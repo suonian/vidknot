@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6] - 2026-09-17
+
+### 修复外部智能体审计发现的三个 Bug（#8 / #9 / #10，PR #12）
+
+由外部智能体在真实使用中定位、提交并经审查返工后合并的修复。
+
+### Fixed
+
+- **#8 FW 时间戳段被丢弃**：新增两个不保存语义的目的地——
+  `-d fw`（输出 SiliconFlow 完整文本 + FasterWhisper 时间戳段）、
+  `-d fw_file`（FW 段写到 `<输出文件>.fw.txt`，须配合 `-o`，缺失即
+  `exit(2)` 而非静默丢数据）。不改变老用户 `none` 的输出格式
+- **#9 双 ASR 校正失败后 FW 数据丢失**：校正失败回退单源时，直接复用
+  作用域内已算出的 `fw_transcription` 保留到结果中，不再重复跑 FW
+  （避免白烧 CPU），也不再丢弃已得数据
+- **#10 临时目录命名不规范 / 跨平台不稳定**：临时子目录规范化为
+  `<platform>-<video_id>-<YYYYMMDD-HHMMSS>-<uuid6>`；下载后按真实视频
+  ID 重命名；加 uuid 后缀避免并发批处理同秒竞争；`--temp-subdir`
+  自定义名做三重路径穿越防护（拒绝绝对路径 / `..` /
+  `is_relative_to` 越界检查）
+
+### Added
+
+- **FW 补跑性能守卫**：仅在 `destination in (fw, fw_file)` 时才补跑
+  faster-whisper，obsidian 等默认路径零性能回归
+- **23 个回归测试** (`tests/test_destination_fw.py` 11 例 +
+  `tests/test_temp_subdir.py` 12 例)：覆盖新目的地端到端、FW 段保留、
+  子目录命名/并发唯一性/路径穿越拒绝；测试环境无关化（autouse fixture
+  绕过 CLI 依赖检查，CI 无 f2/ffmpeg 也稳定通过）
+- 测试总数 406 → **429**
+
+### Changed
+
+- `VideoKnowledgePipeline.SUPPORTED_DESTINATIONS` 注册 `fw` / `fw_file`
+  （save() 走空分支不保存）；CLI 保存路由改为白名单判断
+- 全量版本位点同步至 `v0.6.6`（pyproject / _version / install.sh /
+  SECURITY / issue 模板 / README 双语 / SKILL.md 快速开始安装命令 /
+  测试徽章 429）；SKILL.md 与 FAQ 目的地表补 `fw` / `fw_file` 说明
+
 ## [0.6.5] - 2026-09-01
 
 ### 多源版本审计修复：CI 恢复全绿 / LICENSE 恢复 MIT 识别 / 测试环境无关化

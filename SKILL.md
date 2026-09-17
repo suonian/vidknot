@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.5
+version: 0.6.6
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -65,7 +65,7 @@ repository: https://github.com/suonian/vidknot
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.5"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.6"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -109,7 +109,7 @@ VidkNot 为 Agent / 脚本提供四种接口：
 
 | 接口 | 调用方式 | 适用场景 |
 | --- | --- | --- |
-| **CLI** | `vidknot <url> [--destination <obsidian|feishu|notion|yuque|none>]` | 单次命令行处理 |
+| **CLI** | `vidknot <url> [--destination <obsidian|feishu|notion|yuque|none|fw|fw_file>]` | 单次命令行处理 |
 | **Python API** | `from vidknot import VideoKnowledgePipeline; pipeline.run(url)` | 嵌入式脚本 |
 | **FastAPI** | `uvicorn vidknot.api:app --reload` | 为其他工具提供 HTTP 服务 |
 | **MCP** | `vidknot --mcp` | Claude / Qoder / Cursor / Cline 等通过 Model Context Protocol 调用 |
@@ -124,7 +124,9 @@ MCP 服务启动后（stdio 传输），Agent 获得以下工具：
 
 - `video_knowledge(url, destination="obsidian", format="structured", language="auto", feishu_folder=None, obsidian_tags=None) -> str` —
   完整流水线（下载 + ASR + LLM + 保存），返回 Markdown 笔记；
-  `destination` 可选 `feishu/obsidian/both/none`
+  `destination` 可选 `feishu/obsidian/both/none/fw/fw_file`
+  （`fw`：不保存，输出 SF 文本 + FW 时间戳段；`fw_file`：FW 段写
+  `<输出文件>.fw.txt`，须配合输出路径参数）
 - `video_to_notes(...)` — 同上（别名工具，参数一致）
 - `batch_process(urls: list[str], destination="none", format="structured", language="auto", max_workers=3) -> str` —
   并发批处理，返回 JSON：`{"total": N, "success": N, "results": [{url, success, title, error}, ...]}`
@@ -196,6 +198,10 @@ vidknot --raw "https://www.youtube.com/watch?v=abc" -l zh
 
 # 单个视频，保存到飞书文档
 vidknot "https://v.douyin.com/abc123" -d feishu
+
+# 输出 SF 完整文本 + FW 时间戳段（不保存，给结构分析用）
+vidknot "URL" -d fw
+vidknot "URL" -d fw_file -o out.txt   # FW 段另存 out.fw.txt
 
 # 从 urls.txt 批量处理
 vidknot --batch urls.txt -d obsidian --max-workers 3
@@ -299,7 +305,7 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.5** — 详见 [CHANGELOG.md](CHANGELOG.md)。
+最新版：**0.6.6** — 详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证
 
