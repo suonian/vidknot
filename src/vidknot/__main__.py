@@ -87,14 +87,19 @@ def main():
     parser.add_argument("--summary", action="store_true",
                         help="生成结构化笔记 (默认)")
     parser.add_argument("--destination", "-d", default="obsidian",
-                        choices=["feishu", "yuque", "notion", "obsidian", "both", "none"],
-                        help="笔记保存目的地: feishu(飞书)/yuque(语雀)/notion/obsidian(本地)/both(所有)/none(仅返回)")
+                        choices=["feishu", "yuque", "notion", "obsidian", "both",
+                                 "none",        # 不保存,仅输出 SF 完整文本
+                                 "fw",          # 不保存,SF 完整 + FW 时间戳段(issue #8)
+                                 "fw_file"],    # 不保存,把 FW 段写到 *.fw.txt(issue #8)
+                        help="笔记保存目的地: feishu(飞书)/yuque(语雀)/notion/obsidian(本地)/both(所有)/none(仅返回)/fw(SF+FW双输出)/fw_file(FW段写单独文件)")
     parser.add_argument("--language", "-l", default="auto",
                         help="视频语言: auto/zh/en/ja/ko (默认: auto)")
     parser.add_argument("--output", "-o",
                         help="输出文件路径 (当 destination=none 时)")
     parser.add_argument("--no-cache", action="store_true",
                         help="禁用缓存")
+    parser.add_argument("--temp-subdir", default=None,
+                        help="自定义临时子目录名(issue #10修复)。默认自动生成 <platform>-<video_id>-<YYYYMMDD-HHMMSS>-<uuid6>/")
     parser.add_argument("--feishu-folder",
                         help="飞书文档保存的文件夹名称")
     parser.add_argument("--obsidian-tags", nargs="+", default=[],
@@ -220,8 +225,9 @@ def _run_cli_impl(args):
     else:
         result = process_video(url, mode, args.language, args=args)
 
-    # 根据目的地路由
-    if destination != "none":
+    # 根据目的地路由(issue #8 fix: fw/fw_file/none 都是"不保存"语义,跳过 pipeline)
+    save_destinations = {"feishu", "yuque", "notion", "obsidian", "both"}
+    if destination in save_destinations:
         # 从环境变量构建飞书配置
         feishu_config = None
         if destination in ("feishu", "both"):
@@ -243,16 +249,48 @@ def _run_cli_impl(args):
         logger.info(f"已保存到: {saved}")
 
     # 输出结果
+    # 选择主输出内容
     if mode == "summary":
         output = result.get("markdown", "")
     else:
         output = result.get("transcription", "")
 
-    if args.output:
+    fw_segments = result.get("fw_transcription") or ""
+
+    # === destination=fw:在主输出后追加 FW 段(issue #8 修复)===
+    if destination == "fw" and fw_segments:
+        output = (
+            f"{output}\n\n"
+            "============================================================\n"
+            "[FW FasterWhisper 段(带时间戳)]\n"
+            "============================================================\n"
+            f"{fw_segments}"
+        )
+
+    # === destination=fw_file:必须有 -o,把 FW 段写到 *.fw.txt(issue #8 修复)===
+    if destination == "fw_file":
+        if not args.output:
+            logger.error("destination=fw_file 必须配合 -o 参数使用")
+            sys.exit(2)
+        if not fw_segments:
+            logger.warning("destination=fw_file 但 result 中无 fw_transcription")
+        # 写主输出
+        with open(args.output, "w", encoding="utf-8") as f:
+            f.write(output)
+        logger.info(f"结果已保存: {args.output}")
+        # 写 FW 段到单独文件
+        if fw_segments:
+            fw_path = Path(args.output).with_suffix(".fw.txt")
+            with open(fw_path, "w", encoding="utf-8") as f:
+                f.write(fw_segments)
+            logger.info(f"FW 时间戳段已保存: {fw_path}")
+    elif args.output:
+        # 其他 destination + -o:只写主输出
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(output)
         logger.info(f"结果已保存: {args.output}")
     else:
+        # 没 -o:打印到 stdout(issue #8:fw 模式下 FW 段也打印)
         print("\n" + "=" * 60)
         print(output)
         print("=" * 60)
@@ -578,11 +616,51 @@ def process_video(url: str, mode: str, language: str, args=None) -> dict:
     strategy = _get_transcription_strategy()
 
     logger.info("正在下载...")
-    downloader = VideoDownloader()
+    # 默认子目录命名(issue #10):<video_id>-<YYYYMMDD-HHMMSS>-<uuid 前 6 位>
+    # 加 uuid 后缀防止并发批处理同秒竞争(审核要求)
+    if args is not None and getattr(args, "temp_subdir", None):
+        subdir = args.temp_subdir
+    else:
+        import uuid
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        unique_suffix = uuid.uuid4().hex[:6]
+        # 用平台名 + unknown id + 时间戳 + uuid
+        # (下载后获取 video_id 会重命名)
+        subdir = f"unknown-{timestamp}-{unique_suffix}"
+    downloader = VideoDownloader(subdir=subdir)
     # 非字幕优先策略时直接强制下载音频，避免先拿字幕再重下
     file_path, metadata = downloader.download_audio_with_metadata(
         url, force_audio=(strategy != "subtitle_first")
     )
+    # 下载后,若获取到视频 ID,重命名 unknown-* 子目录为 <platform>-<id>-<timestamp>-<uuid6>
+    video_id = metadata.get("id") or metadata.get("aweme_id") or metadata.get("bvid")
+    platform = metadata.get("platform", "")
+    if video_id and downloader.subdir and downloader.subdir.startswith("unknown-"):
+        old_dir = downloader.output_dir
+        # 保留 -<ts>-<uuid6> 后缀(避免并发冲突)
+        # original format: "unknown-<YYYYMMDD>-<HHMMSS>-<uuid6>"
+        # suffix: "-<YYYYMMDD>-<HHMMSS>-<uuid6>"
+        if downloader.subdir.startswith("unknown-"):
+            suffix = "-" + downloader.subdir[len("unknown-"):]
+        else:
+            suffix = "-" + downloader.subdir
+        platform_prefix = platform if platform else "video"
+        new_subdir = f"{platform_prefix}-{video_id}{suffix}"
+        new_dir = old_dir.parent / new_subdir
+        try:
+            if old_dir.exists() and not new_dir.exists():
+                old_dir.rename(new_dir)
+                downloader.output_dir = new_dir
+                downloader.subdir = new_subdir
+                # 更新 file_path:rename 后旧路径失效,需重新指向新位置
+                if file_path:
+                    file_path = new_dir / file_path.relative_to(old_dir)
+                logger.info(
+                    f"[元信息] 子目录已重命名: {old_dir.name} → {new_dir.name}"
+                )
+        except Exception as e:
+            logger.warning(f"子目录重命名失败: {e}")
     logger.info(f"下载完成: {metadata.get('title', 'Unknown')}")
 
     result = {
@@ -678,10 +756,20 @@ def process_video(url: str, mode: str, language: str, args=None) -> dict:
                 f"校正完成: {correction_result['n_segments']} 段, "
                 f"{correction_result['diff_count']} 处差异"
             )
+            # 保留 FW 原始时间戳段(供 destination=fw/fw_file 使用,issue #8)
+            result["fw_transcription"] = fw_transcription
         except Exception as e:
             logger.warning(f"双 ASR 校正失败，回退到 SiliconFlow 单源: {e}")
             corrected_text = None
             correction_meta = {"error": str(e)}
+            # 校正失败但 FW 段已经在 except 前算出(776 行),
+            # 验证变量是否在 except 作用域内可用;
+            # 若不可用,补跑一次 FW(避免白烧 CPU)
+            if "fw_transcription" in locals() and fw_transcription:
+                result["fw_transcription"] = fw_transcription
+                logger.info(f"校正失败但 FW 段已保留: {len(fw_transcription)} 字符")
+            else:
+                logger.warning("校正失败且 FW 段不可用,跳过保留")
 
     # 选择最终转录文本
     if corrected_text:
@@ -691,6 +779,26 @@ def process_video(url: str, mode: str, language: str, args=None) -> dict:
         result["correction"] = correction_meta
     else:
         result["transcription"] = sf_transcription
+
+    # === issue #8:为 destination=fw / fw_file 补跑 FW 段 ===
+    # 仅在需要 FW 段时才跑,避免对 obsidian 用户造成性能回归
+    if "fw_transcription" not in result:
+        # 检查 destination(从 args 拿)— 只有 fw/fw_file 才需要
+        need_fw = False
+        if args is not None:
+            dest = getattr(args, "destination", None)
+            if dest in ("fw", "fw_file"):
+                need_fw = True
+        if need_fw:
+            try:
+                fw_only = FasterWhisperASR().transcribe(
+                    file_path, language=language or "zh"
+                )
+                result["fw_transcription"] = fw_only
+                logger.info(f"补充 FW 段: {len(fw_only)} 字符")
+            except Exception as e:
+                logger.warning(f"FW 补充失败: {e}")
+        # else:不需要 FW 段(默认 obsidian/feishu 等),跳过(避免性能回归)
 
     if mode == "summary":
         logger.info("正在生成结构化笔记...")

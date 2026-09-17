@@ -31,7 +31,13 @@ class VideoKnowledgePipeline:
     4. 路由到目的地（飞书/语雀/Notion/Obsidian）
     """
 
-    SUPPORTED_DESTINATIONS = ["feishu", "yuque", "notion", "obsidian", "both", "none"]
+    SUPPORTED_DESTINATIONS = [
+        "feishu", "yuque", "notion", "obsidian", "both",
+        # 输出增强选项（仅控制输出形式，不涉及保存语义）
+        "none",        # 不保存,默认输出 SF 完整文本(原行为)
+        "fw",          # 不保存,输出 SF 完整 + FW 时间戳段(issue #8 修复)
+        "fw_file",     # 不保存,把 FW 段写到 *.fw.txt 文件(issue #8)
+    ]
 
     def __init__(
         self,

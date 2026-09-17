@@ -34,10 +34,37 @@ class VideoDownloader:
     本类提供共享的 yt-dlp / FFmpeg / Cookie 工具。
     """
 
-    def __init__(self, output_dir: str | None = None):
+    def __init__(self, output_dir: str | None = None, subdir: str | None = None):
         self.output_dir = Path(output_dir) if output_dir else Path(tempfile.gettempdir()) / "vidknot"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._config = ConfigManager()
+        # 子目录命名规范:<aweme_id>-<YYYYMMDD-HHMMSS>(issue #10 修复)
+        self.subdir = subdir
+        if subdir:
+            # 路径穿越防护(审核要求):
+            # 1. 拒绝绝对路径
+            subdir_path = Path(subdir)
+            if subdir_path.is_absolute():
+                raise ValueError(
+                    f"subdir 不允许是绝对路径(安全检查): {subdir}"
+                )
+            # 2. 拒绝含 .. 的路径
+            parts = subdir_path.parts
+            if ".." in parts:
+                raise ValueError(
+                    f"subdir 不允许含 '..' 路径穿越(安全检查): {subdir}"
+                )
+            self.output_dir = self.output_dir / subdir
+            # 3. 解析后必须仍在原 output_dir 内
+            try:
+                base = (Path(output_dir) if output_dir else Path(tempfile.gettempdir()) / "vidknot").resolve()
+                if not self.output_dir.resolve().is_relative_to(base):
+                    raise ValueError(
+                        f"subdir 解析后不在 output_dir 内(安全检查): {subdir}"
+                    )
+            except (OSError, ValueError) as e:
+                raise ValueError(f"subdir 路径解析失败: {e}")
+            self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def download_audio_with_metadata(
         self,
