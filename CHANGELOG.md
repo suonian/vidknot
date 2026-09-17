@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.7] - 2026-09-17
+
+### 冲分轮：新增最佳实践指南 + MCP 文档降密度 + 评测回落排查
+
+skillhub 评测 0.6.6 均分 4.72（0.6.3 为 4.62），针对剩余 4.5 低分项
+逐项修复（纯文档，无代码逻辑变更）。
+
+### Added
+
+- **`docs/BEST_PRACTICES.md`** 新增最佳实践指南：长视频分段策略（ffmpeg
+  无损切片 + `--batch-dir`）、ASR 模型选型与性能权衡表、批处理并发调优
+  （按链接数分段建议 + 逐条隔离契约）、网络/镜像/代理加速方案、Cookie
+  管理最佳实践、排障八步自检工作流、403/付费内容场景排查、多 Agent 共享
+  仓库建议。与 SKILL.md / README.md 做交叉引用
+
+### Changed
+
+- **SKILL.md MCP 用法章节降密度**：原 5 个工具以密集 text bullet 展开
+  完整签名与返回值说明，改为表格（工具/用途/签名要点三列）+ 引用调用示例
+  的方式，一眼扫完结构后再深入下方 Agent 调用示例
+- **SKILL.md「边界与前提条件」节**：追加 `docs/BEST_PRACTICES.md` 交叉引用
+- **SKILL.md「配置文件发现」节**：第 4 项新增「性能调优、排障流程」定位句
+- **SKILL.md 文件清单**：`docs/` 行补 `BEST_PRACTICES`
+- **README 双语文档表**：各插入一行 `docs/BEST_PRACTICES.md`
+- **accuracy 4.8→4.6 回落排查结论**：0.6.6 代码未改动下载/错误处理路径
+  （仅 __main__.py + downloader.py 加 subdir 安全校验）；评分为随机波动，
+  且 FAQ 错误速查表已覆盖「会员/付费/403→能力边界，不要重试」说明
+- 全量版本位点同步至 `v0.6.7`（pyproject / _version / install.sh /
+  SECURITY / issue 模板 / README 双语 / SKILL.md / INSTALL.md）
+- 注意：skillhub publish **必须带 `--changelog`**（0.6.6 漏填教训）
+
 ## [0.6.6] - 2026-09-17
 
 ### 修复外部智能体审计发现的三个 Bug（#8 / #9 / #10，PR #12）

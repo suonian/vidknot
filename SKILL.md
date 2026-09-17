@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.6
+version: 0.6.7
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -60,12 +60,13 @@ repository: https://github.com/suonian/vidknot
 - **不支持付费 / 仅会员 / 仅粉丝可见内容**——判断标准见
   `docs/PLATFORMS.md`。
 - 各平台完整支持状态与 Cookie 依赖矩阵：`docs/PLATFORMS.md`。
+- 性能调优、长视频分段、排障步骤等最佳实践：`docs/BEST_PRACTICES.md`。
 
 ## 快速开始（一分钟）
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.6"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.7"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -122,18 +123,17 @@ vidknot --mcp
 
 MCP 服务启动后（stdio 传输），Agent 获得以下工具：
 
-- `video_knowledge(url, destination="obsidian", format="structured", language="auto", feishu_folder=None, obsidian_tags=None) -> str` —
-  完整流水线（下载 + ASR + LLM + 保存），返回 Markdown 笔记；
-  `destination` 可选 `feishu/obsidian/both/none/fw/fw_file`
-  （`fw`：不保存，输出 SF 文本 + FW 时间戳段；`fw_file`：FW 段写
-  `<输出文件>.fw.txt`，须配合输出路径参数）
-- `video_to_notes(...)` — 同上（别名工具，参数一致）
-- `batch_process(urls: list[str], destination="none", format="structured", language="auto", max_workers=3) -> str` —
-  并发批处理，返回 JSON：`{"total": N, "success": N, "results": [{url, success, title, error}, ...]}`
-- `platform_status() -> str` — 查询各平台支持状态（域名、字幕支持、
-  Cookie 配置、转录策略），返回 JSON
-- `search_video(query, platform) -> str` — 预留接口（未实现，直接提示
-  改用 URL 调用）
+| 工具 | 用途 | 签名要点 |
+| --- | --- | --- |
+| `video_knowledge` | 完整流水线 → Markdown | `(url, destination="obsidian", …)`，`destination` 可选 `feishu/obsidian/both/none/fw/fw_file` |
+| `video_to_notes` | 同上（别名） | 参数完全一致 |
+| `batch_process` | 并发批处理 → JSON | `(urls: list[str], destination="none", max_workers=3, …)` |
+| `platform_status` | 平台支持状态查询 → JSON | 域名、字幕、Cookie、策略 一键查看 |
+| `search_video` | 预留搜索接口 | 当前直接提示改用 URL 调用 |
+
+> `fw`：不保存，输出 SF 文本 + FW 时间戳段；`fw_file`：FW 段写到 `<输出文件>.fw.txt`（须配合路径）。
+
+实际调用示例见下方 [MCP（Agent 调用）](#mcpagent-调用)。
 
 ## 配置
 
@@ -278,7 +278,8 @@ Agent 拿到本技能后，应查找：
 1. `pyproject.toml` → 安装依赖、定位入口点
 2. `.env.example` → 必填环境变量模板
 3. `docs/CONFIG.md` → 完整配置参考
-4. `SKILL.md`（本文件）→ 何时 / 如何使用
+4. `docs/BEST_PRACTICES.md` → 性能调优、排障流程
+5. `SKILL.md`（本文件）→ 何时 / 如何使用
 
 ## 本技能包含的文件
 
@@ -293,7 +294,7 @@ Agent 拿到本技能后，应查找：
 | `COOKIE_GUIDE.md` | Cookie 处理指南 |
 | `API_GUIDE.md` | API key 配置 |
 | `INSTALL.md` | 安装说明 |
-| `docs/` | 补充文档（PRIVACY、BACKENDS、CONFIG、EXAMPLES 等） |
+| `docs/` | 补充文档（PRIVACY、BACKENDS、CONFIG、EXAMPLES、BEST_PRACTICES 等） |
 | `examples/sources.yaml.example` | YAML 订阅源模板 |
 | `scripts/install.sh` | 一键安装 + 验证脚本 |
 
@@ -305,7 +306,7 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.6** — 详见 [CHANGELOG.md](CHANGELOG.md)。
+最新版：**0.6.7** — 详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证
 
