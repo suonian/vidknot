@@ -379,6 +379,23 @@ class VideoDownloader:
             logger.info(f"[Cookie] 平台 '{platform}' 无 Cookie 域名映射，跳过浏览器导出")
             return None
 
+        # 交互式终端（CLI 单次运行）提示用户确认；批处理/MCP/管道自动跳过
+        import sys
+        if sys.stdin.isatty():
+            logger.info(
+                f"[Cookie] 未找到 {platform} 的本地 Cookie 文件，"
+                f"将尝试从浏览器读取 {cookie_domain} 域名的 Cookie。"
+            )
+            try:
+                answer = input(
+                    f"确认从浏览器读取 {platform}（域: {cookie_domain}）的 Cookie？[y/N] "
+                ).strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                answer = "n"
+            if answer not in ("y", "yes"):
+                logger.info("[Cookie] 用户取消 Cookie 导出")
+                return None
+
         try:
             import os
             import tempfile

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.9] - 2026-09-17
+
+### 安全补强：CLI 首次浏览器 Cookie 导出前用户确认
+
+skillhub 安全审计第四项建议落地。
+
+### Added
+
+- **CLI 交互确认**：`_try_export_cookies()` 在从浏览器导出 Cookie 前
+  检测 `sys.stdin.isatty()`——仅在交互式终端（CLI 单次运行）时提示
+  `确认从浏览器读取 <平台>（域: <domain>）的 Cookie？[y/N]`；
+  批处理（`--batch`）、MCP 协议（stdio 非 TTY）、管道输入自动跳过
+  提示。用户拒绝（输入非 y/yes）或 EOF/中断时跳过导出
+- 提示文本公开本次导出目标平台的域名，与 `COOKIE_GUIDE.md` 隐私披露节
+  信息一致
+
+### Changed
+
+- 全量版本位点同步至 `v0.6.9`
+
 ## [0.6.8] - 2026-09-17
 
 ### 安全修复：Cookie 按域名过滤 + 临时文件加固（skillhub 安全审计）
