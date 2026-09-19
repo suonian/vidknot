@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.8] - 2026-09-17
+
+### 安全修复：Cookie 按域名过滤 + 临时文件加固（skillhub 安全审计）
+
+skillhub 安全评估报告指出通用下载路径中 Cookie 处理存在三个安全隐患，
+本版本逐项修复。
+
+### Fixed
+
+- **浏览器 Cookie 按目标平台域名过滤**：原 `_try_export_cookies()` 以
+  `domain_name=None` 读取浏览器**全部站点** Cookie 并写入明文文件；
+  改为按平台→域名映射表（`_COOKIE_DOMAINS`）过滤，仅导出本次下载所需
+  域名的 Cookie。无映射的 unknown/generic 平台跳过浏览器导出
+- **临时 Cookie 文件安全加固**：文件名从固定的 `temp_cookies.txt` 改为
+  `tempfile.mkstemp` 生成的随机名（前缀 `vidknot_cookies_`），权限
+  设为 `0o600`（仅当前用户可读写），yt-dlp 使用完毕后立即在
+  `finally` 中删除（原有清理逻辑关联更新）
+- **COOKIE_GUIDE.md 新增隐私披露节**：明确说明浏览器 Cookie 读取的域名
+  范围、映射表、临时文件存放位置与生命周期，推荐优先使用手动导出的本地文件
+
+### Changed
+
+- `base.py`：临时文件清理判断从 `"temp_cookies" in cookie_file` 更新为
+  `"vidknot_cookies_" in cookie_file`
+- `tests/test_platforms.py`：修复 `test_kuaishou_temp_cookie_cleanup` 与
+  `test_weibo_temp_cookie_cleanup` 中的 mock 文件名以匹配新清理前缀
+- 全量版本位点同步至 `v0.6.8`
+
 ## [0.6.7] - 2026-09-17
 
 ### 冲分轮：新增最佳实践指南 + MCP 文档降密度 + 评测回落排查

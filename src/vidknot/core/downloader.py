@@ -347,32 +347,68 @@ class VideoDownloader:
         name = re.sub(r'[<>"/\\|?*\x00-\x1f]', "_", name, flags=0).strip()
         return name or "video"
 
+    # 平台 → 浏览器 Cookie 域名映射（仅导出本次所需域名的 Cookie）
+    _COOKIE_DOMAINS: dict[str, str] = {
+        "youtube": ".youtube.com",
+        "bilibili": ".bilibili.com",
+        "douyin": ".douyin.com",
+        "xiaohongshu": ".xiaohongshu.com",
+        "kuaishou": ".kuaishou.com",
+        "tiktok": ".tiktok.com",
+        "twitter": ".twitter.com",
+        "instagram": ".instagram.com",
+        "weibo": ".weibo.com",
+        "vimeo": ".vimeo.com",
+    }
+
     def _try_export_cookies(self, platform: str = "unknown") -> str | None:
-        """尝试获取 Cookie 文件"""
+        """按目标平台域名导出浏览器 Cookie（安全审计 v0.6.8）
+
+        优先级：本地 Cookie 文件 → 按域过滤的浏览器 Cookie 导出。
+        仅当平台在 _COOKIE_DOMAINS 中有映射时才尝试浏览器导出；
+        unknown/generic 等无映射平台跳过浏览器导出，避免全站 Cookie 暴露。
+        """
         cookie_file = self._find_cookie_file(platform)
         if cookie_file:
             logger.info(f"[Cookie] 使用本地 Cookie 文件: {cookie_file}")
             return cookie_file
 
+        # 仅对已知平台尝试浏览器 Cookie 导出（按域名过滤）
+        cookie_domain = self._COOKIE_DOMAINS.get(platform)
+        if not cookie_domain:
+            logger.info(f"[Cookie] 平台 '{platform}' 无 Cookie 域名映射，跳过浏览器导出")
+            return None
+
         try:
+            import os
+            import tempfile
+
             import browser_cookie3
-            temp_cookie_file = str(self.output_dir / "temp_cookies.txt")
+
             for name, getter in [
-                ("chrome", lambda: browser_cookie3.chrome(domain_name=None)),
-                ("firefox", lambda: browser_cookie3.firefox(domain_name=None)),
-                ("edge", lambda: browser_cookie3.edge(domain_name=None)),
+                ("chrome", lambda: browser_cookie3.chrome(domain_name=cookie_domain)),
+                ("firefox", lambda: browser_cookie3.firefox(domain_name=cookie_domain)),
+                ("edge", lambda: browser_cookie3.edge(domain_name=cookie_domain)),
             ]:
                 try:
                     cookies = getter()
-                    if cookies:
-                        with open(temp_cookie_file, "w", encoding="utf-8") as f:
-                            for c in cookies:
-                                f.write(
-                                    f"{c.domain}\tTRUE\t{c.path}\t"
-                                    f"{'TRUE' if c.expires > 0 else 'FALSE'}\t"
-                                    f"{c.expires}\t{c.name}\t{c.value}\n"
-                                )
-                        return temp_cookie_file
+                    if not cookies:
+                        continue
+                    # 随机文件名 + 0o600 权限（安全审计要求）
+                    fd, temp_path = tempfile.mkstemp(
+                        suffix=".txt", prefix="vidknot_cookies_", dir=self.output_dir
+                    )
+                    os.chmod(temp_path, 0o600)
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        f.write("# Netscape HTTP Cookie File\n")
+                        for c in cookies:
+                            f.write(
+                                f"{c.domain}\tTRUE\t{c.path}\t"
+                                f"{'TRUE' if c.expires > 0 else 'FALSE'}\t"
+                                f"{c.expires}\t{c.name}\t{c.value}\n"
+                            )
+                    logger.info(f"[Cookie] 已从 {name} 导出 {platform} Cookie（域: {cookie_domain}）")
+                    return temp_path
                 except Exception:
                     continue
         except Exception:

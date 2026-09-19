@@ -588,7 +588,7 @@ class TestUnverifiedPlatforms:
 
     def test_kuaishou_temp_cookie_cleanup(self, tmp_path):
         """临时 Cookie 文件在结束后应被清理"""
-        cookie = tmp_path / "temp_cookies_ks.txt"
+        cookie = tmp_path / "vidknot_cookies_ks.txt"
         cookie.write_text("cookie")
         dl = MagicMock()
         dl._try_export_cookies = MagicMock(return_value=str(cookie))
@@ -610,7 +610,7 @@ class TestUnverifiedPlatforms:
         dl._yt_dlp_download.assert_called_once()
 
     def test_weibo_temp_cookie_cleanup(self, tmp_path):
-        cookie = tmp_path / "temp_cookies_wb.txt"
+        cookie = tmp_path / "vidknot_cookies_wb.txt"
         cookie.write_text("cookie")
         dl = MagicMock()
         dl._try_export_cookies = MagicMock(return_value=str(cookie))

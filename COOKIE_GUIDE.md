@@ -68,6 +68,16 @@ python -m vidknot "https://v.douyin.com/example/" --destination none --no-cache
 - 发现异常登录或泄露风险时，退出平台登录并重新生成 Cookie
 - 不要把 Cookie 粘贴到公开 issue、聊天记录或文档中
 
+### 浏览器 Cookie 自动导出说明（v0.6.8+）
+
+当未配置本地 Cookie 文件时，VidkNot 会尝试从浏览器自动导出 Cookie：
+
+- **仅读取目标平台域名的 Cookie**：按平台→域名映射表过滤（如抖音只读 `.douyin.com`），不导出浏览器中全部站点的 Cookie
+- **域名映射**：`docs/PLATFORMS.md` 的 Cookie 依赖列列出了各平台对应域名；未在映射表中的平台（如通用 yt-dlp 链接）不会触发浏览器导出
+- **临时文件安全**：Cookie 写入随机文件名（`vidknot_cookies_*.txt`）且权限为 `0o600`（仅当前用户可读写），yt-dlp 使用完毕后**立即删除**
+- **存放位置**：系统临时目录下的 `vidknot/` 子目录（与视频下载文件同路径）
+- 推荐仍优先使用手动导出的本地 Cookie 文件（`cookies/<平台>.txt`），避免浏览器安全策略干扰导出
+
 ---
 
 ## VidkNot 当前能力地图

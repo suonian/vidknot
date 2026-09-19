@@ -95,7 +95,7 @@ class YtDlpPlatform(BasePlatform):
         try:
             return dl._yt_dlp_download(url, quality, cookie_file, self.name)
         finally:
-            if cookie_file and "temp_cookies" in cookie_file and Path(cookie_file).exists():
+            if cookie_file and "vidknot_cookies_" in cookie_file and Path(cookie_file).exists():
                 try:
                     Path(cookie_file).unlink()
                 except Exception:
