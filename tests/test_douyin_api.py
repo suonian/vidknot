@@ -200,6 +200,68 @@ class TestDownloadWithRetry:
         assert "mockapi 视频下载失败" in str(exc_info.value)
         assert "after 1 attempts" in str(exc_info.value)
 
+    def test_sends_douyin_cdn_headers(self, tmp_path):
+        """Regression test: 抖音 CDN 对裸 GET 返回 403，必须带 Referer + UA。
+
+        详见 issue: TikHub / apibyte 返回的 CDN 直链被抖音 CDN 拦截。
+        """
+        target = tmp_path / "video.mp4"
+        captured = {}
+
+        class _FakeStream:
+            def __init__(self, method, url, headers=None):
+                captured["method"] = method
+                captured["url"] = url
+                captured["headers"] = headers or {}
+
+            def raise_for_status(self):
+                pass
+
+            def iter_bytes(self, chunk_size=65536):
+                # 写入超过 1024 bytes 触发「下载成功」分支
+                yield b"x" * 2048
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class _FakeClient:
+            def __init__(self, *a, **kw):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def stream(self, method, url, headers=None):
+                return _FakeStream(method, url, headers)
+
+        original_client = douyin_api.httpx.Client
+        douyin_api.httpx.Client = _FakeClient
+        try:
+            douyin_api.download_with_retry(
+                "https://v3-web.douyinvod.com/x.mp4",
+                target,
+                "tikhub",
+                max_retries=0,
+            )
+        finally:
+            douyin_api.httpx.Client = original_client
+
+        # 断言带上了抖音 CDN 必需的 headers
+        headers = captured["headers"]
+        assert "Referer" in headers, f"missing Referer in {headers}"
+        assert headers["Referer"] == "https://www.douyin.com/"
+        assert "User-Agent" in headers, f"missing User-Agent in {headers}"
+        # UA 应是移动端 Safari(iPhone)才能绕过 CDN
+        assert "iPhone" in headers["User-Agent"]
+        assert target.exists()
+        assert target.stat().st_size > 1024
+
 
 class TestDelegateCompatibility:
     """DouyinPlatform 上的薄委托与模块函数行为一致"""

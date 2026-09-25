@@ -139,6 +139,18 @@ def parse_api_response(
     return None
 
 
+# 抖音 CDN 对裸请求会返回 403 Forbidden，需要带 Referer + UA 才能下载。
+# 实测 2026-09 Hermes Agent 上海服务器：不带这些头时 TikHub 直链 100% 403。
+# 见 issue: 第三方 API 返回的 CDN 视频直链被抖音 CDN 拦截。
+_DOUYIN_DOWNLOAD_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
+    ),
+    "Referer": "https://www.douyin.com/",
+}
+
+
 def download_with_retry(
     video_url: str,
     video_path: Path,
@@ -152,13 +164,18 @@ def download_with_retry(
     TikHub / apibyte 返回的视频直链可能来自 CDN 缓存，偶尔临时不可达。
     加 2 次重试（1s / 2s 退避），避免因为 CDN 瞬断直接跳过该 API。
 
+    Headers: 抖音 CDN 对裸请求会返回 403，需要带 Referer + 移动端 UA。
+    实测不带头时 TikHub / apibyte 解析出的直链 100% 失败。
+
     Raises:
         DownloadError: 重试耗尽或下载文件异常（过小）。
     """
 
     def _once() -> None:
         with httpx.Client(follow_redirects=True, timeout=timeout) as client:
-            with client.stream("GET", video_url) as resp:
+            with client.stream(
+                "GET", video_url, headers=_DOUYIN_DOWNLOAD_HEADERS
+            ) as resp:
                 resp.raise_for_status()
                 with open(video_path, "wb") as f:
                     for chunk in resp.iter_bytes(chunk_size=chunk_size):
