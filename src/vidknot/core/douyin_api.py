@@ -139,9 +139,7 @@ def parse_api_response(
     return None
 
 
-# 抖音 CDN 对裸请求会返回 403 Forbidden，需要带 Referer + UA 才能下载。
-# 实测 2026-09 Hermes Agent 上海服务器：不带这些头时 TikHub 直链 100% 403。
-# 见 issue: 第三方 API 返回的 CDN 视频直链被抖音 CDN 拦截。
+# 部分抖音 CDN 会拒绝缺少来源页与浏览器 User-Agent 的请求。
 _DOUYIN_DOWNLOAD_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) "
@@ -163,9 +161,6 @@ def download_with_retry(
 
     TikHub / apibyte 返回的视频直链可能来自 CDN 缓存，偶尔临时不可达。
     加 2 次重试（1s / 2s 退避），避免因为 CDN 瞬断直接跳过该 API。
-
-    Headers: 抖音 CDN 对裸请求会返回 403，需要带 Referer + 移动端 UA。
-    实测不带头时 TikHub / apibyte 解析出的直链 100% 失败。
 
     Raises:
         DownloadError: 重试耗尽或下载文件异常（过小）。

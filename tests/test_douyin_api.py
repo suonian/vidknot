@@ -176,12 +176,12 @@ class TestDownloadWithRetry:
             def __exit__(self, *exc):
                 return False
 
-            def stream(self, method, url):
+            def stream(self, method, url, **kwargs):
                 return _BrokenStream()
 
         monkeypatch.setattr(douyin_api.httpx, "Client", _Client)
 
-        with pytest.raises(DownloadError, match="视频下载失败"):
+        with pytest.raises(DownloadError, match=r"视频文件异常 \(4 bytes\)"):
             douyin_api.download_with_retry(
                 "https://cdn/v.mp4", target, "mockapi", max_retries=0
             )
@@ -201,10 +201,6 @@ class TestDownloadWithRetry:
         assert "after 1 attempts" in str(exc_info.value)
 
     def test_sends_douyin_cdn_headers(self, tmp_path):
-        """Regression test: 抖音 CDN 对裸 GET 返回 403，必须带 Referer + UA。
-
-        详见 issue: TikHub / apibyte 返回的 CDN 直链被抖音 CDN 拦截。
-        """
         target = tmp_path / "video.mp4"
         captured = {}
 
@@ -257,10 +253,43 @@ class TestDownloadWithRetry:
         assert "Referer" in headers, f"missing Referer in {headers}"
         assert headers["Referer"] == "https://www.douyin.com/"
         assert "User-Agent" in headers, f"missing User-Agent in {headers}"
-        # UA 应是移动端 Safari(iPhone)才能绕过 CDN
         assert "iPhone" in headers["User-Agent"]
         assert target.exists()
         assert target.stat().st_size > 1024
+
+    def test_headers_survive_retry_and_redirect(self, tmp_path, monkeypatch):
+        import httpx
+
+        target = tmp_path / "video.mp4"
+        initial_url = "https://cdn.example.com/start"
+        redirected_url = "https://media.example.com/video.mp4"
+        requests = []
+
+        def respond(request):
+            requests.append(request)
+            if len(requests) == 1:
+                raise httpx.ReadTimeout("timeout", request=request)
+            if str(request.url) == initial_url:
+                return httpx.Response(302, headers={"Location": redirected_url})
+            return httpx.Response(200, content=b"x" * 2048)
+
+        real_client = httpx.Client
+        monkeypatch.setattr(
+            douyin_api.httpx,
+            "Client",
+            lambda **kwargs: real_client(transport=httpx.MockTransport(respond), **kwargs),
+        )
+        douyin_api.download_with_retry(initial_url, target, "tikhub", max_retries=1)
+
+        assert [str(request.url) for request in requests] == [
+            initial_url, initial_url, redirected_url,
+        ]
+        for request in requests:
+            assert request.headers["Referer"] == "https://www.douyin.com/"
+            assert "iPhone" in request.headers["User-Agent"]
+            assert "Authorization" not in request.headers
+            assert "Cookie" not in request.headers
+        assert target.read_bytes() == b"x" * 2048
 
 
 class TestDelegateCompatibility:
