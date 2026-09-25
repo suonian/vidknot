@@ -64,7 +64,7 @@ vidknot --batch urls.txt -d obsidian --max-workers 4
 ```bash
 # pip 安装时指定清华镜像（覆盖 yt-dlp / faster-whisper 等海外包）
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
-  "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.6"
+  "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.10"
 
 # 或一键脚本（自动探测镜像）
 bash scripts/install.sh

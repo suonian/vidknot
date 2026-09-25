@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.10] - 2026-09-25
+
+### Fixed
+
+- 抖音 Layer 3 第三方 API 返回视频直链后，下载请求补充抖音来源页
+  `Referer` 与移动端浏览器 `User-Agent`，修复部分 CDN 因缺少请求头而返回
+  403 的兼容性问题（PR #15）。不改变免费优先、第三方服务需显式启用的策略。
+- 修正小文件清理测试的假通过：测试替身接受新增请求头，并准确断言
+  `视频文件异常 (4 bytes)`，避免将参数错误误判为预期的下载失败。
+
+### Tests
+
+- 新增请求头回归测试，以及使用真实 httpx + MockTransport 的离线测试，
+  覆盖超时重试、跨域重定向、请求头保留与不附带 Cookie/Authorization。
+- 全量测试 **431 passed**；Ruff 检查通过。未调用真实付费 API 或独立复测线上 CDN。
+
+### Changed
+
+- 同步版本位点、安装示例、双语 README、测试徽章与 Skill 发布信息。
+- 补充抖音 CDN 403 排障说明；本次修复不解决过期直链、API 凭证错误、
+  付费/会员/DRM 或其他授权限制，不保证所有 403 均可恢复。
+
 ## [0.6.9] - 2026-09-17
 
 ### 安全补强：CLI 首次浏览器 Cookie 导出前用户确认

@@ -109,6 +109,15 @@ ERROR: [Douyin] <aweme_id>: Fresh cookies (not necessarily logged in) are needed
 
 **状态**：⚠️ **付费服务，仅作兜底**
 
+v0.6.10 起，取得视频直链后的下载请求会携带抖音来源页 `Referer` 与移动端
+浏览器 `User-Agent`，修复部分 CDN 因缺少这些请求头而返回 403 的问题。
+请求头在重试与重定向中保留；此步骤不会额外附带浏览器 Cookie 或 API
+Authorization 凭证。免费优先、第三方服务需显式启用的策略不变。
+
+如果仍返回 403，先区分报错来自第三方 API 还是视频 CDN：API 错误应检查
+服务凭证、额度与权限；CDN 错误应检查直链是否过期、内容是否允许访问。
+本修复不处理付费/会员/DRM 或其他授权限制，也不保证所有 403 都能恢复。
+
 ### TikHub（推荐第三方）
 
 | 项 | 值 |

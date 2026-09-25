@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.9
+version: 0.6.10
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -66,7 +66,7 @@ repository: https://github.com/suonian/vidknot
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.9"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.10"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -306,7 +306,9 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.9** — 详见 [CHANGELOG.md](CHANGELOG.md)。
+最新版：**0.6.10** — 抖音第三方兜底取得视频直链后，下载请求补充
+Referer 与 User-Agent，修复部分 CDN 请求头缺失导致的 403；不改变付费服务
+启用策略，也不绕过内容授权限制。详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证
 

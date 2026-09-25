@@ -28,7 +28,8 @@ CLI / API 报错时按此表自查。v0.6.0 起，CLI 会在出错时直接输�
 | `微信视频号暂不支持自动下载` | 能力边界 | 微信封闭生态 | 用 res-downloader / putyy 抓包导出后，走本地批量目录处理 |
 | `所有第三方 API 均失败` | 临时故障 | 免费层与付费兜底都失败 | 检查链接是否有效；如启用 TikHub 检查 `TIKHUB_API_KEY` 额度 |
 | `SABR-only` / YouTube 无法下载 | 临时故障 | YouTube 限制 web client | 自动降级处理；仍失败则导出 `cookies/youtube.txt` 后重试 |
-| `会员 / 付费 / 403 权限` 类错误 | 能力边界 | 付费内容或授权限制 | VidkNot 不支持付费/会员内容，见 `docs/PLATFORMS.md` 判断标准；**不要重试** |
+| 抖音 Layer 3 视频直链下载返回 `403` | 需按原因判断 | CDN 请求头要求、直链过期或内容授权限制 | v0.6.10 已补充 Referer + User-Agent；仍失败时检查直链有效期和访问权限，见 `docs/DOUYIN_FALLBACK.md`；第三方 API 本身的 403 应另查 API 凭证与权限 |
+| 明确提示会员 / 付费 / 无访问权限 | 能力边界 | 付费内容或授权限制 | VidkNot 不支持付费/会员内容，见 `docs/PLATFORMS.md` 判断标准；**不要反复重试或尝试绕过权限** |
 | `笔记生成失败` / LLM 错误 | 配置错误 | LLM 余额不足或配置错误 | 检查 provider 配置与余额；`config.yaml` 可切换 provider |
 | `依赖检查失败` | 配置错误 | 缺 yt-dlp / faster-whisper | 运行 `python -m vidknot --check-env` 查看安装指引 |
 
