@@ -139,6 +139,16 @@ def parse_api_response(
     return None
 
 
+# 部分抖音 CDN 会拒绝缺少来源页与浏览器 User-Agent 的请求。
+_DOUYIN_DOWNLOAD_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
+    ),
+    "Referer": "https://www.douyin.com/",
+}
+
+
 def download_with_retry(
     video_url: str,
     video_path: Path,
@@ -158,7 +168,9 @@ def download_with_retry(
 
     def _once() -> None:
         with httpx.Client(follow_redirects=True, timeout=timeout) as client:
-            with client.stream("GET", video_url) as resp:
+            with client.stream(
+                "GET", video_url, headers=_DOUYIN_DOWNLOAD_HEADERS
+            ) as resp:
                 resp.raise_for_status()
                 with open(video_path, "wb") as f:
                     for chunk in resp.iter_bytes(chunk_size=chunk_size):
