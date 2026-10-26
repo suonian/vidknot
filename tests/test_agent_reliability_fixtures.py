@@ -136,6 +136,30 @@ def test_each_failure_class_has_exactly_one_control_arm() -> None:
     The partner is a control arm of the same batch. The pairing is per
     failure class, not per role: an arm that proves the injector is alive
     is also a green arm, so it does not need a fourth sibling.
+
+    The check below is deliberately not written as `cls in covered or green`.
+    That form is never false: `green` is non-empty whenever the batch holds
+    any green arm at all, so the assertion stays true even when no green arm
+    is paired with the failure class being examined. A checker that cannot
+    go red is not evidence.
+
+    What is asserted here is the property the published data does express:
+    every failure class is exercised exactly once, and the batch carries a
+    green arm that is expected to pass. The green arm count is recorded as a
+    separate number, because a batch-level count of zero and a batch-level
+    count of one read the same way if the count is not stated.
+
+    Known gap, recorded rather than hidden: rule R7 in the criterion file
+    says every class must carry one control arm. The published arms express
+    the green side at batch level, one batch-level control arm plus the
+    liveness, reach and positive arms, so there is no per-failure-class
+    green partner to point at. Closing that gap means either giving each
+    failure class its own green arm, which changes the arms and therefore
+    the published digests, or restating R7 at batch level, which is a
+    criterion version bump. Both are scheduled work for the next version,
+    not done work. See tests/test_agent_reliability_pairing.py for the
+    batch-level green checks and for the mutation proofs that they can go
+    red.
     """
     rows = _rows()
     must_fail = {r["class_id"] for r in rows if r["control_direction"] == "must_fail"}
@@ -144,11 +168,28 @@ def test_each_failure_class_has_exactly_one_control_arm() -> None:
         for r in rows
         if r["control_direction"] in {"control_must_stay_green", "positive_must_stay_green"}
     }
-    # Each must_fail class must be covered by at least one green arm.
-    covered = {r["class_id"] for r in rows if r["control_direction"] != "must_fail"}
-    for cls in must_fail:
-        assert cls in covered or green, f"failure class {cls} has no green partner arm"
-    # And every must_fail class must appear exactly once.
+    # The green side of the batch has to exist and has to be a green arm
+    # that is expected to pass. Counting arms with a green role alone would
+    # let an arm expected to fail count as coverage.
+    green_rows = [
+        r
+        for r in rows
+        if r["control_direction"] in {"control_must_stay_green", "positive_must_stay_green"}
+    ]
+    assert green_rows, "batch carries no green arm"
+    for r in green_rows:
+        assert r["expected_verdict"] == "PASS", (
+            f"{r['case_id']}: green role but expected verdict "
+            f"{r['expected_verdict']!r}"
+        )
+    # The green count is stated, not implied, so a batch-level zero cannot
+    # be read the same way as a batch-level one.
+    assert len(green_rows) > 0, "green arm count is zero"
+    assert len(green_rows) < len(rows), (
+        f"green arm count {len(green_rows)} equals the arm total {len(rows)}; "
+        "the count is not discriminating between green and failing arms"
+    )
+    # Every must_fail class must appear exactly once.
     counts: dict[str, int] = {}
     for r in rows:
         if r["control_direction"] == "must_fail":
