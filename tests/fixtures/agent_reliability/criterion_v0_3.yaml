@@ -55,20 +55,26 @@ arm_health_reason_code_set:
   - INJECTOR_DEAD          # 空操作产物与注入产物字节相同, 注入器已死
   - INJECTOR_NOT_REACHED   # 注入产物不等于声明的预期形态, 注入器没到判定点
 
-# --- 3. 观测行: 12 列终版 ------------------------------------------------
+# --- 3. 观测行: 13 列终版 ------------------------------------------------
+# 这一列清单与 observation_row.v0.3.schema.json 和观测行模板同源。
+# 机检断言: 清单里点到的每一列, 模板必须真的带这一列, 且 Schema 必须真的定义这一列。
+# 之前这一份写的是拆分前的旧形态, 里面还留着 verdict 与 expected_verdict,
+# 而已发布的观测行走的是 observed_verdict 与 observed_reason_code,
+# 于是判据在描述一份谁也没发布的行。
 observation_row_columns:
   - anchor_id
   - anchor_source
   - criterion_rev
   - observed_at
-  - verdict
+  - observed_verdict
   - evidence_digest
   - fold_rule_id
-  - expected_verdict
   - control_direction
   - channel
   - anchor_issuer
   - anchor_issued_at
+  - arm_id
+  - run_id
 
 # --- 4. 硬规则 ----------------------------------------------------------
 hard_rules:

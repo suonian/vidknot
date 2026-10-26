@@ -18,6 +18,10 @@
       "type": "string",
       "description": "Digest of the criterion set the row was judged against. Each executor computes it over its own copy. Cross-executor computation is not permitted."
     },
+    "criterion_rev": {
+      "type": "string",
+      "description": "Observation row only. Revision of the criterion set the row was written under. A row written under one revision and read under another is its own outcome, neither pass nor fail, because a reader on a different revision produces an internally consistent and wrong comparison."
+    },
     "control_direction": {
       "type": "string",
       "enum": [

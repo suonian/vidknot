@@ -301,6 +301,78 @@ def test_observation_row_template_validates_against_the_schema() -> None:
     jsonschema.validate(template, schema)
 
 
+def test_every_must_fail_arm_ref_resolves_to_a_case_in_the_same_batch() -> None:
+    """A mistyped arm reference must fail, not degrade into an unattributed row.
+
+    Each arm row names the arm it belongs to in must_fail_arm_ref. The
+    naming used there is the arm identifier, which carries the nf-arm
+    prefix, while the row itself is identified by case_id. If the two
+    namespaces drift apart, a reference can name something that does not
+    exist and the row is still perfectly valid JSON with every required
+    field present, so nothing catches it.
+
+    The check here is that the reference resolves. It is deliberately not
+    a pass or fail of the implementation under test, it is a failure of
+    the fixture set itself, which is why it is a separate assertion and
+    not a reason code.
+    """
+    rows = _rows()
+    # The arm identifier namespace used by the arm rows.
+    arm_ids = {r["case_id"].replace("nf-", "nf-arm-", 1) for r in rows}
+
+    for row in rows:
+        ref = row["must_fail_arm_ref"]
+        assert ref in arm_ids, (
+            f"{row['case_id']}: must_fail_arm_ref {ref!r} does not resolve to "
+            f"any arm in the batch; known arm ids are {sorted(arm_ids)}"
+        )
+
+
+def test_observation_row_columns_in_the_criterion_match_the_published_schema() -> None:
+    """The criterion file lists the observation row columns.
+
+    If that list drifts away from the schema and the template, the
+    criterion is describing a row that nobody publishes, and the
+    published row is describing itself. Nothing else compares the two.
+    """
+    text = (FIXTURE_DIR / "criterion_v0_3.yaml").read_text(encoding="utf-8")
+    columns: list[str] = []
+    in_block = False
+    for line in text.splitlines():
+        if line.startswith("observation_row_columns:"):
+            in_block = True
+            continue
+        if in_block:
+            stripped = line.strip()
+            if not stripped.startswith("- "):
+                break
+            columns.append(stripped[2:].strip())
+
+    assert columns, "observation_row_columns is empty in the criterion file"
+
+    template = json.loads(
+        (FIXTURE_DIR / "observation_row.v0.3.template.json").read_text(encoding="utf-8")
+    )
+    schema = json.loads(
+        (FIXTURE_DIR / "observation_row.v0.3.schema.json").read_text(encoding="utf-8")
+    )
+    schema_fields = set(schema.get("properties", {}))
+    template_fields = set(template)
+
+    # Every column the criterion names must be a field the published
+    # template actually carries.
+    missing = [c for c in columns if c not in template_fields]
+    assert not missing, (
+        f"criterion names observation row columns the template does not carry: {missing}"
+    )
+
+    # And the criterion must not name a column the schema does not define.
+    unknown = [c for c in columns if c not in schema_fields]
+    assert not unknown, (
+        f"criterion names observation row columns the schema does not define: {unknown}"
+    )
+
+
 @pytest.mark.parametrize("name", ARMS_FILES)
 def test_file_ends_with_newline_and_uses_lf(name: str) -> None:
     raw = (FIXTURE_DIR / name).read_bytes()
