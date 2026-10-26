@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/suonian/vidknot/schemas/agent_reliability/observation_row.v0.3.json",
+  "title": "Agent reliability observation row",
+  "description": "One row per executed arm. Field order is not fixed; semantics are. Rows are JSONL: one JSON object per line, no trailing comma, LF line endings, final line carries a newline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "class_id",
+    "criterion_digest",
+    "trigger_condition",
+    "failing_behavior",
+    "expected_verdict",
+    "expected_reason_code",
+    "must_fail_arm_ref",
+    "injector_id",
+    "control_direction",
+    "channel"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*-v[0-9]+$",
+      "description": "Stable identifier of the case. Version suffix is part of the identifier, so a case can change shape without impersonating an older one."
+    },
+    "class_id": {
+      "type": "string",
+      "description": "Failure class this row exercises."
+    },
+    "criterion_digest": {
+      "type": "string",
+      "description": "Digest of the criterion set the row was judged against. Each executor computes it over its own copy. Cross-executor computation is not permitted."
+    },
+    "trigger_condition": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Written-out condition that makes the arm fail. A sample file is not a trigger condition."
+    },
+    "failing_behavior": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the failure looks like from the outside, including the exit code."
+    },
+    "expected_verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "What the arm is required to produce. NOT_EXERCISED, NOT_APPLICABLE and UNKNOWN are observation outcomes and never appear here."
+    },
+    "expected_reason_code": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Closed set, single value per class. The set is versioned, individual codes are not."
+    },
+    "must_fail_arm_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Pointer to the arm that carries the injection."
+    },
+    "injector_id": {
+      "type": "string",
+      "description": "Issuer of the injection. The injector issuer and the criterion implementer must be disjoint. An arm whose injector is the implementer is void."
+    },
+    "control_direction": {
+      "type": "string",
+      "enum": [
+        "must_fail",
+        "control_must_stay_green",
+        "positive_must_stay_green"
+      ],
+      "description": "Role of the arm in the batch. Never average across roles."
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Channel the arm travels on. Part of the unique key, recorded with multiset semantics."
+    },
+    "comparison_basis": {
+      "type": "string",
+      "enum": ["digest_over_serialized_product_bytes"],
+      "description": "How a comparison between two products is taken. Field level comparison needs a declared value domain, which a noop-versus-injected pair cannot guarantee."
+    },
+    "volatile_fields_policy": {
+      "type": "string",
+      "description": "Versioned exclusion list for volatile fields. An undeclared exclusion turns the arm into a coin flip."
+    }
+  },
+  "examples": [
+    {
+      "case_id": "nf-mid-file-trunc-v1",
+      "class_id": "mid_file_truncation",
+      "criterion_digest": "criterion:nf-v0.3",
+      "trigger_condition": "cut sample inside a multibyte sequence, tail missing a continuation byte",
+      "failing_behavior": "lenient decoder returns valid-looking short output, exit code 0",
+      "expected_verdict": "FAIL",
+      "expected_reason_code": "TRUNCATED_INPUT",
+      "must_fail_arm_ref": "nf-arm-mid-file-trunc-v1",
+      "injector_id": "runner_assigned",
+      "control_direction": "must_fail",
+      "channel": "stdout"
+    }
+  ]
+}

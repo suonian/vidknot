@@ -1,0 +1,98 @@
+# 判据文件 criterion:nf-v0.3
+#
+# 归属: Noteknot 维护项目之一 vidknot 的 agent-reliability 夹具集
+# 本文件是「判据清单」本体, 数字摘要由各执行方在自己的副本上自算,
+# 不跨方代算, 代算即伪造。
+#
+# 本文件覆盖范围声明: 本摘要覆盖本文件 + arms.jsonl 两件。
+# 只覆盖 arms.jsonl 时, 删掉一条必须失败行, 摘要不变, 判决照样通过。
+# 只覆盖本文件时, 改掉一条触发条件文本, 摘要不变, 判决照样通过。
+# 两件都必须进摘要, 这是本条存在的原因。
+
+criterion_version: nf-v0.3
+criterion_digest_scope:
+  - criterion_v0_3.yaml
+  - arms.jsonl
+
+# --- 1. 判定域: 五终态封闭枚举 -------------------------------------------
+# 落在 PASS 或 FAIL 之外的值必须是独立终态, 不得折叠进任一侧。
+verdict_domain:
+  - PASS
+  - FAIL
+  - NOT_EXERCISED      # 没有真的跑, 附一行原因, 不是 FAIL
+  - NOT_APPLICABLE     # 该臂的判定面在本实现里不存在, 附一行原因
+  - UNKNOWN            # 跑了, 有输出, 但没有断言可评估
+
+# --- 2. 原因码: 闭集单值 ------------------------------------------------
+# 集版本化, 不版本化单个码; 未知码进自己的桶, 不折叠到最近的已知码。
+#
+# 两个集分开, 因为它们描述的不是同一件事:
+#   reason_code_set           描述「被测实现失败在哪一层」
+#   arm_health_reason_code_set 描述「这条臂自己是不是还活着」
+# 合并成一个集, 臂健康码就会混进被测失败码的分母。
+reason_code_set_version: nf-reason-v0.3
+reason_code_set:
+  - NONE
+  - TRUNCATED_INPUT
+  - EMPTY_OUTPUT
+  - DUPLICATE_RUN_ID
+  - ROUND_ID_CONFLICT
+  - WRITER_FALLBACK      # 纸面类, 不进覆盖分子
+  - LOGIC_ERROR          # 纸面类, 不进覆盖分子
+
+# 臂健康集: 注入器活性与到达性两条断言的失败码。
+# 这两条断言成立时该臂判 PASS, 所以 expected_reason_code 是 NONE,
+# 失败码写在 failing_behavior 里。
+arm_health_reason_code_set_version: nf-armhealth-v0.3
+arm_health_reason_code_set:
+  - INJECTOR_DEAD          # 空操作产物与注入产物字节相同, 注入器已死
+  - INJECTOR_NOT_REACHED   # 注入产物不等于声明的预期形态, 注入器没到判定点
+
+# --- 3. 观测行: 12 列终版 ------------------------------------------------
+observation_row_columns:
+  - anchor_id
+  - anchor_source
+  - criterion_rev
+  - observed_at
+  - verdict
+  - evidence_digest
+  - fold_rule_id
+  - expected_verdict
+  - control_direction
+  - channel
+  - anchor_issuer
+  - anchor_issued_at
+
+# --- 4. 硬规则 ----------------------------------------------------------
+hard_rules:
+  - id: R1
+    text: 期望值必须由独立于被描述写入的那次写入提前声明; 声明晚于运行判声明迟到, 不补签。
+  - id: R2
+    text: expected_verdict 与 expected_reason_code 挂在对照臂上, 不挂在观测行上。
+  - id: R3
+    text: channel 进唯一键, 按多集语义记。
+  - id: R4
+    text: 注入器的签发方必须与判据实现方不相交; 同方的臂作废。
+  - id: R5
+    text: 纸面类不进覆盖分子。
+  - id: R6
+    text: 摘要覆盖判据清单与臂集两件, 预像描述与摘要并排发布。
+  - id: R7
+    text: 每一类必须带一条对照臂, 对照臂转红则整类作废。
+
+# --- 5. 独立性口径 ------------------------------------------------------
+independence:
+  apparent_readers: 读数个数, 是事实
+  independent_readers: 独立来源数, 是判断, 显式落列
+  derivation_type_domain:
+    - independent
+    - summary
+    - citation
+  note: 摘要与引用聚成传播量, 单独一列, 两个数字分别入账不相加。
+
+# --- 6. 诚实边界 --------------------------------------------------------
+honest_boundary:
+  scope: 单一实现, 单一宿主, 单轮实测
+  excluded_from_validated_set:
+    - 规范化字节摘要类, 仅纸面
+    - 富化窗口竞态, 仅在本实现与本宿主复现一次
