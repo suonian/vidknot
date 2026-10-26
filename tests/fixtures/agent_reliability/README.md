@@ -27,10 +27,10 @@ sha256sum manifest.sha256
 
 本仓当前值:
 
-- `criterion_v0_3.yaml` — `e7041fbb9b455e506ca99e2eee45fe07bfdfc3ed4240bbc5d7b24fa00b69f957`
+- `criterion_v0_3.yaml` — `641c39b91c2eec269ff9124a7924806be61b9e2f9a2fe1013913acb2d20194f0`
 - `arms.jsonl` — `b7cbb2cc98d4ad46bbf9e99f9e2f93be11af0d5c66fa04a65dd61159115022e8`
 - `arms_ext_v0.3.jsonl` — `dd4d5935c0698434d304d2dd86e9cbb54d8bcf6603c2501469d9b28b8eb2e299`
-- 独立摘要 (`manifest.sha256`) — `154b8dc9262708c1fbe88dbdd4c7db8b89f480dc96227f9d8f4598d4dc096b9d`
+- 独立摘要 (`manifest.sha256`) — `7504bcae6643272f108c767bdf4382689c24aae997f4a33cc1f7df53394f5376`
 
 ## 摘要覆盖范围
 

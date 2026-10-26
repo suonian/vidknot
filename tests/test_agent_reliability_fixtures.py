@@ -180,6 +180,57 @@ def test_criterion_digest_scope_names_files_that_exist() -> None:
     assert (FIXTURE_DIR / "criterion_v0_3.yaml").exists()
 
 
+def test_hard_rule_R6_digest_scope_matches_the_declared_scope() -> None:
+    """The R6 prose must name the same file set as criterion_digest_scope.
+
+    R6 is the rule that says how many files the digest covers. It used to say
+    two while the scope block, the preimage spec and the manifest all said
+    three. Every check that only compared counts of *machine* fields passed,
+    because the drift lived in a human-readable string inside the same file.
+
+    This is the same family as the count drift the count assertion catches,
+    one layer down: the count assertion compares two structured lists, this
+    one compares the structured list against the prose that states the rule.
+    """
+    scope = (FIXTURE_DIR / "criterion_v0_3.yaml").read_text(encoding="utf-8")
+    declared = _declared_scope()
+
+    r6_lines = [
+        line.strip()
+        for line in scope.splitlines()
+        if "R6" in line or (line.strip().startswith("text:") and "摘要覆盖" in line)
+    ]
+    r6_text = ""
+    for idx, line in enumerate(scope.splitlines()):
+        if line.strip() == "- id: R6":
+            for follow in scope.splitlines()[idx + 1 : idx + 4]:
+                if follow.strip().startswith("text:"):
+                    r6_text = follow.strip()
+                    break
+            break
+    assert r6_text, "hard rule R6 has no text to check"
+
+    chinese_counts = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6}
+    stated = None
+    for token, value in chinese_counts.items():
+        if f"{token}件" in r6_text:
+            stated = value
+            break
+    assert stated is not None, (
+        f"R6 does not state a coverage count in Chinese numerals: {r6_text!r}"
+    )
+    assert stated == len(declared), (
+        f"R6 states the digest covers {stated} file(s) but "
+        f"criterion_digest_scope declares {len(declared)} ({declared}); "
+        "the prose and the structured scope must agree"
+    )
+    for name in declared:
+        assert name in r6_text, (
+            f"R6 does not name {name}; declared scope is {declared}"
+        )
+    assert r6_lines, "R6 could not be located in the criterion file"
+
+
 def _declared_scope() -> list[str]:
     """Read criterion_digest_scope out of the criterion file.
 

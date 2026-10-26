@@ -89,7 +89,7 @@ hard_rules:
   - id: R5
     text: 纸面类不进覆盖分子。
   - id: R6
-    text: 摘要覆盖判据清单与臂集两件, 预像描述与摘要并排发布。
+    text: 摘要覆盖三件, 依次是判据清单 criterion_v0_3.yaml、臂集 arms.jsonl、扩展臂集 arms_ext_v0.3.jsonl; 预像描述与摘要并排发布。
   - id: R7
     text: 每一类必须带一条对照臂, 对照臂转红则整类作废。
 
