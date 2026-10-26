@@ -180,6 +180,96 @@ def test_criterion_digest_scope_names_files_that_exist() -> None:
     assert (FIXTURE_DIR / "criterion_v0_3.yaml").exists()
 
 
+def _declared_scope() -> list[str]:
+    """Read criterion_digest_scope out of the criterion file.
+
+    The scope block is a YAML list of file names. It is parsed by hand rather
+    than through a YAML dependency so the check keeps working in a bare
+    interpreter.
+    """
+    text = (FIXTURE_DIR / "criterion_v0_3.yaml").read_text(encoding="utf-8")
+    lines = text.splitlines()
+    out: list[str] = []
+    in_scope = False
+    for line in lines:
+        if line.startswith("criterion_digest_scope:"):
+            in_scope = True
+            continue
+        if in_scope:
+            stripped = line.strip()
+            if not stripped.startswith("- "):
+                break
+            out.append(stripped[2:].strip())
+    return out
+
+
+def _manifest_names() -> list[str]:
+    """Read the file names listed in manifest.sha256, in manifest order."""
+    raw = (FIXTURE_DIR / "manifest.sha256").read_text(encoding="utf-8")
+    names = []
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("  ", 1)
+        assert len(parts) == 2, f"manifest line is not digest + two spaces + name: {line!r}"
+        names.append(parts[1].strip())
+    return names
+
+
+def test_declared_digest_scope_count_matches_the_manifest_line_count() -> None:
+    """The declared coverage count must equal the number of files actually digested.
+
+    This is the check that was missing. The criterion file declared a two-file
+    scope while the preimage spec and the manifest covered three. Both sides
+    computed a consistent digest over their own scope, so the two digests could
+    never agree, and nobody noticed, because the only assertion was that the
+    named files exist — not that the list is complete.
+
+    Asserting the count is what closes it: dropping a negative control arm now
+    changes the declared count as well as the digest, so the drift cannot hide.
+    """
+    declared = _declared_scope()
+    manifest = _manifest_names()
+    assert declared, "criterion_digest_scope is empty"
+    assert len(declared) == len(manifest), (
+        f"declared digest scope has {len(declared)} entries "
+        f"({declared}) but the manifest digests {len(manifest)} files ({manifest}); "
+        "the preimage spec is the single authority for coverage"
+    )
+
+
+def test_manifest_digests_exactly_the_declared_scope_in_order() -> None:
+    """The manifest must cover the declared scope, in the declared order.
+
+    Two digests over different file sets are both internally consistent, so
+    matching them requires the file sets to be identical, not merely
+    overlapping.
+    """
+    declared = _declared_scope()
+    manifest = _manifest_names()
+    assert manifest == declared, (
+        f"manifest covers {manifest} but the criterion declares {declared}"
+    )
+    for name in manifest:
+        assert (FIXTURE_DIR / name).exists(), f"{name} is digested but missing on disk"
+
+
+def test_manifest_digests_match_the_files_on_disk() -> None:
+    """A digest that does not match its file means the manifest is stale."""
+    import hashlib
+
+    raw = (FIXTURE_DIR / "manifest.sha256").read_text(encoding="utf-8")
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        digest, name = line.split("  ", 1)
+        name = name.strip()
+        actual = hashlib.sha256((FIXTURE_DIR / name).read_bytes()).hexdigest()
+        assert actual == digest, (
+            f"{name}: manifest records {digest} but the file on disk hashes to {actual}"
+        )
+
+
 def test_published_example_in_schema_matches_a_real_row() -> None:
     schema = json.loads(
         (FIXTURE_DIR / "observation_row.v0.3.schema.json").read_text(encoding="utf-8")

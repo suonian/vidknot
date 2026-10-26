@@ -27,10 +27,10 @@ sha256sum manifest.sha256
 
 本仓当前值:
 
-- `criterion_v0_3.yaml` — `f5a7c8508586fd923af77b35b43388108cc3f1adc2b7a4f5d21cead3c790e3b4`
+- `criterion_v0_3.yaml` — `3971712db31e547547e35c54a094a30e5cf79ae0cd7bb1fa4f8dde32a832e936`
 - `arms.jsonl` — `b7cbb2cc98d4ad46bbf9e99f9e2f93be11af0d5c66fa04a65dd61159115022e8`
 - `arms_ext_v0.3.jsonl` — `dd4d5935c0698434d304d2dd86e9cbb54d8bcf6603c2501469d9b28b8eb2e299`
-- 独立摘要 (`manifest.sha256`) — `b8f2ade9a875833ad27b87712f7c545ef061e091539872063b4fd0a6d3d298f3`
+- 独立摘要 (`manifest.sha256`) — `bcbd412b9811799d49a7e80fdee2050243bcbced0680a3f4d01f63c06cd73809`
 
 ## 摘要覆盖范围
 
@@ -38,7 +38,13 @@ sha256sum manifest.sha256
 
 只覆盖 `arms.jsonl` 时, 删掉一条必须失败行, 摘要不变, 判决照样通过。
 只覆盖 `criterion_v0_3.yaml` 时, 改掉一条触发条件文本, 摘要不变, 判决照样通过。
-两件都必须进摘要。这是这一条存在的原因。
+三件都必须进摘要。这是这一条存在的原因。
+
+口径的唯一权威是 `PREIMAGE.md`。判据文件里的 `criterion_digest_scope` 声明必须与预像说明写同一组文件,
+机检断言三件事: 声明件数等于清单行数、清单逐行都指向声明里的文件且顺序一致、清单里的摘要值与磁盘上的字节相符。
+
+只验「声明点到的那几件存在」是不够的。本条最初就写错在这里: 判据文件声明两件, 预像说明与清单覆盖三件。
+两侧各自算出的摘要都自洽, 所以两边永远对不上, 而当时没有一条断言去比对件数。
 
 ## 两种行, 一份 Schema
 
