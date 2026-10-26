@@ -1,0 +1,21 @@
+{
+  "arm_id": "nf-arm-mid-file-trunc-v1",
+  "case_id": "nf-mid-file-trunc-v1",
+  "class_id": "mid_file_truncation",
+  "criterion_digest": "criterion:nf-v0.3",
+  "observed_at": "0000-00-00T00:00:00.000Z",
+  "observed_verdict": "FAIL",
+  "observed_reason_code": "TRUNCATED_INPUT",
+  "run_id": "run-0000",
+  "anchor_id": "0000",
+  "anchor_source": "runner_assigned",
+  "anchor_issuer": "runner_assigned",
+  "anchor_issued_at": "0000-00-00T00:00:00.000Z",
+  "evidence_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "fold_rule_id": "nf-fold-v0.3",
+  "control_direction": "must_fail",
+  "channel": "stdout",
+  "observer_principal": "runner_assigned",
+  "observer_independent_of_sut": "unknown",
+  "notes": "expected_verdict and expected_reason_code are deliberately absent. They live on the arm declaration, in the arm declaration file. A runner that fills them in after the run is authoring its own grading, which is the late declaration rule R1 exists to catch."
+}

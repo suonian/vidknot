@@ -1,23 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/suonian/vidknot/schemas/agent_reliability/observation_row.v0.3.json",
-  "title": "Agent reliability observation row",
-  "description": "One row per executed arm. Field order is not fixed; semantics are. Rows are JSONL: one JSON object per line, no trailing comma, LF line endings, final line carries a newline.",
+  "title": "Agent reliability arm declaration and observation row",
+  "description": "Two row kinds share one schema. An arm declaration states what an arm is required to produce, authored before the run by someone other than the implementer. An observation row states what a run actually produced, authored by whoever ran it. The two are distinguished by which fields are filled. Rule R2: the expected fields hang on the arm, never on the observation row, because a runner that fills them in after the run is authoring its own grading. Rows are JSONL: one JSON object per line, no trailing comma, LF line endings, final line carries a newline. See observation_row.v0.3.template.json for the observation row shape.",
   "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "case_id",
-    "class_id",
-    "criterion_digest",
-    "trigger_condition",
-    "failing_behavior",
-    "expected_verdict",
-    "expected_reason_code",
-    "must_fail_arm_ref",
-    "injector_id",
-    "control_direction",
-    "channel"
-  ],
   "properties": {
     "case_id": {
       "type": "string",
@@ -31,35 +17,6 @@
     "criterion_digest": {
       "type": "string",
       "description": "Digest of the criterion set the row was judged against. Each executor computes it over its own copy. Cross-executor computation is not permitted."
-    },
-    "trigger_condition": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Written-out condition that makes the arm fail. A sample file is not a trigger condition."
-    },
-    "failing_behavior": {
-      "type": "string",
-      "minLength": 1,
-      "description": "What the failure looks like from the outside, including the exit code."
-    },
-    "expected_verdict": {
-      "type": "string",
-      "enum": ["PASS", "FAIL"],
-      "description": "What the arm is required to produce. NOT_EXERCISED, NOT_APPLICABLE and UNKNOWN are observation outcomes and never appear here."
-    },
-    "expected_reason_code": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Closed set, single value per class. The set is versioned, individual codes are not."
-    },
-    "must_fail_arm_ref": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Pointer to the arm that carries the injection."
-    },
-    "injector_id": {
-      "type": "string",
-      "description": "Issuer of the injection. The injector issuer and the criterion implementer must be disjoint. An arm whose injector is the implementer is void."
     },
     "control_direction": {
       "type": "string",
@@ -75,6 +32,35 @@
       "minLength": 1,
       "description": "Channel the arm travels on. Part of the unique key, recorded with multiset semantics."
     },
+    "trigger_condition": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Arm declaration only. Written-out condition that makes the arm fail. A sample file is not a trigger condition."
+    },
+    "failing_behavior": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Arm declaration only. What the failure looks like from the outside, including the exit code."
+    },
+    "expected_verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "Arm declaration only. What the arm is required to produce. NOT_EXERCISED, NOT_APPLICABLE and UNKNOWN are observation outcomes and never appear here."
+    },
+    "expected_reason_code": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Arm declaration only. Closed set, single value per class. The set is versioned, individual codes are not."
+    },
+    "must_fail_arm_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Arm declaration only. Pointer to the arm that carries the injection."
+    },
+    "injector_id": {
+      "type": "string",
+      "description": "Arm declaration only. Issuer of the injection. The injector issuer and the criterion implementer must be disjoint. An arm whose injector is the implementer is void."
+    },
     "comparison_basis": {
       "type": "string",
       "enum": ["digest_over_serialized_product_bytes"],
@@ -83,8 +69,113 @@
     "volatile_fields_policy": {
       "type": "string",
       "description": "Versioned exclusion list for volatile fields. An undeclared exclusion turns the arm into a coin flip."
+    },
+    "observed_at": {
+      "type": "string",
+      "description": "Observation row only. When the row was written."
+    },
+    "observed_verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "NOT_EXERCISED", "NOT_APPLICABLE", "UNKNOWN"],
+      "description": "Observation row only. What the run actually produced. An unknown outcome is its own bucket, never folded into a failure."
+    },
+    "observed_reason_code": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Observation row only. The reason code the run produced. Unknown codes go to their own bucket rather than folding into the nearest known code."
+    },
+    "arm_id": {
+      "type": "string",
+      "description": "Observation row only. Points at the arm declaration this row reports on."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Observation row only. Identifies the execution. A reader can refuse a payload whose run id is not the current one."
+    },
+    "anchor_id": {
+      "type": "string",
+      "description": "Observation row only. Identifies the anchored artefact."
+    },
+    "anchor_source": {
+      "type": "string",
+      "description": "Observation row only. Where the anchor came from."
+    },
+    "anchor_issuer": {
+      "type": "string",
+      "description": "Observation row only. Who issued the anchor."
+    },
+    "anchor_issued_at": {
+      "type": "string",
+      "description": "Observation row only. When the anchor was issued."
+    },
+    "evidence_digest": {
+      "type": "string",
+      "description": "Observation row only. Digest over the evidence the verdict rests on."
+    },
+    "fold_rule_id": {
+      "type": "string",
+      "description": "Observation row only. Which folding rule produced this row, so a summary can be traced back."
+    },
+    "observer_principal": {
+      "type": "string",
+      "description": "Observation row only. Who observed. Both sides reporting from the implementation under test degenerates into two self reports agreeing."
+    },
+    "observer_independent_of_sut": {
+      "type": "string",
+      "enum": ["true", "false", "unknown"],
+      "description": "Observation row only. Whether the observer is independent of the implementation under test. Unknown is allowed, omission is not."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observation row only. Free text. One line of reason for a NOT_EXERCISED or NOT_APPLICABLE row."
     }
   },
+  "oneOf": [
+    {
+      "title": "Arm declaration",
+      "description": "Authored before the run by the declarer. Carries the expected fields.",
+      "required": [
+        "case_id",
+        "class_id",
+        "criterion_digest",
+        "trigger_condition",
+        "failing_behavior",
+        "expected_verdict",
+        "expected_reason_code",
+        "must_fail_arm_ref",
+        "injector_id",
+        "control_direction",
+        "channel"
+      ],
+      "not": {
+        "anyOf": [
+          { "required": ["observed_verdict"] },
+          { "required": ["observed_reason_code"] }
+        ]
+      }
+    },
+    {
+      "title": "Observation row",
+      "description": "Authored by whoever ran it. Carries the observed fields and never the expected fields.",
+      "required": [
+        "case_id",
+        "class_id",
+        "criterion_digest",
+        "observed_verdict",
+        "observed_reason_code",
+        "arm_id",
+        "run_id",
+        "control_direction",
+        "channel"
+      ],
+      "not": {
+        "anyOf": [
+          { "required": ["expected_verdict"] },
+          { "required": ["expected_reason_code"] }
+        ]
+      }
+    }
+  ],
   "examples": [
     {
       "case_id": "nf-mid-file-trunc-v1",

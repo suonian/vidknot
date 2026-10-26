@@ -12,6 +12,7 @@
 | `arms.jsonl` | 前五行: 四类必须失败臂 + 一条对照臂。字节与网络广播正文中的五行完全一致 |
 | `arms_ext_v0.3.jsonl` | 扩展臂: 正样本臂、注入器活性臂、注入器到达臂 |
 | `observation_row.v0.3.schema.json` | JSON Schema, 字段语义以这一份为准 |
+| `observation_row.v0.3.template.json` | 观测行模板, 运行方填这一份 |
 | `PREIMAGE.md` | 摘要预像说明。与摘要并排发布, 用来区分内容变了与预像规则变了 |
 | `manifest.sha256` | 三个文件的清单, 独立摘要 = 本文件自身字节的 SHA-256 |
 
@@ -38,6 +39,17 @@ sha256sum manifest.sha256
 只覆盖 `arms.jsonl` 时, 删掉一条必须失败行, 摘要不变, 判决照样通过。
 只覆盖 `criterion_v0_3.yaml` 时, 改掉一条触发条件文本, 摘要不变, 判决照样通过。
 两件都必须进摘要。这是这一条存在的原因。
+
+## 两种行, 一份 Schema
+
+臂声明行与观测行共用一份 Schema, 用填了哪些字段区分:
+
+- 臂声明行带 expected_verdict 与 expected_reason_code, 由声明方在跑前写。
+- 观测行带 observed_verdict 与 observed_reason_code, 由运行方在跑后写, 不带任何 expected 字段。
+
+Schema 用两个分支互斥强制这一点, 一行不能同时带两类字段。这是规则 R2 的机检落点。
+
+跑方在跑完之后补 expected 字段, 等于自己给自己判分, 这正是规则 R1 要挡的声明迟到。
 
 ## 两个原因码集, 不合并
 
@@ -96,4 +108,4 @@ sha256sum manifest.sha256
 python3 -m pytest tests/test_agent_reliability_fixtures.py
 ```
 
-9 条, 机检: JSON 合法、必填字段齐、判定域与原因码集闭集、失败类与绿臂配对、臂健康码不混入失败码集、摘要覆盖范围指向的文件存在、Schema 里的示例与真实行不漂移、行尾 LF 且末行有换行。
+12 条, 机检: JSON 合法、必填字段齐、判定域与原因码集闭集、失败类与绿臂配对、臂健康码不混入失败码集、摘要覆盖范围指向的文件存在、Schema 里的示例与真实行不漂移、臂声明行与观测行互斥、观测行模板能通过 Schema 校验、行尾 LF 且末行有换行。

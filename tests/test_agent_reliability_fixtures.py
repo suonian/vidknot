@@ -47,8 +47,6 @@ REQUIRED_FIELDS = (
     "criterion_digest",
     "trigger_condition",
     "failing_behavior",
-    "expected_verdict",
-    "expected_reason_code",
     "must_fail_arm_ref",
     "injector_id",
     "control_direction",
@@ -85,6 +83,51 @@ def test_expected_reason_code_is_inside_the_closed_set() -> None:
         assert row["expected_reason_code"] in REASON_CODES, (
             f"{row['case_id']}: {row['expected_reason_code']} outside the closed set"
         )
+
+
+def test_expected_verdict_is_declared_on_the_arm_not_on_the_observation_row() -> None:
+    """Rule R2: the declaration hangs on the arm, not on the observation row.
+
+    The arm files are declarations. A runner that authors the expected verdict
+    after the run is doing its own grading, so the field is allowed on a
+    declaration row but must never be authored by whoever observed the run.
+    The schema enforces this with two branches that forbid the opposite field.
+    """
+    schema = json.loads(
+        (FIXTURE_DIR / "observation_row.v0.3.schema.json").read_text(encoding="utf-8")
+    )
+    branches = schema["oneOf"]
+    assert len(branches) == 2, "expected exactly two row kinds"
+
+    declaration = next(b for b in branches if "Arm declaration" in b["title"])
+    observation = next(b for b in branches if "Observation row" in b["title"])
+
+    assert "expected_verdict" in declaration["required"]
+    assert "expected_reason_code" in declaration["required"]
+
+    # The observation branch must require the observed fields and forbid the
+    # expected ones.
+    assert "observed_verdict" in observation["required"]
+    assert "observed_reason_code" in observation["required"]
+    forbidden = observation["not"]["anyOf"]
+    assert {"required": ["expected_verdict"]} in forbidden
+    assert {"required": ["expected_reason_code"]} in forbidden
+
+    # And the declaration branch must forbid the observed ones, so a row
+    # cannot carry both.
+    forbidden_decl = declaration["not"]["anyOf"]
+    assert {"required": ["observed_verdict"]} in forbidden_decl
+    assert {"required": ["observed_reason_code"]} in forbidden_decl
+
+
+def test_observation_row_template_exists_and_carries_no_declaration_fields() -> None:
+    """The row a runner fills in must not let the runner declare the verdict."""
+    path = FIXTURE_DIR / "observation_row.v0.3.template.json"
+    template = json.loads(path.read_text(encoding="utf-8"))
+    for field in ("expected_verdict", "expected_reason_code"):
+        assert field not in template, f"{field} must not appear on an observation row"
+    for field in ("observed_verdict", "observed_reason_code", "arm_id", "run_id"):
+        assert field in template, f"{field} missing from the observation row template"
 
 
 def test_each_failure_class_has_exactly_one_control_arm() -> None:
@@ -146,6 +189,26 @@ def test_published_example_in_schema_matches_a_real_row() -> None:
     assert example["case_id"] in real
     for key, value in example.items():
         assert real[example["case_id"]][key] == value, f"example drifted on {key}"
+
+
+def test_observation_row_template_validates_against_the_schema() -> None:
+    """The template must actually satisfy the schema we publish.
+
+    A schema that does not accept its own template is the same class of
+    defect as a criterion whose snapshot has drifted ahead of its source.
+    """
+    try:
+        import jsonschema  # type: ignore
+    except ImportError:
+        pytest.skip("jsonschema not installed")
+
+    schema = json.loads(
+        (FIXTURE_DIR / "observation_row.v0.3.schema.json").read_text(encoding="utf-8")
+    )
+    template = json.loads(
+        (FIXTURE_DIR / "observation_row.v0.3.template.json").read_text(encoding="utf-8")
+    )
+    jsonschema.validate(template, schema)
 
 
 @pytest.mark.parametrize("name", ARMS_FILES)
