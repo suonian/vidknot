@@ -118,11 +118,49 @@ def test_audit_doc_missing_returns_mismatch():
     assert len(r["true_miss"]) >= 1
 
 
-def test_audit_doc_empty():
-    """Empty markdown - all section totals 0, but coverage vacuously OK."""
+def test_audit_doc_empty_is_inconclusive_not_ok():
+    """Empty markdown: nothing was measured, so the verdict is not a pass.
+
+    This test used to assert status == "OK". That was the false green: with
+    total == 0 the ratio defaulted to 100.0, so "nothing was measured" was
+    reported exactly like "everything matched", the status stayed OK and the
+    exit code stayed zero. A checker that cannot go red is not evidence.
+
+    Now the zero case is its own terminal state and the ratio is absent, so
+    the report cannot claim a perfect score for a document it never read.
+    """
     r = _audit_doc("test", "# Only title\n\nNo code blocks.", FW_NORM, SF_NORM, "test")
-    assert r["status"] == "OK"
+    assert r["status"] == "INCONCLUSIVE", r
     assert r["total"] == 0
+    assert r["coverage"] is None
+
+
+def test_the_zero_denominator_check_can_go_red():
+    """The zero-denominator branch must actually turn red, not just exist.
+
+    The assertion above is only evidence if it can fail. So the same
+    document is audited once more with a non-empty source: the moment there
+    is something to compare, the verdict must leave INCONCLUSIVE and take a
+    measured path. If the INCONCLUSIVE branch were written to swallow every
+    document, this test would go red.
+    """
+    empty = _audit_doc("test", "# Only title\n\nNo code blocks.", FW_NORM, SF_NORM, "test")
+    assert empty["status"] == "INCONCLUSIVE"
+
+    # Same source, but the document now carries a code block, so there is a
+    # denominator. The verdict must be a measured one, not INCONCLUSIVE.
+    with_block = _audit_doc(
+        "test",
+        f"## 完整口播稿原文\n### 版本 A：faster-whisper 时间戳分段\n{BACKTICK}\n"
+        "[   0.0s -    5.0s] 第一段原文\n"
+        f"{BACKTICK}\n",
+        FW_NORM,
+        SF_NORM,
+        "test",
+    )
+    assert with_block["total"] > 0, with_block
+    assert with_block["status"] != "INCONCLUSIVE", with_block
+    assert with_block["coverage"] is not None
 
 
 # --- fw/sf loading (filesystem) ---

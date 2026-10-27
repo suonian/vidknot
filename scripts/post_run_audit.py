@@ -215,7 +215,23 @@ def _audit_doc(doc_id: str, doc_md: str, fw_norm: str, sf_norm: str,
                 else:
                     true_miss.append((sec["title"], line[:80]))
 
-    coverage = 100.0 * matched / total if total else 100.0
+    # A zero denominator is not a perfect score.
+    #
+    # total == 0 means nothing was measured. If the ratio defaults to 100,
+    # "nothing measured" reads exactly like "everything matched" on the
+    # report, the status stays OK, the exit code stays zero and no assertion
+    # ever turns red. That is the false-green family: the report is green
+    # because nothing disagreed, not because anything was checked.
+    #
+    # So the zero case gets its own terminal state, the ratio is not computed
+    # at all, and the ratio field carries no value rather than a misleading
+    # 0.0 or 100.0. An empty document is INCONCLUSIVE, not OK.
+    if total:
+        coverage: float | None = 100.0 * matched / total
+        status = "OK" if (not true_miss and coverage >= 99.0) else "MISMATCH"
+    else:
+        coverage = None
+        status = "INCONCLUSIVE"
     return {
         "doc_id": doc_id,
         "doc_name": doc_name,
@@ -223,7 +239,7 @@ def _audit_doc(doc_id: str, doc_md: str, fw_norm: str, sf_norm: str,
         "matched": matched,
         "coverage": coverage,
         "true_miss": true_miss,
-        "status": "OK" if (not true_miss and (total == 0 or coverage >= 99.0)) else "MISMATCH",
+        "status": status,
     }
 
 
@@ -282,8 +298,11 @@ def main() -> int:
     for r in results:
         if r["status"] != "OK":
             all_ok = False
-        cov = f"{r['coverage']:6.1f}%"
-        print(f"  [{r['status']:8s}] {cov}  {r['matched']:>4}/{r['total']:<5}  {r['doc_name'][:50]}")
+        # A document with nothing measured carries no ratio. Printing 0.0%
+        # or 100.0% would put a number in the ratio column that answers a
+        # question nobody asked, so the column is left empty instead.
+        cov = f"{r['coverage']:6.1f}%" if r["coverage"] is not None else "   n/a"
+        print(f"  [{r['status']:12s}] {cov}  {r['matched']:>4}/{r['total']:<5}  {r['doc_name'][:50]}")
         if r["true_miss"]:
             for tag, line in r["true_miss"][:3]:
                 print(f"      [{tag}] {line}")
