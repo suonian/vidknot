@@ -36,12 +36,12 @@ def _baseline() -> dict:
     return json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
 
 
-def _run_write_site_module_with_injection(tmp_path: Path) -> tuple[int, int, str]:
+def _run_write_site_module_with_injection(tmp_path: Path) -> tuple[int, int, set[str], str]:
     """Run the write-site module against a scratch tree with a second writer.
 
-    Returns (failed, passed, output). The scratch copy carries the real
-    gate contract module, so the scratch tree has the same single writer
-    the repo tree has; the injected module adds a second one.
+    Returns (failed, passed, failed_ids, output). The scratch copy carries
+    the real gate contract module, so the scratch tree has the same single
+    writer the repo tree has; the injected module adds a second one.
     """
     scratch = tmp_path / "scripts"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -65,7 +65,9 @@ def _run_write_site_module_with_injection(tmp_path: Path) -> tuple[int, int, str
         capture_output=True,
         text=True,
     )
-    return _parse_counts(proc.stdout + proc.stderr)
+    output = proc.stdout + proc.stderr
+    failed, passed, _ = _parse_counts(output)
+    return failed, passed, _parse_failed_test_ids(output), output
 
 
 def shutil_copy(src: Path, dst: Path) -> None:
@@ -89,6 +91,22 @@ def _parse_counts(output: str) -> tuple[int, int, str]:
     return failed, passed, output
 
 
+def _parse_failed_test_ids(output: str) -> set[str]:
+    """Read the ids of the tests that turned red, in pytest's own wording.
+
+    Pytest prints one FAILED line per failing test, in the form
+    "FAILED tests/test_x.py::test_name". The short summary may be absent
+    under some reporters, so the per-test failure lines are the source of
+    truth here rather than the summary line alone.
+    """
+    import re
+
+    ids = set()
+    for match in re.finditer(r"^FAILED\s+(\S+::\S+)", output, re.MULTILINE):
+        ids.add(match.group(1))
+    return ids
+
+
 def test_the_recorded_red_count_is_still_true(tmp_path: Path) -> None:
     """The number in the baseline file must match what actually happens.
 
@@ -97,7 +115,7 @@ def test_the_recorded_red_count_is_still_true(tmp_path: Path) -> None:
     file that looks authoritative.
     """
     baseline = _baseline()
-    failed, passed, output = _run_write_site_module_with_injection(tmp_path)
+    failed, passed, failed_ids, output = _run_write_site_module_with_injection(tmp_path)
 
     assert failed > 0, (
         "the injected second writer must turn at least one assertion red; "
@@ -108,6 +126,16 @@ def test_the_recorded_red_count_is_still_true(tmp_path: Path) -> None:
         f"recorded {baseline['expected_red_count']}, measured {failed}. "
         "Re-measure and update tests/suite_baseline.json together with the "
         "commit identifier, do not recompute and reuse the old number.\n"
+        f"{output}"
+    )
+    # The count alone is not enough. A count says how many went red, not
+    # which ones, so a different set of the same size would still pass.
+    assert failed_ids == set(baseline["expected_red_test_ids"]), (
+        "the recorded red count is right but the set of red tests is not: "
+        f"recorded {sorted(baseline['expected_red_test_ids'])}, "
+        f"measured {sorted(failed_ids)}. "
+        "A count of the same size over a different set is still a false "
+        "reading, so the ids are compared, not just the size.\n"
         f"{output}"
     )
 
@@ -121,6 +149,24 @@ def test_the_baseline_records_a_commit_and_a_suite_total() -> None:
     )
     assert isinstance(baseline["suite_total_at_measured_commit"], int)
     assert baseline["suite_total_at_measured_commit"] > 0
+
+
+def test_the_recorded_red_test_ids_are_counted_not_just_listed() -> None:
+    """The recorded ids must be as many as the recorded count.
+
+    The ids and the count are two claims about the same event. If they
+    drift apart, one of them is stale, and a file that lists two ids next
+    to a count of three reads as authoritative while describing nothing.
+    """
+    baseline = _baseline()
+    ids = baseline["expected_red_test_ids"]
+    assert isinstance(ids, list) and ids, "the baseline must name the red tests"
+    assert len(ids) == baseline["expected_red_count"], (
+        "the baseline lists "
+        f"{len(ids)} red test ids but records a count of "
+        f"{baseline['expected_red_count']}; one of the two is stale"
+    )
+    assert len(set(ids)) == len(ids), "the recorded red test ids must be unique"
 
 
 def test_the_superseded_claim_is_recorded_rather_than_deleted() -> None:

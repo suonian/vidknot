@@ -16,6 +16,7 @@
     "tests/test_write_site_enumeration.py::test_the_gate_column_has_exactly_one_write_site",
     "tests/test_write_site_enumeration.py::test_the_write_site_is_inside_the_gate_contract_module"
   ],
+  "expected_red_test_ids_note": "The ids are compared as a set, not just counted. A count says how many assertions turned red, not which ones, so a different set of the same size would still satisfy a count-only check. The measured ids are parsed from the pytest failure lines of the injected run.",
   "expected_red_count_note": "The count is re-derived at run time by tests/test_suite_baseline.py, which executes every test in the write-site module against an injected scratch tree and counts how many fail. This file records the number; the test proves the number is still true.",
   "superseded_claim": {
     "expected_red_count": 3,
