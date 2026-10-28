@@ -29,6 +29,7 @@ from gate_contract import (  # noqa: E402
     TRUSTED_GATE_CHANNELS,
     GateStatus,
     RoundVerdict,
+    _coerce_status,
     assess_round,
     build_ledger_row,
     gate_status_from_notice,
@@ -149,6 +150,72 @@ def test_gate_column_is_always_present_in_the_row():
         row = build_ledger_row(status, ["PASS"])
         assert "gate_status" in row
         assert row["gate_status"]
+
+
+# --- rule 3: a superseded gate is its own verdict, not a current conclusion ---
+
+def test_superseded_gate_is_superseded_not_pass():
+    """Must-fail arm: an old criterion revision's result must not read PASS."""
+    row = build_ledger_row(GateStatus.SUPERSEDED, ["PASS", "PASS"])
+    assert row["gate_status"] == GateStatus.SUPERSEDED.value
+    assert row["round_verdict"] == RoundVerdict.SUPERSEDED.value
+    assert ledger_row_is_clean(row) is False
+
+
+def test_superseded_gate_is_superseded_not_fail():
+    """Must-fail arm: superseded is not a failure either. The remedy differs."""
+    row = build_ledger_row(GateStatus.SUPERSEDED, ["PASS"])
+    assert row["round_verdict"] != RoundVerdict.FAIL.value
+    assert row["round_verdict"] != RoundVerdict.UNVERIFIED.value
+
+
+def test_a_gate_result_from_an_older_revision_is_superseded():
+    """The ledger carries the criterion revision, so staleness is readable."""
+    row = build_ledger_row(
+        GateStatus.CLEAN,
+        ["PASS"],
+        channel="stderr",
+        criterion_revision="criterion:nf-v0.2",
+        current_revision="criterion:nf-v0.3",
+    )
+    assert row["gate_status"] == GateStatus.SUPERSEDED.value
+    assert row["round_verdict"] == RoundVerdict.SUPERSEDED.value
+    assert ledger_row_is_clean(row) is False
+
+
+def test_a_gate_result_from_the_current_revision_is_kept():
+    """Must-fail arm: matching revisions must not be demoted to superseded."""
+    row = build_ledger_row(
+        GateStatus.CLEAN,
+        ["PASS", "PASS"],
+        channel="stderr",
+        criterion_revision="criterion:nf-v0.3",
+        current_revision="criterion:nf-v0.3",
+    )
+    assert row["gate_status"] == GateStatus.CLEAN.value
+    assert row["round_verdict"] == RoundVerdict.PASS.value
+
+
+def test_a_gate_result_without_a_revision_is_not_read_as_current():
+    """Must-fail arm: no revision means staleness is unknown, not absent."""
+    row = build_ledger_row(
+        GateStatus.CLEAN,
+        ["PASS", "PASS"],
+        channel="stderr",
+        criterion_revision=None,
+        current_revision="criterion:nf-v0.3",
+    )
+    assert row["gate_status"] != GateStatus.CLEAN.value
+    assert ledger_row_is_clean(row) is False
+
+
+def test_superseded_is_a_distinct_member_of_the_closed_set():
+    """The closed set grows by one value, and the set stays closed."""
+    values = {status.value for status in GateStatus}
+    assert "SUPERSEDED" in values
+    assert len(values) == 6
+    # An unknown string must still not become a member of the set.
+    assert _coerce_status("SOMETHING_ELSE") is GateStatus.UNVERIFIED
 
 
 def test_channel_is_recorded_next_to_the_fact():

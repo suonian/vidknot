@@ -45,13 +45,19 @@ TRUSTED_GATE_CHANNELS = frozenset({"stderr"})
 
 
 class GateStatus(str, Enum):
-    """Named states for the gate column. Notes are not states; states are read."""
+    """Named states for the gate column. Notes are not states; states get read."""
 
     CLEAN = "CLEAN"
     BLOCKED = "BLOCKED"
     FAILED = "FAILED"
     UNVERIFIED = "UNVERIFIED"
     NOT_PROBED = "NOT_PROBED"
+    # A gate result produced under an older criterion revision. It was a real
+    # result when it was produced, but it must not be read as a current
+    # conclusion. This is its own value rather than a modifier on the others,
+    # because a superseded verdict and an unverified one have opposite
+    # remedies: one needs the criterion re-applied, the other needs measuring.
+    SUPERSEDED = "SUPERSEDED"
 
 
 class RoundVerdict(str, Enum):
@@ -59,6 +65,7 @@ class RoundVerdict(str, Enum):
     FAIL = "FAIL"
     BLOCKED = "BLOCKED"
     UNVERIFIED = "UNVERIFIED"
+    SUPERSEDED = "SUPERSEDED"
 
 
 @dataclass(frozen=True)
@@ -136,6 +143,10 @@ def assess_round(
     round and a clean round render the same way.
     """
     status = _coerce_status(gate_status)
+    if status is GateStatus.SUPERSEDED:
+        # A superseded gate is never PASS and never FAIL. It needs the
+        # criterion re-applied, which is a different remedy from measuring.
+        return RoundVerdict.SUPERSEDED
     if status in (GateStatus.UNVERIFIED, GateStatus.NOT_PROBED):
         return RoundVerdict.UNVERIFIED
     if status is GateStatus.BLOCKED:
@@ -152,21 +163,60 @@ def build_ledger_row(
     gate_status: GateStatus | str | None,
     stage_verdicts: list[str] | None = None,
     channel: str | None = None,
+    criterion_revision: str | None = None,
+    current_revision: str | None = None,
 ) -> dict:
     """Build the round ledger row, gate column included.
 
     The gate column is always present. When it is missing upstream it is
     written as UNVERIFIED rather than omitted, because an absent column and
     a clean column are the same thing to every reader that only sees counts.
+
+    The criterion revision travels with the gate result. A result produced
+    under an older revision is SUPERSEDED, not a current conclusion, and not
+    a failure either: it needs the criterion re-applied. A result with no
+    revision recorded is not read as current either, because the absence of
+    a revision is not evidence that the revision matched.
     """
     status = _coerce_status(gate_status)
-    verdict = assess_round(status, stage_verdicts)
+    revision = _effective_gate_status(status, criterion_revision, current_revision)
+    verdict = assess_round(revision, stage_verdicts)
     return {
-        "gate_status": status.value,
+        "gate_status": revision.value,
         "gate_channel": channel,
+        "gate_criterion_revision": criterion_revision,
+        "current_criterion_revision": current_revision,
         "round_verdict": verdict.value,
         "stage_verdicts": list(stage_verdicts or []),
     }
+
+
+def _effective_gate_status(
+    status: GateStatus,
+    criterion_revision: str | None,
+    current_revision: str | None,
+) -> GateStatus:
+    """Downgrade a stale gate result to SUPERSEDED.
+
+    A SUPERSEDED result is a real result from an older revision. It is not
+    re-measured here; the caller re-applies the criterion and records a new
+    result. The downgrade only applies to states that claim something about
+    the current run, so NOT_PROBED and UNVERIFIED stay as they are.
+    """
+    if status not in (GateStatus.CLEAN, GateStatus.FAILED, GateStatus.BLOCKED):
+        return status
+    if current_revision is None:
+        # No current revision supplied, so no revision comparison was
+        # requested. The row records the revisions it has and the status
+        # stands as reported.
+        return status
+    if criterion_revision is None:
+        # A current revision is known but the result carries none. The
+        # absence of a revision is not evidence that the revision matched.
+        return GateStatus.UNVERIFIED
+    if criterion_revision != current_revision:
+        return GateStatus.SUPERSEDED
+    return status
 
 
 def ledger_row_is_clean(row: dict) -> bool:
