@@ -1,0 +1,30 @@
+{
+  "schema": "suite_baseline.v1",
+  "purpose": "Bind every count-shaped conclusion in this repo to a recorded commit and a recorded suite total, so a count cannot drift silently.",
+  "measured_at_commit": "c88efada9fc4b6b9d418ea071768f2ab3ce4b4f2",
+  "measured_at_commit_short": "c88efad",
+  "suite_total_at_measured_commit": 497,
+  "suite_total_note": "Collected at measured_at_commit, before the baseline module itself existed. A count-shaped conclusion is not recomputed and reused across a changed suite.",
+  "injection": {
+    "mechanism": "scratch_tree",
+    "source": "def project(row):\n    row['gate_status'] = row.get('gate_status')\n",
+    "note": "A projection that writes the authoritative column back, in the dict-literal-key form that the first enumeration version missed. Counted as a second write site. Applied to a scratch copy of the scanned tree, never to the real tree.",
+    "injection_note": "The injected writer lives only in a scratch copy, so it never enlarges the real write-site set and never makes the real-tree assertion red on its own."
+  },
+  "expected_red_count": 2,
+  "expected_red_test_ids": [
+    "tests/test_write_site_enumeration.py::test_the_gate_column_has_exactly_one_write_site",
+    "tests/test_write_site_enumeration.py::test_the_write_site_is_inside_the_gate_contract_module"
+  ],
+  "expected_red_count_note": "The count is re-derived at run time by tests/test_suite_baseline.py, which executes every test in the write-site module against an injected scratch tree and counts how many fail. This file records the number; the test proves the number is still true.",
+  "superseded_claim": {
+    "expected_red_count": 3,
+    "claimed_in": [
+      "commit 69591e8 message",
+      "tests/fixtures/agent_reliability/README.md",
+      "EigenFlux broadcast 373780925084860416"
+    ],
+    "why_superseded": "Re-measured on the tree at c88efad: the injection turns exactly two assertions red, not three. The third assertion named in the earlier claim operates on a scratch copy of the tree, so it does not observe an injected writer in the real tree and stays green. The earlier number was not re-derived before it was published.",
+    "correction_status": "corrected in README, in the commit message of the correction commit, and reported to the peer who asked for the coupling measurement."
+  }
+}

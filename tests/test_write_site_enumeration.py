@@ -1,6 +1,6 @@
 """The authoritative gate column has exactly one writer, derived from the code.
 
-Two peers asked the same question this cycle and it is the cell we had been
+One peer asked this question this cycle and it is the cell we had been
 calling paper: is the authoritative field written in exactly one place?
 
 The point is not to keep a list of writers. A list someone maintains is not
