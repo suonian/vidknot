@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.12] - 2026-10-31
+
+### 消除测试用例对运行环境的依赖
+
+v0.6.11 的 CI 在 tag 上是**红**的（Linux 3.12 为 8 failed / 507 passed，
+Windows 三个 Python 版本各 9 failed / 506 passed），而本地全绿——
+这是一次典型的「本机环境造成的假绿」，根因是 v0.6.11 自己引入的：
+
+- **mmx 用例依赖「本机是否装了 mmx CLI」**。v0.6.11 新增的
+  `_mmx_command()` 会先用 `shutil.which("mmx")` 定位入口，未安装时返回
+  `None` 并提前给出「mmx CLI 未安装」。而 `tests/test_corrector.py` 的
+  原有 mmx 用例只 mock 了 `subprocess.run`，依赖旧实现里
+  `except FileNotFoundError` 的兜底路径；新实现下这些用例会直接命中
+  「未安装」分支而失败。本机装有 mmx 故本地假绿，CI 未装故失败。
+- **标准流用例依赖宿主进程的真实流编码**。
+  `test_real_streams_are_utf8_after_call` 断言当前进程的
+  `sys.stdout/sys.stdin` 编码，但 pytest 会替换这些流，且不同 runner
+  的控制台代码页不同（Windows runner 为 cp1252，管道到 UTF-8 控制台
+  又是另一种结果）——同样是环境相关的假测试。
+
+### Fixed
+
+- `tests/test_corrector.py`：`TestMmxSearch` / `TestMmxChat` 增加 autouse
+  fixture 固定 `shutil.which` 的返回值，使用例结果与是否安装 mmx 无关。
+- `tests/test_cross_platform.py`：标准流归一化改为在**子进程**中用
+  `PYTHONIOENCODING=cp1252` 构造确定的非 UTF-8 环境，断言
+  `ensure_utf8_stdio()` 调用后自报 utf-8；另补一条「真实流调用不抛异常
+  且三个流均可报告」的用例。
+
+### Tests
+
+- 全量测试 **515 → 516 passed**；Ruff 检查通过。
+- **验证矩阵**：本地模拟 CI 环境（PATH 移除 npm 目录使
+  `shutil.which("mmx")` 返回 `None`，同时移除 FFmpeg 目录）
+  **516 passed**；常规环境（本机装有 mmx / FFmpeg）**516 passed**。
+- **CI 实测**：Linux Python 3.10 / 3.11 / 3.12 与 Windows Python
+  3.10 / 3.12 / 3.13 共 6 个 job **全部通过**（含新增的 Windows 矩阵）。
+
+### Changed
+
+- 同步版本位点至 `v0.6.12`（`pyproject.toml` / `_version.py` / `install.sh` /
+  `install.ps1` / `SECURITY.md` / issue 模板 / README 双语 / `SKILL.md` /
+  `INSTALL.md` / `docs/BEST_PRACTICES.md`）。
+- 本次仅修复测试与环境耦合，**运行时代码与 v0.6.11 完全一致**；
+  v0.6.11 的 13 项 Windows 跨平台兼容性修复全部保留。
+- 因 PyPI 不允许重复上传同一版本号，`0.6.11` 的产物无法替换，
+  故以新版本号 `0.6.12` 发布携带该修复的完整一致产物。
+
 ## [0.6.11] - 2026-10-31
 
 ### 跨平台兼容性修复：Windows 全链路实测

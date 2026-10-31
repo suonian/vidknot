@@ -1,6 +1,6 @@
 # VidkNot
 
-视频知识提取与研究平台（v0.6.11 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.5.0 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）；v0.6.0 新增统一重试/超时配置、内置 FFmpeg 可选依赖（`[bundled-ffmpeg]`）、异常修正建议（hint）与 CLI 友好错误、国内镜像安装支持；v0.6.1 修复视频时长格式化崩溃，市场展示信息中文化；v0.6.2 SKILL.md 全文中文化（市场概述页中文展示）；v0.6.3 市场描述通俗化改写，突出「一键提取视频文案」等普通人易懂表述；v0.6.4 文档深度优化：集中反模式章节、MCP 工具文档与实现对齐、错误分类速查、平台限制说明写透；v0.6.5 多源审计修复：CI 恢复全绿、LICENSE 恢复 MIT 识别、f2 测试环境无关化；v0.6.6 修复外部智能体审计发现的三个 Bug（#8/#9/#10）：新增 `fw`/`fw_file` 目的地保留 FW 时间戳段、双 ASR 校正失败不再丢失 FW 数据、临时子目录命名规范化并加路径穿越防护；v0.6.11 Windows 全链路实测后的跨平台兼容性修复共 13 项，含双 ASR 校正在 Windows 上静默失效的 P0 级缺陷修复，新增 `scripts/install.ps1` 一键安装脚本与 Windows CI 矩阵。
+视频知识提取与研究平台（v0.6.12 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.5.0 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）；v0.6.0 新增统一重试/超时配置、内置 FFmpeg 可选依赖（`[bundled-ffmpeg]`）、异常修正建议（hint）与 CLI 友好错误、国内镜像安装支持；v0.6.1 修复视频时长格式化崩溃，市场展示信息中文化；v0.6.2 SKILL.md 全文中文化（市场概述页中文展示）；v0.6.3 市场描述通俗化改写，突出「一键提取视频文案」等普通人易懂表述；v0.6.4 文档深度优化：集中反模式章节、MCP 工具文档与实现对齐、错误分类速查、平台限制说明写透；v0.6.5 多源审计修复：CI 恢复全绿、LICENSE 恢复 MIT 识别、f2 测试环境无关化；v0.6.6 修复外部智能体审计发现的三个 Bug（#8/#9/#10）：新增 `fw`/`fw_file` 目的地保留 FW 时间戳段、双 ASR 校正失败不再丢失 FW 数据、临时子目录命名规范化并加路径穿越防护；v0.6.11 Windows 全链路实测后的跨平台兼容性修复共 13 项，含双 ASR 校正在 Windows 上静默失效的 P0 级缺陷修复，新增 `scripts/install.ps1` 一键安装脚本与 Windows CI 矩阵；v0.6.12 消除测试用例对运行环境的依赖，CI 全矩阵转绿。
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
@@ -9,9 +9,14 @@
 
 | 中文 | [English](README.en.md) |
 
-## 本次更新（v0.6.11）
+## 本次更新（v0.6.12）
 
-Windows 全链路实测后的跨平台兼容性修复，共 **13 项**。最关键的一项是
+消除测试用例对运行环境的依赖，CI 全矩阵转绿。v0.6.11 引入的 `mmx` 入口
+解析让部分用例的结果取决于「运行机器是否装了 mmx CLI」——本地装有 mmx
+而假绿，CI 未安装而失败。现已把该依赖从测试中剥离，并改为在子进程里构造
+确定的非 UTF-8 环境来验证标准流归一化。
+
+v0.6.11 的 13 项 Windows 跨平台兼容性修复全部保留，其中最关键的一项是
 **双 ASR 校正在 Windows 上静默失效**：子进程输出被按本地代码页（GBK）
 解码，流程不报错、笔记照常产出，但交叉校验被悄悄跳过——现已修复。
 同时修复 Windows 保留设备名导致的笔记丢失、MCP stdio 中文乱码、
@@ -38,7 +43,7 @@ YouTube 强制音频下载失败、本地 faster-whisper 因 PyAV 版本不可�
 | Twitter / X | 短视频 | ✅ yt-dlp 稳定支持 |
 | Instagram | Reels | ✅ yt-dlp 稳定支持 |
 | 微信视频号 | 短视频 | ⚠️ 预留接口（微信封闭生态，需抓包工具导出后走本地批处理） |
-| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.6.11 仍生效）|
+| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.6.12 仍生效）|
 | 小红书（视频笔记） | 短视频 | ✅ 从 `__INITIAL_STATE__` 拿无水印直链 |
 | 快手、微博 | 短视频 | ⚠️ 框架已就位，依赖 yt-dlp |
 | 任何 yt-dlp 支持的站点 | 混合 | ✅ GenericPlatform 兜底 |
@@ -63,14 +68,14 @@ YouTube 强制音频下载失败、本地 faster-whisper 因 PyAV 版本不可�
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **不想装系统 FFmpeg？** 使用内置静态版本（wheel 自带二进制，离线可用）：
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.11"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.12"`
 >
 > 环境自检：`python -m vidknot --check-env`（会给出缺失项的安装命令）
 
-当前 GitHub 版本为 `v0.6.11`。从 GitHub 安装：
+当前 GitHub 版本为 `v0.6.12`。从 GitHub 安装：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 ```
 
 > 🇨🇳 **大陆网络提示**：如访问 GitHub 缓慢，可给 pip 指定国内镜像加速依赖下载
@@ -78,7 +83,7 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 > ```
 >
 > 清华镜像同样覆盖 yt-dlp、faster-whisper 等海外依赖，无需逐个找源。

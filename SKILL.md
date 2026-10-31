@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.11
+version: 0.6.12
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -66,7 +66,7 @@ repository: https://github.com/suonian/vidknot
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -325,9 +325,10 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.11** — Windows 全链路实测后的跨平台兼容性修复，共 13 项。
-其中最关键的一项是**双 ASR 校正在 Windows 上静默失效**（子进程输出被按
-本地代码页解码，流程不报错但交叉校验被悄悄跳过），现已修复。双 ASR 校正、
+最新版：**0.6.12** — 消除测试用例对运行环境的依赖（CI 全矩阵转绿）。
+v0.6.11 的 13 项 Windows 跨平台兼容性修复不变，其中最关键的一项是
+**双 ASR 校正在 Windows 上静默失效**（子进程输出被按本地代码页解码，
+流程不报错但交叉校验被悄悄跳过），已修复。双 ASR 校正、
 Windows 保留设备名、MCP stdio UTF-8、YouTube 音频回退顺序、本地
 faster-whisper 的 PyAV 版本上界等一并修复；新增 Windows 一键安装脚本
 `scripts/install.ps1`。不改变付费 / 会员 / DRM 内容的授权边界。

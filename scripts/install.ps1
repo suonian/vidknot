@@ -12,7 +12,7 @@
 #   或在仓库根目录:  .\scripts\install.ps1
 #
 # 高级选项:
-#   $env:VERSION = "v0.6.11"                # 指定版本
+#   $env:VERSION = "v0.6.12"                # 指定版本
 #   $env:SKIP_DEMO = "1"                    # 跳过 demo 验证
 #   $env:PIP_INDEX_URL = "https://pypi.tuna.tsinghua.edu.cn/simple"   # 指定 pip 源
 #
@@ -25,7 +25,7 @@
 $ErrorActionPreference = "Stop"
 
 # ---------- 配置 ----------
-$Version    = if ($env:VERSION) { $env:VERSION } else { "v0.6.11" }
+$Version    = if ($env:VERSION) { $env:VERSION } else { "v0.6.12" }
 $RepoUrl    = if ($env:REPO_URL) { $env:REPO_URL } else { "https://github.com/suonian/vidknot.git" }
 $SkipDemo   = if ($env:SKIP_DEMO) { $env:SKIP_DEMO } else { "0" }
 $PythonBin  = if ($env:PYTHON_BIN) { $env:PYTHON_BIN } else { "python" }

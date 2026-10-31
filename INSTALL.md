@@ -1,6 +1,6 @@
 # VidkNot 安装指南
 
-本文档只覆盖当前仓库版本 `v0.6.11` 的本地安装和验证。
+本文档只覆盖当前仓库版本 `v0.6.12` 的本地安装和验证。
 
 ## 环境要求
 
@@ -39,16 +39,16 @@ ffmpeg -version
 
 ## 安装 VidkNot
 
-当前 GitHub Release 是 `v0.6.11`。推荐直接安装该版本：
+当前 GitHub Release 是 `v0.6.12`。推荐直接安装该版本：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 ```
 
 如需飞书写入支持：
 
 ```bash
-pip install "vidknot[feishu] @ git+https://github.com/suonian/vidknot.git@v0.6.11"
+pip install "vidknot[feishu] @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 ```
 
 开发安装：
@@ -62,7 +62,7 @@ pip install -e ".[all]"
 如果下载 Python 包较慢，可以临时使用清华源：
 
 ```bash
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 ```
 
 一键安装 / 验证（含 FFmpeg 检查、`.env` 模板、demo 验证，自动切换清华镜像）：
