@@ -40,7 +40,8 @@ class NotionWriter:
 
         if not self.token:
             raise NoAPIKeyError(
-                "Notion Token 未设置，请配置 NOTION_TOKEN"
+                "Notion Token 未设置，请配置 NOTION_TOKEN",
+                hint="请在 .env 中设置 NOTION_TOKEN 与 NOTION_PAGE_ID（Notion 集成令牌），参考 docs/BACKENDS.md",
             )
 
         self._base_url = "https://api.notion.com/v1"

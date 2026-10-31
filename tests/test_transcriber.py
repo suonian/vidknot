@@ -47,7 +47,7 @@ class TestSiliconFlowASR:
         """不支持的格式应抛出 UnsupportedAudioFormatError"""
         asr = SiliconFlowASR(api_key="test-key")
         txt_file = temp_dir / "test.txt"
-        txt_file.write_text("not audio")
+        txt_file.write_text("not audio", encoding="utf-8")
         with pytest.raises(UnsupportedAudioFormatError, match="不支持的音频格式"):
             asr._validate_audio(txt_file)
 
@@ -62,7 +62,11 @@ class TestSiliconFlowASR:
     def test_get_client_no_api_key(self, temp_dir):
         """无 API key 应抛出 NoAPIKeyError"""
         # 确保 config.yaml 和 env 中都没有 key
-        with patch.dict(os.environ, {}, clear=True):
+        # 注意: 不能用 clear=True 全清——那会连 USERPROFILE 一起清掉，
+        # Windows 上 Path.home() 会抛 RuntimeError（见 test_get_client_no_api_key 说明）
+        env = dict(os.environ)
+        env.pop("SILICONFLOW_API_KEY", None)
+        with patch.dict(os.environ, env, clear=True):
             from vidknot.utils.config_manager import ConfigManager
             # Mock config to return empty key
             with patch.object(ConfigManager, "get", return_value=""):

@@ -37,7 +37,7 @@ platforms:
     strategy: subtitle_first  # subtitle_first | siliconflow_only | faster_whisper_only | dual_asr
     fallback_provider: openai_whisper  # 兜底转录 provider
 providers:
-  default_provider: openai
+  default_provider: openai-compatible
   openai:
     api_key: YOUR_OPENAI_KEY
     base_url: https://api.openai.com/v1

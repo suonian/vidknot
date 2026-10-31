@@ -32,6 +32,8 @@ CLI / API 报错时按此表自查。v0.6.0 起，CLI 会在出错时直接输�
 | 明确提示会员 / 付费 / 无访问权限 | 能力边界 | 付费内容或授权限制 | VidkNot 不支持付费/会员内容，见 `docs/PLATFORMS.md` 判断标准；**不要反复重试或尝试绕过权限** |
 | `笔记生成失败` / LLM 错误 | 配置错误 | LLM 余额不足或配置错误 | 检查 provider 配置与余额；`config.yaml` 可切换 provider |
 | `依赖检查失败` | 配置错误 | 缺 yt-dlp / faster-whisper | 运行 `python -m vidknot --check-env` 查看安装指引 |
+| `双 ASR 校正失败，回退到 SiliconFlow 单源` | 配置错误 | 交叉校验依赖 `mmx` CLI（npm 全局安装）；未安装或调用异常时自动降级为单源转写 | 安装 `mmx`（`npm i -g @anthropic-ai/mmx` 之类，按官方文档）；日志中搜 `[Corrector]` 确认「校正完成」；v0.6.11 起 Windows 上子进程输出已强制 UTF-8 解码 |
+| 笔记开头混入推理过程 / `<think>` 残留 | 缺陷（已修复） | 推理模型把思考过程写在正文里，或响应被 `max_tokens` 截断导致推理块未闭合 | v0.6.10 起已剥离推理块并对未闭合情况做兜底；若笔记为空会回退到原始转录；仍异常请调大 `providers.openai-compatible.max_tokens` |
 
 > **类型说明**：
 > - **临时故障**——网络、风控、浏览器状态问题，稍后或换条件重试可恢复；
@@ -69,6 +71,26 @@ CLI / API 报错时按此表自查。v0.6.0 起，CLI 会在出错时直接输�
 ### Q: Python 版本要求？
 
 **要求**：Python >= 3.10。低于 3.10 会安装失败。
+
+### Q: Windows 上怎么装？有坑吗？
+
+**推荐**：直接跑一键脚本，它会自动探测 pip 镜像（不可达时切清华源）、
+检查并安装 FFmpeg（winget / scoop / chocolatey）、准备 `.env` 模板并跑
+一次 demo 验证：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install.ps1
+```
+
+**已知坑（v0.6.11 起已全部修复）**：
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| `双 ASR 校正失败，回退到 SiliconFlow 单源` | `mmx` CLI 未装 / 输出被按 GBK 解码 | v0.6.11 起强制 UTF-8 解码；仍失败请确认 `mmx` 已安装且在 PATH |
+| 本地 faster-whisper 完全不可用 | PyAV 19 移除了 `metadata_errors` 参数 | v0.6.11 起锁定 `av>=11,<19`，重新 `pip install -e ".[all]"` |
+| MCP 客户端收到乱码 | Windows 标准流默认 GBK | v0.6.11 起 CLI / MCP 入口自动切 UTF-8，无需手动设 `PYTHONUTF8` |
+| 笔记文件「创建成功」却是 0 字节 | 标题恰为 `CON` / `NUL` / `AUX` 等 Windows 保留设备名 | v0.6.11 起自动加 `_` 前缀规避 |
+| `curl` 报 `client returned ERROR on write` | 写死 `/dev/null` | v0.6.11 起改用 `os.devnull`（Windows 为 `NUL`） |
 
 ---
 

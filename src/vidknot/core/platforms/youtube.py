@@ -125,13 +125,14 @@ class YouTubePlatform(BasePlatform):
     def _download_audio_direct(self, url: str, dl: Any, quality: str) -> tuple[Path, dict[str, Any]]:
         """force_audio / prefer_subtitles=False 时的直接下载路径
 
-        Hermes 实战沉淀: 用户显式 force_audio=True 时, 不需要 SABR-only bypass
-        试探, 直接走 Cookie 嗅探 (最稳定, 因为 force_audio 是显式请求).
+        复用 _download_audio 的下载顺序：本地 Cookie 文件 → 无 Cookie
+        (SABR-only 兼容 extractor-args) → 浏览器 Cookie 嗅探。
+
+        直接跳到浏览器 Cookie 嗅探会在 Chrome 正在运行时硬失败——yt-dlp
+        无法复制被占用的 Cookie 库（yt-dlp issue #7271），而此时无 Cookie
+        路径其实完全可用。
         """
-        cookie_file = dl._find_cookie_file("youtube")
-        if cookie_file:
-            return dl._yt_dlp_download(url, quality, cookie_file, "youtube")
-        return dl._download_with_browser_cookie(url, quality, "youtube")
+        return self._download_audio(url, dl, quality)
 
     def _download_audio_no_cookie(
         self, url: str, dl: Any, quality: str

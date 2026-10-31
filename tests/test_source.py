@@ -103,7 +103,7 @@ def test_load_yaml(tmp_path: Path):
         "    url: https://example.com/a\n"
         "  - name: b\n"
         "    platform: douyin\n"
-        "    kind: channel\n"
+        "    kind: channel\n", encoding="utf-8"
     )
     loaded = load_sources_file(p)
     assert len(loaded.sources) == 2
@@ -114,7 +114,7 @@ def test_load_yaml(tmp_path: Path):
 
 def test_load_json(tmp_path: Path):
     p = tmp_path / "sources.json"
-    p.write_text(json.dumps({"sources": [{"name": "j", "platform": "yt"}]}))
+    p.write_text(json.dumps({"sources": [{"name": "j", "platform": "yt"}]}), encoding="utf-8")
     loaded = load_sources_file(p)
     assert loaded.sources[0].name == "j"
 
@@ -130,7 +130,7 @@ def test_load_rejects_credential(tmp_path: Path):
         "sources:\n"
         "  - name: leaked\n"
         "    platform: douyin\n"
-        "    url: 'https://x.com?sessionid=DEADBEEFCAFEBABE12345'\n"
+        "    url: 'https://x.com?sessionid=DEADBEEFCAFEBABE12345'\n", encoding="utf-8"
     )
     with pytest.raises(SourceValidationError):
         load_sources_file(p)

@@ -54,6 +54,8 @@ class FeishuWriter:
                     "飞书配置不完整，需要 FEISHU_APP_ID 和 FEISHU_APP_SECRET",
                     details=f"app_id={'已设置' if self.app_id else '未设置'}, "
                             f"app_secret={'已设置' if self.app_secret else '未设置'}",
+                    hint="请在 .env 中设置 FEISHU_APP_ID 与 FEISHU_APP_SECRET，"
+                         "并确认应用已开通文档创建/写入权限（见 docs/BACKENDS.md）",
                 )
             try:
                 from feishu_docx import FeishuDocx

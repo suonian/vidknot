@@ -10,7 +10,9 @@
 - CLI --temp-subdir 参数
 """
 
+import os
 import re
+from pathlib import Path
 
 import pytest
 
@@ -35,8 +37,12 @@ class TestVideoDownloaderSubdir:
         assert dl.output_dir.exists()
 
     def test_subdir_rejects_absolute_path(self, tmp_path):
-        """绝对路径应被拒绝(路径穿越防护)"""
-        abs_path = "/etc/passwd"
+        """绝对路径应被拒绝(路径穿越防护)
+
+        必须用当前平台的绝对路径：POSIX 的 "/etc/passwd" 在 Windows 上
+        没有盘符，不算绝对路径，会落到「解析后不在 output_dir 内」那条分支。
+        """
+        abs_path = str(Path(tmp_path).anchor + "etc" + os.sep + "passwd")
         with pytest.raises(ValueError, match="绝对路径"):
             VideoDownloader(output_dir=str(tmp_path), subdir=abs_path)
 

@@ -50,6 +50,10 @@ class MCPServer:
         """启动 MCP 服务器"""
         self.running = True
 
+        # MCP stdio 协议要求 UTF-8；Windows 下默认是本地代码页（中文为 GBK）
+        from ..utils.stdio import ensure_utf8_stdio
+        ensure_utf8_stdio()
+
         def shutdown_handler(signum, frame):
             logger.info("收到关闭信号，正在退出...")
             self.running = False
@@ -543,6 +547,10 @@ def get_platform_status() -> dict[str, Any]:
 
 def run_mcp_server():
     """运行 MCP 服务器的入口函数"""
+    # 无论走 FastMCP 还是自研 JSON-RPC，都先统一标准流编码
+    from ..utils.stdio import ensure_utf8_stdio
+    ensure_utf8_stdio()
+
     if HAS_FASTMCP:
         run_fastmcp_server()
     else:

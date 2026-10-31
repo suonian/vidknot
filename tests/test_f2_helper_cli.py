@@ -29,7 +29,7 @@ COOKIE_CONTENT = """\
 @pytest.fixture()
 def cookie_file(tmp_path: Path) -> Path:
     p = tmp_path / "douyin.txt"
-    p.write_text(COOKIE_CONTENT)
+    p.write_text(COOKIE_CONTENT, encoding="utf-8")
     return p
 
 
@@ -41,7 +41,7 @@ def fake_f2_bin(tmp_path: Path) -> Path:
     已被 mock，此文件仅用于通过二进制存在性检查，使测试环境无关。
     """
     p = tmp_path / "f2"
-    p.write_text("#!/bin/sh\nexit 0\n")
+    p.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     return p
 
 
@@ -57,7 +57,7 @@ class TestReadCookieFile:
 
     def test_skips_comments_and_blanks(self, tmp_path: Path):
         p = tmp_path / "c.txt"
-        p.write_text("\n# only comments\n\n")
+        p.write_text("\n# only comments\n\n", encoding="utf-8")
         assert read_cookie_file(p) == ""
 
 
@@ -81,7 +81,7 @@ class TestFindDownloadedMp4:
         sub = tmp_path / "douyin" / "one" / "author"
         sub.mkdir(parents=True)
         target = sub / "2026-01-01_some_video.mp4"
-        target.write_text("data")
+        target.write_text("data", encoding="utf-8")
         result = find_downloaded_mp4(tmp_path, "some")
         # Note: filename doesn't include aweme_id literally; falls back to mtime
         assert result == target
@@ -90,10 +90,10 @@ class TestFindDownloadedMp4:
         sub = tmp_path / "douyin" / "one" / "author"
         sub.mkdir(parents=True)
         older = sub / "old_video.mp4"
-        older.write_text("old")
+        older.write_text("old", encoding="utf-8")
         # Touch older to be older
         target = sub / "1234567890_video.mp4"
-        target.write_text("new")
+        target.write_text("new", encoding="utf-8")
         os.utime(older, (1_000_000, 1_000_000))
         os.utime(target, (9_999_999, 9_999_999))
         result = find_downloaded_mp4(tmp_path, "1234567890")

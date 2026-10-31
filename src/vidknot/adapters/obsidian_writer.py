@@ -6,7 +6,6 @@ VidkNot Obsidian Vault 写入适配器
 """
 
 import os
-import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -191,12 +190,12 @@ class ObsidianWriter:
         清理文件名中的特殊字符
 
         Windows 文件名禁止: < > : " / \\ | ? * 以及控制字符
+        另外还要规避 Windows 保留设备名（CON / NUL / AUX / COM1 / LPT1 ...），
+        它们带扩展名仍然保留，写入时内容会进控制台而文件不会生成。
         """
-        forbidden = r'[<>:"/\\|?*\x00-\x1f]'
-        name = re.sub(forbidden, "_", name)
-        name = name.strip().strip(".")
-        name = re.sub(r"\s+", "_", name)
-        return name or "视频笔记"
+        from ..utils.filename import sanitize_filename
+
+        return sanitize_filename(name, fallback="视频笔记")
 
     def _resolve_filename_conflict(self, file_path: Path) -> Path:
         """解决文件名冲突"""

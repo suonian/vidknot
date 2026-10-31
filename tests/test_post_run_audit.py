@@ -134,9 +134,9 @@ def test_load_fw_sf_basic(tmp_path: Path):
     d.mkdir()
     (d / "fw_corrected.txt").write_text(
         "[   0.0s -    2.0s]  Line one\n"
-        "[   2.0s -    4.0s]  Line two\n"
+        "[   2.0s -    4.0s]  Line two\n", encoding="utf-8"
     )
-    (d / "sf_corrected.txt").write_text("🎼Line one Line two")
+    (d / "sf_corrected.txt").write_text("🎼Line one Line two", encoding="utf-8")
 
     fw_map, sf_map = _load_fw_sf(work)
     assert "TEST_VID" in fw_map
@@ -151,7 +151,7 @@ def test_load_fw_sf_skips_missing(tmp_path: Path):
     d = work / "_work_02_VID2"
     d.mkdir()
     # Only fw, no sf
-    (d / "fw_corrected.txt").write_text("[   0.0s -    2.0s]  Hello\n")
+    (d / "fw_corrected.txt").write_text("[   0.0s -    2.0s]  Hello\n", encoding="utf-8")
     fw_map, sf_map = _load_fw_sf(work)
     assert "VID2" in fw_map
     assert "VID2" not in sf_map  # gracefully absent

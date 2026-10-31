@@ -9,6 +9,9 @@ openai>=1.0.0
 
 # Dual-ASR correction pipeline (v0.2.0+)
 faster-whisper>=1.0.0
+# PyAV 19.0.0+ 移除了 av.open() 的 metadata_errors 参数，faster-whisper 仍在传
+# 该参数会导致 TypeError，必须限制在 19 以下
+av>=11,<19
 
 # 可选：飞书集成
 # pip install vidknot[feishu]

@@ -17,6 +17,39 @@ from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# 推理模型（如 MiniMax-M3）默认开启 thinking，会把推理过程直接内联在
+# message.content 里（而不是放在 reasoning_content 字段）。落库前需要剥离，
+# 否则推理噪音会混进最终笔记。
+_THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+# 响应被 max_tokens 截断时推理块没有闭合标签（模型把 token 全花在推理上），
+# 此时需要把 <think> 到结尾整段剥离。
+_THINK_UNCLOSED_PATTERN = re.compile(r"<think>.*\Z", re.DOTALL)
+
+
+def strip_reasoning(text: str | None) -> str:
+    """剥离 LLM 返回内容中的 <think>...</think> 推理块。
+
+    - 对不返回推理块的模型（OpenAI / GLM 等）是无操作。
+    - 推理块未闭合（响应被 max_tokens 截断）时，剥离 <think> 到结尾。
+    - 只返回推理、没有任何正文时，结果为空字符串——由调用方回退到原始
+      转录，而不是把推理内容当成笔记落库。
+    """
+    if not text:
+        return text or ""
+    cleaned = _THINK_BLOCK_PATTERN.sub("", text)
+    cleaned = _THINK_UNCLOSED_PATTERN.sub("", cleaned).strip()
+    return cleaned
+
+
+def resolve_markdown(markdown: str | None, fallback: str) -> str:
+    """笔记正文为空时回退到原始转录文本。
+
+    推理模型在响应被 max_tokens 截断时可能只返回推理内容，剥离后正文为空；
+    这种情况下宁可给出原始转录，也不要把推理噪音当成笔记落库。
+    """
+    text = (markdown or "").strip()
+    return text or fallback
+
 
 class ContentProcessor:
     """
@@ -194,14 +227,20 @@ summary: [一句话总结视频内容]
                 api_key = (provider_config.get("api_key") or os.getenv("OPENAI_API_KEY", "")).strip()
                 base_url = (provider_config.get("base_url") or os.getenv("OPENAI_BASE_URL", "")).strip() or "https://api.openai.com/v1"
                 if not api_key:
-                    raise NoAPIKeyError("OpenAI API Key 未设置，请配置 OPENAI_API_KEY 或 providers.openai.api_key")
+                    raise NoAPIKeyError(
+                        "OpenAI API Key 未设置，请配置 OPENAI_API_KEY 或 providers.openai.api_key",
+                        hint="请在 .env 中设置 OPENAI_API_KEY，或在 config.yaml 的 providers.openai.api_key 填写",
+                    )
                 self._client = OpenAI(api_key=api_key, base_url=base_url)
 
             elif self.provider == "zhipuai":
                 from zhipuai import ZhipuAI
                 api_key = (provider_config.get("api_key") or os.getenv("ZHIPUAI_API_KEY", "")).strip()
                 if not api_key:
-                    raise NoAPIKeyError("智谱 AI API Key 未设置，请配置 ZHIPUAI_API_KEY 或 providers.zhipuai.api_key")
+                    raise NoAPIKeyError(
+                        "智谱 AI API Key 未设置，请配置 ZHIPUAI_API_KEY 或 providers.zhipuai.api_key",
+                        hint="请在 .env 中设置 ZHIPUAI_API_KEY，或在 config.yaml 的 providers.zhipuai.api_key 填写",
+                    )
                 self._client = ZhipuAI(api_key=api_key)
 
             elif self.provider == "openai-compatible":
@@ -210,7 +249,8 @@ summary: [一句话总结视频内容]
                 base_url = (provider_config.get("base_url") or os.getenv("LLM_BASE_URL", "")).strip()
                 if not api_key:
                     raise NoAPIKeyError(
-                        "OpenAI-compatible API Key 未设置，请配置 providers.openai-compatible 或 LLM_API_KEY"
+                        "OpenAI-compatible API Key 未设置，请配置 providers.openai-compatible 或 LLM_API_KEY",
+                        hint="请在 .env 中设置 LLM_API_KEY（配合 LLM_BASE_URL 和 VIDKNOT_LLM_MODEL），参考 docs/CONFIG.md",
                     )
                 self._client = OpenAI(api_key=api_key, base_url=base_url or None)
 
@@ -377,7 +417,7 @@ summary: [一句话总结视频内容]
                     temperature=0.7,
                     max_tokens=self._max_tokens,
                 )
-                return response.choices[0].message.content
+                return strip_reasoning(response.choices[0].message.content)
 
             elif self.provider == "zhipuai":
                 response = client.chat.completions.create(
@@ -386,7 +426,7 @@ summary: [一句话总结视频内容]
                     temperature=0.7,
                     max_tokens=self._max_tokens,
                 )
-                return response.choices[0].message.content
+                return strip_reasoning(response.choices[0].message.content)
 
             else:
                 raise LLMError(f"不支持的 LLM 提供商: {self.provider}")

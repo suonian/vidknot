@@ -43,6 +43,11 @@ def main():
     from dotenv import load_dotenv
     load_dotenv(Path.cwd() / ".env", override=False)
 
+    # 统一标准流为 UTF-8：Windows 下默认是本地代码页（中文为 GBK），
+    # MCP stdio 协议 / JSON-RPC / CI 日志都要求 UTF-8
+    from .utils.stdio import ensure_utf8_stdio
+    ensure_utf8_stdio()
+
     parser = argparse.ArgumentParser(
         description="VidkNot — Video Knowledge, Knotted. 将视频链接转换为结构化笔记，自动保存到飞书文档或 Obsidian Vault。",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -802,9 +807,16 @@ def process_video(url: str, mode: str, language: str, args=None) -> dict:
 
     if mode == "summary":
         logger.info("正在生成结构化笔记...")
+        from .core.processor import ContentProcessor, resolve_markdown
+
         processor = ContentProcessor()
         processed = processor.summarize(result["transcription"], metadata)
-        result["markdown"] = processed["markdown"]
+        markdown = resolve_markdown(processed.get("markdown"), result["transcription"])
+        if not (processed.get("markdown") or "").strip():
+            # LLM 只返回了推理内容（响应被 max_tokens 截断），回退到原始转录，
+            # 而不是把推理噪音当成笔记落库
+            logger.warning("LLM 未返回有效笔记内容，回退到原始转录文本")
+        result["markdown"] = markdown
         # 把校正信息附加到元数据，供 feishu_writer 等适配器使用
         if correction_meta:
             processed.setdefault("metadata", {}).setdefault("correction", correction_meta)

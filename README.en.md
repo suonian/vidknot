@@ -1,21 +1,27 @@
 # VidkNot
 
-VidkNot is a **general research platform framework** (v0.6.10) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 added Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`); v0.6.0 adds unified retry/timeout configuration, a bundled-FFmpeg optional extra, actionable error hints with a friendly CLI error path, and domestic-mirror install support; v0.6.1 fixes a video-duration formatting crash and localizes marketplace display copy to Chinese; v0.6.2 fully translates SKILL.md into Chinese so the marketplace overview page displays in Chinese; v0.6.3 rewrites the marketplace description in plain, everyday language so non-technical users instantly understand what the tool does; v0.6.4 deepens the documentation: a consolidated anti-pattern section, MCP tool docs aligned with the real implementation, an error-classification quick table, and fully spelled-out platform limitation levels; v0.6.5 multi-source audit fixes: CI fully green again, LICENSE restored to proper MIT detection, and environment-independent f2 tests; v0.6.6 fixes three bugs found by an external agent audit (#8/#9/#10): new `fw`/`fw_file` destinations that preserve FasterWhisper timestamp segments, no more FW data loss when dual-ASR correction fails, and standardized temp-subdir naming with path-traversal protection.
+VidkNot is a **general research platform framework** (v0.6.11) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 added Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`); v0.6.0 adds unified retry/timeout configuration, a bundled-FFmpeg optional extra, actionable error hints with a friendly CLI error path, and domestic-mirror install support; v0.6.1 fixes a video-duration formatting crash and localizes marketplace display copy to Chinese; v0.6.2 fully translates SKILL.md into Chinese so the marketplace overview page displays in Chinese; v0.6.3 rewrites the marketplace description in plain, everyday language so non-technical users instantly understand what the tool does; v0.6.4 deepens the documentation: a consolidated anti-pattern section, MCP tool docs aligned with the real implementation, an error-classification quick table, and fully spelled-out platform limitation levels; v0.6.5 multi-source audit fixes: CI fully green again, LICENSE restored to proper MIT detection, and environment-independent f2 tests; v0.6.6 fixes three bugs found by an external agent audit (#8/#9/#10): new `fw`/`fw_file` destinations that preserve FasterWhisper timestamp segments, no more FW data loss when dual-ASR correction fails, and standardized temp-subdir naming with path-traversal protection; v0.6.11 cross-platform compatibility fixes after a full Windows end-to-end run — 13 issues including the P0 defect where dual-ASR correction silently failed on Windows, plus a one-command Windows installer (`scripts/install.ps1`) and a Windows CI matrix.
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-431%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-515%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | [中文](README.md) | English |
 
-## What's new in v0.6.10
+## What's new in v0.6.11
 
-Douyin third-party fallback media downloads now include Referer and User-Agent
-headers to address some CDN 403 responses caused by missing headers. Free methods
-remain preferred, and third-party services still require explicit opt-in. Expired
-URLs and content authorization restrictions are not bypassed; see the
-[Douyin troubleshooting guide](docs/DOUYIN_FALLBACK.md).
+Cross-platform compatibility fixes after a full end-to-end run on Windows —
+**13** issues in total. The most significant one: **dual-ASR correction
+silently failed on Windows**, because subprocess output was decoded with the
+local code page (GBK) instead of UTF-8. The pipeline raised no error and still
+produced notes — it just quietly skipped the cross-validation. Also fixed:
+Windows reserved device names dropping notes, Chinese garbling in MCP stdio,
+YouTube forced-audio download failures, and a broken local faster-whisper caused
+by an unpinned PyAV upper bound. Adds a one-command Windows installer
+(`scripts/install.ps1`) and a Windows CI matrix.
+
+Content authorization boundaries and the free-first policy are unchanged.
 
 ## Use Cases
 
@@ -35,7 +41,7 @@ URLs and content authorization restrictions are not bypassed; see the
 | Twitter / X | Short video | ✅ Stable via yt-dlp |
 | Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
 | WeChat Channels (视频号) | Short video | ⚠️ Reserved (closed WeChat ecosystem; export via packet-capture tools, then use local batch mode) |
-| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.10) |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.11) |
 | Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
 | Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
 | Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
@@ -60,14 +66,14 @@ See [docs/PLATFORMS.md](docs/PLATFORMS.md) for the full capability matrix
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **Don't want a system FFmpeg?** Use the bundled static build (binary ships in the wheel, works offline):
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.10"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.11"`
 >
 > Environment self-check: `python -m vidknot --check-env` (prints install commands for anything missing)
 
-The current GitHub release is `v0.6.10`. Install from GitHub:
+The current GitHub release is `v0.6.11`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.10"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
 ```
 
 > 🇨🇳 **Mainland China note**: if GitHub is slow, point pip at a domestic
@@ -76,7 +82,7 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.10"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.10"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
 > ```
 >
 > The Tsinghua mirror also covers overseas dependencies such as yt-dlp and
@@ -84,7 +90,8 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.10"
 > from mainland China set `export HF_ENDPOINT=https://hf-mirror.com` before
 > the first run.
 >
-> The one-line `scripts/install.sh` auto-detects and switches to the
+> The one-line `scripts/install.sh` (macOS / Linux) or `scripts/install.ps1`
+> (Windows) auto-detects and switches to the
 > Tsinghua mirror.
 
 For development:

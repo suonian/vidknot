@@ -13,6 +13,15 @@
 | `pyyaml` | `>=6.0.1` | 读取 `config.yaml` |
 | `openai` | `>=1.0.0` | OpenAI 兼容 LLM 调用 |
 | `faster-whisper` | `>=1.0.0` | 本地 ASR 交叉验证 |
+| `av` (PyAV) | `>=11,<19` | faster-whisper 音频解码（见下方说明） |
+
+> **`av` 上界说明**：PyAV 19.0.0（2026-09-29）移除了 `av.open()` 的
+> `metadata_errors` 参数，而 faster-whisper <=1.2.1 的 `decode_audio()`
+> 仍在传该参数，直接调用会抛
+> `TypeError: open() got an unexpected keyword argument 'metadata_errors'`。
+> faster-whisper 1.2.1 为当前最新版，暂无上游修复，因此必须限制 `av<19`。
+> 该问题会导致**双 ASR 校正静默失效**（CLI 捕获异常后回退到 SiliconFlow
+> 单源转写，主流程不中断），仅在安装依赖时未生效。
 
 ## 可选依赖
 

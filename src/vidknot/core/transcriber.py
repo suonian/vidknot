@@ -71,7 +71,8 @@ class SiliconFlowASR:
 
         if not key:
             raise NoAPIKeyError(
-                "SiliconFlow API Key 未设置，请配置 SILICONFLOW_API_KEY"
+                "SiliconFlow API Key 未设置，请配置 SILICONFLOW_API_KEY",
+                hint="请在 .env 中设置 SILICONFLOW_API_KEY（硅基流动官网免费注册获取），参考 docs/CONFIG.md",
             )
 
         return OpenAI(
@@ -296,7 +297,8 @@ class OpenAITranscribeASR:
 
         if not key or key.startswith("YOUR_"):
             raise NoAPIKeyError(
-                "OpenAI API Key 未设置，请配置 providers.openai.api_key 或 OPENAI_API_KEY"
+                "OpenAI API Key 未设置，请配置 providers.openai.api_key 或 OPENAI_API_KEY",
+                hint="请在 .env 中设置 OPENAI_API_KEY，或在 config.yaml 的 providers.openai.api_key 填写",
             )
 
         base_url = config.get("providers", "openai", "base_url") or "https://api.openai.com/v1"
@@ -465,9 +467,14 @@ class FasterWhisperASR:
                 device=cfg["device"],
                 compute_type=cfg["compute_type"],
             )
+            # faster-whisper 只接受具体语言码，"auto" 不是合法值（会抛
+            # ValueError: 'auto' is not a valid language code）；自动检测需传 None。
+            fw_language = None
+            if language and language.strip().lower() != "auto":
+                fw_language = language.strip()
             segments, _ = model.transcribe(
                 str(audio_path),
-                language=language,
+                language=fw_language,
                 beam_size=cfg["beam_size"],
                 vad_filter=cfg["vad_filter"],
             )

@@ -19,7 +19,7 @@ def test_collect_urls_from_file(tmp_path: Path):
         "# comment line\n"
         "https://example.com/a\n"
         "\n"
-        "https://example.com/b\n"
+        "https://example.com/b\n", encoding="utf-8"
     )
     assert collect_urls([], urls_file=str(f)) == [
         "https://example.com/a",
@@ -43,7 +43,7 @@ def test_collect_urls_from_sources_file(tmp_path: Path):
         "    url: https://example.com/c\n"
         "    kind: hashtag\n"
         "  - name: d-no-url\n"
-        "    platform: yt\n"
+        "    platform: yt\n", encoding="utf-8"
     )
     urls = collect_urls([], sources_file=str(f))
     # All entries with non-empty url are returned (any kind).

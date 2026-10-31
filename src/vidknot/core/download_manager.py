@@ -112,6 +112,8 @@ class SmartDownloadManager:
                     shell=True,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=10
                 )
                 self._tool_availability[name] = result.returncode == 0
@@ -236,6 +238,8 @@ class SmartDownloadManager:
                     shell=True,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=300
                 )
             )

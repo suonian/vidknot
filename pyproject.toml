@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vidknot"
-version = "0.6.10"
+version = "0.6.11"
 description = "VidkNot — Video Knowledge, Knotted. A general research platform framework for extracting knowledge from 11+ self-media platforms (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). Dual-ASR cross-validation, OpenAI-compatible LLM, pluggable storage backends (Obsidian / Feishu / Notion / Yuque / SQLite / custom), async periodic scheduler, batch runner, credential-leak-proof source loader. CLI / FastAPI / MCP / Python API."
 readme = "README.md"
 license = "MIT"
@@ -17,6 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Natural Language :: English",
@@ -35,6 +36,11 @@ dependencies = [
     "youtube-transcript-api>=0.6.0",
     # Dual-ASR correction pipeline
     "faster-whisper>=1.0.0",
+    # PyAV 上界锁定：PyAV 19.0.0 起移除了 av.open() 的 metadata_errors 参数，
+    # 而 faster-whisper <=1.2.1 的 decode_audio() 仍在传该参数，
+    # 会抛 TypeError: open() got an unexpected keyword argument 'metadata_errors'
+    # （faster-whisper 1.2.1 为当前最新版，暂无上游修复）
+    "av>=11,<19",
 ]
 
 [project.optional-dependencies]

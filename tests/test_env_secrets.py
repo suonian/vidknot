@@ -18,7 +18,7 @@ def _write_minimal_config(config_path: Path, provider_block: str) -> None:
     """Write a minimal config.yaml with the given provider block text."""
     config_path.write_text(
         "providers:\n"
-        f"{provider_block}\n"
+        f"{provider_block}\n", encoding="utf-8"
     )
 
 
@@ -136,7 +136,7 @@ def test_openai_model_applies_when_using_default_config_path(
     """
     # Place a config in cwd that ConfigManager._find_config_path() will pick up.
     cwd_config = Path.cwd() / "config.yaml"
-    original_content = cwd_config.read_text() if cwd_config.exists() else None
+    original_content = cwd_config.read_text(encoding="utf-8") if cwd_config.exists() else None
 
     try:
         # Append a test section instead of overwriting real config.yaml

@@ -26,8 +26,11 @@ VidkNot 双 ASR 校正模块
 """
 
 import json
+import os
 import re
+import shutil
 import subprocess
+import tempfile
 from difflib import SequenceMatcher
 
 from ..utils.exceptions import CorrectionError, LLMError
@@ -55,17 +58,40 @@ def _strip_timestamps(text: str) -> str:
     return re.sub(r'\[\s*\d+\.?\d*s\s*-\s*\d+\.?\d*s\]\s*', '', text)
 
 
+def _mmx_command() -> list[str] | None:
+    """解析 mmx CLI 的调用入口，返回 None 表示未安装。
+
+    Windows 下 npm 全局安装生成的是 `.cmd` 包装器，而 CreateProcess 只按
+    `.exe` 解析扩展名，直接 `subprocess.run(["mmx", ...])` 会抛
+    FileNotFoundError（即使 mmx 已安装）。这里用 shutil.which 解析出真实
+    路径；解析出的 `.cmd` / `.bat` 可以直接交给 subprocess 执行。
+    """
+    resolved = shutil.which("mmx")
+    if not resolved:
+        return None
+    if resolved.lower().endswith((".cmd", ".bat")):
+        return ["cmd.exe", "/c", resolved]
+    return [resolved]
+
+
 def _mmx_search(query: str, limit: int = 3) -> str:
     """mmx search query - 返回简洁摘要"""
+    cmd = _mmx_command()
+    if cmd is None:
+        return "（mmx CLI 未安装）"
     try:
         r = subprocess.run(
-            ["mmx", "search", "query", "--q", query, "--output", "json"],
+            cmd + ["search", "query", "--q", query, "--output", "json"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
         )
         if r.returncode != 0:
-            return f"（搜索失败：{r.stderr[:60]}）"
+            return f"（搜索失败：{(r.stderr or '')[:60]}）"
+        if not r.stdout:
+            return "（搜索无输出）"
         data = json.loads(r.stdout)
         items = data.get("organic", [])[:limit]
         if not items:
@@ -83,34 +109,86 @@ def _mmx_search(query: str, limit: int = 3) -> str:
 
 
 def _mmx_chat(message: str, max_tokens: int = 32000, timeout: int = 600) -> str:
-    """mmx text chat - 调用 MiniMax-M3"""
+    """mmx text chat - 调用 MiniMax-M3
+
+    多行 prompt 通过 `--messages-file` 传递：Windows 的 cmd.exe 会把命令行
+    参数中的换行当作命令分隔符，`--message` 只有第一行能送达模型
+    （表现为模型回「请提供原文」而非执行校正）。
+
+    显式指定 `encoding="utf-8"`：mmx 是 Node CLI，输出恒为 UTF-8；而
+    `text=True` 在 Windows 上按本地代码页（cp936/GBK）解码，遇到非 ASCII
+    字节会抛 UnicodeDecodeError，且解码线程崩溃后 `stdout` 变成 None，
+    最终以 `json.loads(None)` 的误导性 TypeError 暴露。macOS 的 locale 通常
+    就是 UTF-8，因此该问题只在 Windows 上显形。
+    """
+    cmd = _mmx_command()
+    if cmd is None:
+        raise LLMError("mmx CLI 未安装")
+
+    messages_file = None
     try:
-        r = subprocess.run(
-            [
-                "mmx", "text", "chat",
-                "--model", "MiniMax-M3",
-                "--max-tokens", str(max_tokens),
-                "--message", message,
-                "--output", "json",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
+        try:
+            fd, messages_file = tempfile.mkstemp(prefix="vidknot-mmx-", suffix=".json")
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump([{"role": "user", "content": message}], fh, ensure_ascii=False)
+
+            r = subprocess.run(
+                cmd + [
+                    "text", "chat",
+                    "--model", "MiniMax-M3",
+                    "--max-tokens", str(max_tokens),
+                    "--messages-file", messages_file,
+                    "--output", "json",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout,
+            )
+            if r.returncode != 0 and "messages-file" in (r.stderr or ""):
+                # 旧版 mmx 不支持 --messages-file，回退到 --message
+                r = subprocess.run(
+                    cmd + [
+                        "text", "chat",
+                        "--model", "MiniMax-M3",
+                        "--max-tokens", str(max_tokens),
+                        "--message", message,
+                        "--output", "json",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=timeout,
+                )
+        except subprocess.TimeoutExpired:
+            raise LLMError("mmx 调用超时")
+        except FileNotFoundError:
+            raise LLMError("mmx CLI 未安装")
+
         if r.returncode != 0:
-            raise LLMError(f"mmx 调用失败: {r.stderr[:200]}")
+            raise LLMError(f"mmx 调用失败: {(r.stderr or '')[:200]}")
+        if not r.stdout:
+            raise LLMError(
+                f"mmx 无输出（stderr: {(r.stderr or '')[:200]}）"
+            )
         data = json.loads(r.stdout)
         return "".join(
             c.get("text", "")
             for c in data.get("content", [])
             if c.get("type") == "text"
         )
-    except subprocess.TimeoutExpired:
-        raise LLMError("mmx 调用超时")
-    except FileNotFoundError:
-        raise LLMError("mmx CLI 未安装")
+    except LLMError:
+        raise
     except Exception as e:
         raise LLMError(f"mmx 调用异常: {str(e)[:200]}")
+    finally:
+        if messages_file:
+            try:
+                os.unlink(messages_file)
+            except OSError:
+                pass
 
 
 def _make_diff(fw_text: str, sf_text: str):

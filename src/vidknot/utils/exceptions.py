@@ -112,8 +112,7 @@ class NoAPIKeyError(VidkNotError):
     """未配置 API Key"""
 
     default_hint = (
-        "请在 .env 或环境变量中设置 SILICONFLOW_API_KEY"
-        "（硅基流动官网免费注册获取），参考 docs/CONFIG.md"
+        "请在 .env 或环境变量中配置对应的 API Key，参考 docs/CONFIG.md"
     )
 
 

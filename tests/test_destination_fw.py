@@ -155,7 +155,7 @@ class TestRunCliImplFwDestination:
         assert output_path.exists()
         fw_path = output_path.with_suffix(".fw.txt")
         assert fw_path.exists()
-        assert "FW 段1" in fw_path.read_text()
+        assert "FW 段1" in fw_path.read_text(encoding="utf-8")
 
     def test_fw_file_destination_requires_o(self, caplog):
         """destination=fw_file 必须有 -o(issue #8 修复:防止静默丢数据)"""

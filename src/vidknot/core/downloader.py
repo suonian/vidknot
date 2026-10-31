@@ -108,10 +108,20 @@ class VideoDownloader:
 
     def _get_js_runtime_path(self) -> str | None:
         """获取 JavaScript 运行时路径"""
-        deno_path = os.path.expanduser("~/.deno/bin/deno.exe")
-        if os.path.exists(deno_path):
-            return deno_path
         import shutil
+
+        # deno 官方安装脚本在 Windows 装成 deno.exe，
+        # 在 macOS / Linux 上是 deno（无扩展名）——两种都要试
+        for candidate in (
+            os.path.expanduser("~/.deno/bin/deno.exe"),
+            os.path.expanduser("~/.deno/bin/deno"),
+        ):
+            if os.path.exists(candidate):
+                return candidate
+
+        which_deno = shutil.which("deno")
+        if which_deno:
+            return which_deno
 
         return shutil.which("node")
 
@@ -339,13 +349,16 @@ class VideoDownloader:
         return audio_path
 
     def _sanitize_filename(self, name: str) -> str:
-        """清理文件名禁止字符（含 emoji 等非 ASCII）"""
+        """清理文件名禁止字符（含 emoji 等非 ASCII），并规避 Windows 保留设备名"""
         import unicodedata
+
+        from ..utils.filename import sanitize_filename
+
         name = unicodedata.normalize("NFKC", name)
         name = re.sub(r'[<>"/\\|?*\x00-\x1f]', "_", name, flags=0).strip()[:50]
         name = name.encode("ascii", "replace").decode("ascii")
         name = re.sub(r'[<>"/\\|?*\x00-\x1f]', "_", name, flags=0).strip()
-        return name or "video"
+        return sanitize_filename(name, fallback="video", whitespace_to_underscore=False)
 
     # 平台 → 浏览器 Cookie 域名映射（仅导出本次所需域名的 Cookie）
     _COOKIE_DOMAINS: dict[str, str] = {

@@ -145,8 +145,14 @@ class VideoKnowledgePipeline:
         }
 
         if self.format == "structured":
+            from ..core.processor import resolve_markdown
+
             processed = self.processor.summarize(transcription, metadata)
-            result["markdown"] = processed["markdown"]
+            markdown = resolve_markdown(processed.get("markdown"), transcription)
+            if not (processed.get("markdown") or "").strip():
+                # LLM 只返回了推理内容（响应被 max_tokens 截断），回退到原始转录
+                logger.warning("LLM 未返回有效笔记内容，回退到原始转录文本")
+            result["markdown"] = markdown
             # 结构化 JSON（供下游 Agent 消费；LLM 失败时回退最小结构）
             try:
                 result["structured"] = self.processor.extract_structured(

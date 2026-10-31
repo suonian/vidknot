@@ -24,7 +24,7 @@ COOKIE_CONTENT = """\
 @pytest.fixture()
 def cookie_file(tmp_path: Path) -> Path:
     p = tmp_path / "douyin.txt"
-    p.write_text(COOKIE_CONTENT)
+    p.write_text(COOKIE_CONTENT, encoding="utf-8")
     return p
 
 
@@ -87,7 +87,7 @@ class TestWriteHealthFlag:
         flag_path = write_health_flag(tmp_path, report, date="20260810")
         assert flag_path.exists()
         assert flag_path.name == "20260810.flag"
-        data = json.loads(flag_path.read_text())
+        data = json.loads(flag_path.read_text(encoding="utf-8"))
         assert data["status"] == "healthy"
         assert data["aweme_id"] == "123"
 

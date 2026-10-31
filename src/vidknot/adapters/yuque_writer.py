@@ -41,7 +41,8 @@ class YuqueWriter:
 
         if not self.token:
             raise NoAPIKeyError(
-                "语雀 Token 未设置，请配置 YUQUE_TOKEN"
+                "语雀 Token 未设置，请配置 YUQUE_TOKEN",
+                hint="请在 .env 中设置 YUQUE_TOKEN 与 YUQUE_LOGIN（语雀官网个人访问令牌），参考 docs/BACKENDS.md",
             )
 
         self._client = None

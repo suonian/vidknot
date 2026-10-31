@@ -5,6 +5,186 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.11] - 2026-10-31
+
+### 跨平台兼容性修复：Windows 全链路实测
+
+本轮以 **Windows** 为运行平台做了一次系统性跨平台审计（项目主开发环境为
+macOS），共修复 **13 项**平台差异问题。其中 1 项为 P0 级缺陷：双 ASR 校正
+在 Windows 上**静默失效**——流程不报错、照常产出笔记，只是交叉校验被悄悄
+跳过。全部修复均附真实复现与回归测试。
+
+### Fixed
+
+- 修复 **CLI 默认 `--language auto` 导致本地 faster-whisper 转写必然失败**的问题。
+  faster-whisper 只接受具体语言码，`"auto"` 会抛
+  `ValueError: 'auto' is not a valid language code`；自动检测需传 `None`。
+  此前该异常被 CLI 捕获后回退到 SiliconFlow 单源转写，因此表现为
+  **双 ASR 交叉校验永远静默失效**。现将 `auto` / 空串 / `None` 统一归一为
+  `None`，显式语言码原样保留（与 `OpenAITranscribeASR` 的既有处理一致）。
+- 修复 **`prefer_subtitles=False` 或 `force_audio=True` 时 YouTube 下载必然失败**的问题。
+  `_download_audio_direct` 跳过了「无 Cookie + SABR-only 兼容 extractor-args」
+  这一最稳的分支，直接去嗅探浏览器 Cookie；而 Chrome 正在运行时 yt-dlp
+  无法复制被占用的 Cookie 库（yt-dlp issue #7271），直接抛 `DownloadError`。
+  现改为复用 `_download_audio` 的回退顺序：本地 Cookie 文件 → 无 Cookie
+  (SABR-only 兼容) → 浏览器 Cookie 嗅探。
+- 修复 **双 ASR 校正的 prompt 在换行处被截断**、导致 LLM 只看到第一行的问题。
+  Windows 的 cmd.exe 把命令行参数中的换行当作命令分隔符，`mmx text chat
+  --message <多行文本>` 只有第一行能送达模型，模型因此回「请提供需要校正的原文」
+  而不是执行校正，校正结果变成无意义的元回应。改为用 `--messages-file`
+  传临时 JSON 文件（旧版 mmx 不支持时自动回退 `--message`），
+  并在调用结束后清理临时文件。
+- 修复 **Windows 上 `mmx` CLI 被误判为未安装**、导致双 ASR 校正必然失败的问题。
+  npm 全局安装生成的是 `.cmd` 包装器，而 Windows 的 CreateProcess 只按 `.exe`
+  解析扩展名，`subprocess.run(["mmx", ...])` 必定抛 `FileNotFoundError`，
+  即使 `mmx` 已正确安装。`mmx` 是 v4/v3 校正流程的联网搜证与差异仲裁依赖，
+  该问题使校正必然抛 `LLMError("mmx CLI 未安装")` 并静默降级为单源转写。
+  新增 `_mmx_command()` 用 `shutil.which` 解析真实入口，`.cmd` / `.bat`
+  自动经 `cmd.exe /c` 调用。
+- 锁定 PyAV 上界 `av>=11,<19`，修复**本地 faster-whisper 转录完全不可用**的问题。
+  PyAV 19.0.0（2026-09-29）移除了 `av.open()` 的 `metadata_errors` 参数，而
+  faster-whisper <=1.2.1（当前最新版，暂无上游修复）的 `decode_audio()`
+  仍在传该参数，调用时抛
+  `TypeError: open() got an unexpected keyword argument 'metadata_errors'`。
+  该异常被 CLI 捕获后回退到 SiliconFlow 单源转写，主流程不中断，
+  因此表现为**双 ASR 交叉校验静默失效**——只影响无平台字幕、必须走本地
+  ASR 的视频。已在 `pyproject.toml` / `requirements.txt` 约束版本号，
+  并在 `DEPENDENCIES.md` 记录原因。
+- 剥离 LLM 返回内容中内联的 `<think>...</think>` 推理块。推理模型
+  （如 MiniMax-M3）默认开启 thinking，会把推理过程直接写在
+  `message.content` 里而非 `reasoning_content` 字段，此前会原样落库，
+  导致每篇笔记开头混入推理噪音。新增 `strip_reasoning()`，仅剥离推理块；
+  对不返回推理块的模型（OpenAI / GLM 等）是无操作。
+- 修复**推理块未闭合时推理内容被当成笔记落库**的问题。推理模型响应被
+  `max_tokens` 截断时（实测 MiniMax-M3 单条笔记的 reasoning_tokens 约
+  2000，长转录时容易撞上默认 `max_tokens: 4000` 的上限），响应末尾没有
+  闭合的 `</think>`，原正则匹配不上，整段推理会被当成笔记正文。
+  现在 `strip_reasoning()` 会把未闭合的 `<think>` 剥离到结尾；正文为空时
+  CLI 与 Pipeline 均回退到原始转录文本（`resolve_markdown()`）。
+- 修复**双 ASR 校正的子进程输出被按本地代码页解码**、导致校正静默失效的问题。
+  `subprocess.run(..., text=True)` 在 Windows 上用**本地代码页**（中文为
+  cp936/GBK）解码子进程 stdout，而 `mmx` 是 Node CLI、输出恒为 UTF-8。
+  两档后果：字节流能按 GBK 解出来时，中文变成乱码（实测「收到」→「鏀跺埌」）；
+  字节流无法按 GBK 解码时抛 `UnicodeDecodeError`，而解码发生在 `subprocess`
+  的读取线程里，线程崩溃后 `CompletedProcess.stdout` 变成 `None`，
+  最终以 `json.loads(None)` 这种完全误导性的 `TypeError: the JSON object
+  must be str, bytes or bytearray, not NoneType` 暴露。
+  由于异常被 CLI 捕获后降级为单源转写，主流程不中断，**双 ASR 交叉校验
+  在 Windows 上等于从未生效**；macOS 的 locale 通常就是 UTF-8，故只在
+  Windows 上显形。现所有以文本模式捕获子进程输出的调用点统一显式指定
+  `encoding="utf-8"` + `errors="replace"`（`errors` 保证永不因解码失败而
+  丢结果），并对 `mmx` 空输出补充可诊断的错误信息（不再暴露误导性 TypeError）。
+- `NoAPIKeyError` 的默认修正建议不再固定指向 `SILICONFLOW_API_KEY`，
+  改为通用文案；各抛出点（SiliconFlow ASR / OpenAI ASR / OpenAI / 智谱 /
+  OpenAI-compatible / 飞书 / Notion / 语雀）改为传入与自身相关的具体提示，
+  避免 LLM 缺 Key 时误导用户去配置语音转写 Key。
+
+### Added
+
+- **`scripts/install.ps1`**：Windows 一键安装 / 验证脚本，对应 `scripts/install.sh`。
+  覆盖 pip 源探测（不可达自动切清华镜像）、Python 版本检查、FFmpeg 检查与
+  自动安装（winget / scoop / chocolatey，失败则退回内置静态版）、`.env`
+  模板准备、版本与 demo 验证。文件以 UTF-8 with BOM 保存，保证
+  Windows PowerShell 5.1 按 UTF-8 读取（无 BOM 时会按 ANSI 解码而乱码）。
+- **`src/vidknot/utils/stdio.py`**：标准流编码归一化工具（`ensure_utf8_stdio`）。
+- **`src/vidknot/utils/filename.py`**：跨平台文件名安全工具（禁用字符 +
+  Windows 保留设备名）。
+
+### Compatibility
+
+本轮以 Windows 为运行平台做了一次系统性跨平台审计（项目主开发环境为
+macOS），修复下列平台差异问题。
+
+- **MCP stdio 未固定 UTF-8**（Windows）。Windows 的标准流默认是本地代码页
+  （中文为 cp936/GBK），而 MCP stdio 协议 / JSON-RPC / CI 日志都要求 UTF-8。
+  自研 JSON-RPC 服务用 `print(json.dumps(..., ensure_ascii=False))` 写 stdout，
+  在中文 Windows 上写出的是 GBK 字节，客户端按 UTF-8 解码会得到乱码或解析失败；
+  同理客户端送来的 UTF-8 JSON 也会在 `json.loads()` 之前被 GBK 解码破坏。
+  新增 `utils/stdio.py`，在 CLI 与 MCP 入口统一把 stdin / stdout / stderr
+  切到 UTF-8。
+- **`curl -o /dev/null`**（Windows）。`/dev/null` 是 POSIX 路径，Windows 上
+  curl 会报 `client returned ERROR on write`（退出码 23）。改用
+  `os.devnull`（Windows 为 `NUL`），并在 curl 失败且无状态码时返回 WARNING
+  而不是「HTTP 空值」。
+- **Windows 保留设备名**（Windows）。`CON` / `PRN` / `AUX` / `NUL` /
+  `COM1-9` / `LPT1-9` 带任意扩展名仍然保留——写 `CON.md` 时内容会进控制台、
+  文件根本不生成，删除还报拒绝访问。Obsidian 笔记文件名由视频标题生成，
+  标题恰好为这些名字时会丢笔记。新增 `utils/filename.py` 统一处理，
+  命中保留名时加 `_` 前缀。
+- **JS 运行时探测写死 `deno.exe`**（macOS / Linux）。deno 官方安装脚本在
+  Windows 产出 `deno.exe`，在 macOS / Linux 上是无扩展名的 `deno`，
+  原实现导致非 Windows 平台永远找不到该路径。现同时尝试两种写法，
+  并补上 `shutil.which("deno")`。
+- **子进程文本输出按 locale 解码**（Windows）。详见上方 Fixed 条目：
+  `text=True` 未指定 `encoding` 时使用本地代码页解码，与 Node/yt-dlp 类
+  工具的 UTF-8 输出冲突。本轮一并加固了 `corrector.py`（mmx ×3）、
+  `env_check.py`（yt-dlp 版本探测）、`download_manager.py`（×2）、
+  `cookie_health_check.py`（curl 探针）共 7 处调用点。
+- **测试与本地代码页耦合**（Windows）。`tests/` 下 28 处
+  `read_text()` / `write_text()` 未显式指定编码，在非 UTF-8 locale 下会
+  解码失败（`test_destination_fw.py` 读中文、`test_post_run_audit.py` 写 emoji）；
+  `tests/test_env_secrets.py` 还会把读到的 `config.yaml` 写回，
+  存在把用户配置写成乱码的风险。已全部显式指定 `encoding="utf-8"`。
+- **两项既有用例依赖 POSIX 语义**。`test_temp_subdir.py` 用 `/etc/passwd`
+  作为绝对路径样例（在 Windows 上没有盘符，不算绝对路径）；
+  `test_transcriber.py` 用 `clear=True` 清空整个 `os.environ`
+  （会连 `USERPROFILE` 一起清掉，Windows 上 `Path.home()` 直接抛
+  `RuntimeError`）。已改为平台无关写法。
+- **CI 补 Windows 矩阵**。此前 CI 只跑 `ubuntu-latest`，所有平台差异类问题
+  都不会被发现。现新增 `test-windows` job（Python 3.10 / 3.12 / 3.13），
+  并在 `pyproject.toml` 补上 Python 3.13 classifier。
+
+### Tests
+
+- 新增 `tests/test_cross_platform.py`（40 项）：Windows 保留设备名的识别与
+  规避、Obsidian / 下载器文件名生成、标准流 UTF-8 归一、curl 使用
+  `os.devnull`、JS 运行时在有无 `.exe` 两种形态下的探测。
+- 新增 `tests/test_subprocess_encoding.py`（9 项）：AST 扫描 `src/vidknot` 全库，
+  守卫「凡是文本模式捕获子进程输出的调用点必须显式 `encoding="utf-8"` +
+  `errors="replace"`」，防止该类问题复发；另覆盖 mmx chat / 搜证两条链路的
+  编码参数，以及 stdout 为 `None` 时抛出可诊断错误而非误导性 TypeError。
+- 新增 4 个测试文件、29 项用例：
+  - `tests/test_reasoning_strip.py`：推理块剥离（单块 / 多块 / 跨行 / 无推理块 /
+    仅推理块）、`_call_llm` 的实际请求参数、`NoAPIKeyError` 提示的指向性；
+  - `tests/test_corrector_mmx.py`：`mmx` 入口解析（`.cmd` 经 `cmd.exe /c`）、
+    多行 prompt 经 `--messages-file` 完整送达、临时文件清理、
+    旧版 mmx 的回退路径；
+  - `tests/test_transcriber_language.py`：`auto` / 空串 / `None` 归一为
+    `None`，显式语言码原样保留；
+  - `tests/test_youtube_download_fallback.py`：YouTube 音频下载的回退顺序
+    （无 Cookie 优先、浏览器 Cookie 兜底、本地 Cookie 文件优先）。
+- 调整 `tests/test_platforms.py` 中两项既有用例
+  （`test_download_force_audio_skips_subtitles`、
+  `test_download_prefer_subtitles_false`）：原断言「force_audio 必须走浏览器
+  Cookie 嗅探」锁定的是上述缺陷本身，改为断言「跳过字幕直接下载音频」
+  并优先无 Cookie 路径；回退顺序的覆盖由新增测试文件承担。
+- 全量测试 **431 → 515 passed**；Ruff 检查通过。
+- 真实端到端跑通两条路径，两条路径输出均无 `<think>` 推理残留：
+  - **平台字幕路径**：YouTube → 平台字幕 217 字 → MiniMax-M3 生成中文结构化笔记
+  - **强制双 ASR 路径**：SABR-only 旁路下载 → SiliconFlow 189 字 +
+    本地 faster-whisper 257 字 / 3 段 → 8 处差异 → LLM 校正完成（修复前
+    此处报 `mmx 调用异常` 并回退单源）→ 结构化笔记
+- 联网搜证（`mmx search query`）单独实测：中英文查询均返回真实结果，
+  标题与摘要无乱码（修复前按 GBK 解码产生乱码）。
+- MCP 在 cp936 环境变量下双向 UTF-8 往返正常，中文工具描述正确。
+
+### Changed
+
+- `config.yaml` 的 `providers.default_provider` 由 `openai` 改为
+  `openai-compatible`。原因：`config.yaml` 中 `providers.openai.api_key`
+  的占位值 `YOUR_OPENAI_KEY` 非空，导致 `LLM_API_KEY` 的写入条件
+  `if not target.get("api_key")`（`utils/config_manager.py`）恒不成立，
+  Key 无法注入默认 provider。改用 `openai-compatible` 后，
+  `LLM_API_KEY` / `LLM_BASE_URL` / `VIDKNOT_LLM_MODEL` 三者可在 CLI 与
+  Python API 两条路径下均正常生效。
+- 同步版本位点至 `v0.6.11`（`pyproject.toml` / `_version.py` / `install.sh` /
+  `install.ps1` / `SECURITY.md` / issue 模板 / README 双语 / `SKILL.md` /
+  `INSTALL.md` / `docs/BEST_PRACTICES.md`），测试徽章由 431 更新为 515 passed，
+  并同步 GitHub Release 与 SkillHub 发布信息。
+- 本次修复**不改变**付费 / 会员 / DRM 内容的授权边界，也不改变
+  「免费优先、第三方服务需显式启用」的策略。`docs/DOUYIN_FALLBACK.md` 与
+  `docs/FAQ.md` 中关于 v0.6.10 抖音 CDN 修复的历史说明保持不变。
+
 ## [0.6.10] - 2026-09-25
 
 ### Fixed

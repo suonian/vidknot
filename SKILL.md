@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.10
+version: 0.6.11
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -66,7 +66,7 @@ repository: https://github.com/suonian/vidknot
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.10"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.11"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -80,6 +80,24 @@ vidknot "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 > 不想装 FFmpeg？用 `pip install 'vidknot[bundled-ffmpeg]'` 即可
 > （自带静态 FFmpeg，免系统安装）。
+
+### 运行环境（macOS / Windows / Linux）
+
+三个平台均已支持。Windows 用户可直接用一键脚本完成安装与验证：
+
+```powershell
+# 自动探测 pip 镜像（优先清华源）、检查并安装 FFmpeg、准备 .env、跑 demo 验证
+powershell -ExecutionPolicy Bypass -File scripts/install.ps1
+```
+
+| 平台 | 安装脚本 | 环境自检 |
+| --- | --- | --- |
+| macOS / Linux | `bash scripts/install.sh` | `python -m vidknot --check-env` |
+| Windows | `powershell -File scripts/install.ps1` | `python -m vidknot --check-env` |
+
+> Windows 用户注意：命令行中文默认是 GBK 编码，MCP / JSON-RPC 场景需
+> UTF-8 标准流，VidkNot 的 CLI 与 MCP 入口已自动处理，无需手动设置
+> `PYTHONUTF8`。
 
 ## 应避免的用法（反模式）
 
@@ -296,7 +314,8 @@ Agent 拿到本技能后，应查找：
 | `INSTALL.md` | 安装说明 |
 | `docs/` | 补充文档（PRIVACY、BACKENDS、CONFIG、EXAMPLES、BEST_PRACTICES 等） |
 | `examples/sources.yaml.example` | YAML 订阅源模板 |
-| `scripts/install.sh` | 一键安装 + 验证脚本 |
+| `scripts/install.sh` | 一键安装 + 验证脚本（macOS / Linux） |
+| `scripts/install.ps1` | 一键安装 + 验证脚本（Windows PowerShell） |
 
 ## 版本规则
 
@@ -306,9 +325,13 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.10** — 抖音第三方兜底取得视频直链后，下载请求补充
-Referer 与 User-Agent，修复部分 CDN 请求头缺失导致的 403；不改变付费服务
-启用策略，也不绕过内容授权限制。详见 [CHANGELOG.md](CHANGELOG.md)。
+最新版：**0.6.11** — Windows 全链路实测后的跨平台兼容性修复，共 13 项。
+其中最关键的一项是**双 ASR 校正在 Windows 上静默失效**（子进程输出被按
+本地代码页解码，流程不报错但交叉校验被悄悄跳过），现已修复。双 ASR 校正、
+Windows 保留设备名、MCP stdio UTF-8、YouTube 音频回退顺序、本地
+faster-whisper 的 PyAV 版本上界等一并修复；新增 Windows 一键安装脚本
+`scripts/install.ps1`。不改变付费 / 会员 / DRM 内容的授权边界。
+详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证
 

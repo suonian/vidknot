@@ -132,7 +132,10 @@ def check_cookie_health(
                 "curl",
                 "-sS",
                 "-o",
-                "/dev/null",
+                # os.devnull 在 POSIX 是 /dev/null，在 Windows 是 NUL。
+                # 写死 /dev/null 会让 Windows 上的 curl 报
+                # "client returned ERROR on write"（退出码 23）。
+                os.devnull,
                 "-w",
                 "%{http_code}",
                 "--max-time",
@@ -145,9 +148,17 @@ def check_cookie_health(
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout_seconds + 5,
         )
-        http_code = proc.stdout.strip()
+        http_code = (proc.stdout or "").strip()
+        if proc.returncode != 0 and not http_code:
+            return HealthReport(
+                status=HealthStatus.WARNING,
+                aweme_id=probe_aweme_id,
+                detail=f"curl probe failed (rc={proc.returncode}): {(proc.stderr or '').strip()[:120]}",
+            )
     except subprocess.TimeoutExpired:
         return HealthReport(
             status=HealthStatus.EXPIRED,

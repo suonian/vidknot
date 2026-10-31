@@ -197,30 +197,35 @@ class TestYouTubePlatform:
         dl._download_with_browser_cookie.assert_not_called()
 
     def test_download_force_audio_skips_subtitles(self):
-        """force_audio=True 时直接下载音频"""
+        """force_audio=True 时直接下载音频（跳过字幕），且优先无 Cookie 路径"""
         platform = YouTubePlatform()
         dl = self._make_dl()
-        dl._download_audio_no_cookie = MagicMock(side_effect=AssertionError("should not be called"))
         dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {"title": "t"}))
 
-        audio_path, metadata = platform.download(
-            "https://youtu.be/dQw4w9WgXcQ", dl, force_audio=True
-        )
+        with patch.object(
+            platform, "_download_audio_no_cookie", return_value=(Path("/tmp/a.mp3"), {"title": "t"})
+        ) as no_cookie:
+            audio_path, metadata = platform.download(
+                "https://youtu.be/dQw4w9WgXcQ", dl, force_audio=True
+            )
 
         assert audio_path == Path("/tmp/a.mp3")
-        dl._download_audio_no_cookie.assert_not_called()
-        dl._download_with_browser_cookie.assert_called_once()
+        no_cookie.assert_called_once()
+        dl._download_with_browser_cookie.assert_not_called()
 
     def test_download_prefer_subtitles_false(self):
-        """prefer_subtitles=False 时直接下载音频"""
+        """prefer_subtitles=False 时直接下载音频（跳过字幕），且优先无 Cookie 路径"""
         platform = YouTubePlatform()
         dl = self._make_dl(prefer_subtitles=False)
-        dl._download_audio_no_cookie = MagicMock(side_effect=AssertionError("should not be called"))
         dl._download_with_browser_cookie = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
 
-        platform.download("https://youtu.be/dQw4w9WgXcQ", dl)
-        dl._download_audio_no_cookie.assert_not_called()
-        dl._download_with_browser_cookie.assert_called_once()
+        with patch.object(
+            platform, "_download_audio_no_cookie", return_value=(Path("/tmp/a.mp3"), {})
+        ) as no_cookie:
+            platform.download("https://youtu.be/dQw4w9WgXcQ", dl)
+
+        no_cookie.assert_called_once()
+        dl._download_with_browser_cookie.assert_not_called()
 
     def test_download_level1_fail_level2_success(self):
         """Level1 失败后 Level2 (yt-dlp 字幕) 成功"""
@@ -589,7 +594,7 @@ class TestUnverifiedPlatforms:
     def test_kuaishou_temp_cookie_cleanup(self, tmp_path):
         """临时 Cookie 文件在结束后应被清理"""
         cookie = tmp_path / "vidknot_cookies_ks.txt"
-        cookie.write_text("cookie")
+        cookie.write_text("cookie", encoding="utf-8")
         dl = MagicMock()
         dl._try_export_cookies = MagicMock(return_value=str(cookie))
         dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))
@@ -611,7 +616,7 @@ class TestUnverifiedPlatforms:
 
     def test_weibo_temp_cookie_cleanup(self, tmp_path):
         cookie = tmp_path / "vidknot_cookies_wb.txt"
-        cookie.write_text("cookie")
+        cookie.write_text("cookie", encoding="utf-8")
         dl = MagicMock()
         dl._try_export_cookies = MagicMock(return_value=str(cookie))
         dl._yt_dlp_download = MagicMock(return_value=(Path("/tmp/a.mp3"), {}))

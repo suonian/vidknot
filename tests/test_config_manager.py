@@ -219,9 +219,9 @@ class TestNewProviderAndDotEnv:
     def test_dotenv_local_file_loaded(self, tmp_path):
         """本地 .env 文件内容应被加载并覆盖配置"""
         env_file = tmp_path / ".env"
-        env_file.write_text("LLM_API_KEY=dotenv-key\nLLM_BASE_URL=https://test.local/v1\n")
+        env_file.write_text("LLM_API_KEY=dotenv-key\nLLM_BASE_URL=https://test.local/v1\n", encoding="utf-8")
         config_file = tmp_path / "config.local.yaml"
-        config_file.write_text("")
+        config_file.write_text("", encoding="utf-8")
         ConfigManager._instance = None
         os.chdir(tmp_path)
         try:
@@ -233,9 +233,9 @@ class TestNewProviderAndDotEnv:
     def test_process_env_wins_over_dotenv(self, tmp_path):
         """进程环境变量优先级 > .env 文件"""
         env_file = tmp_path / ".env"
-        env_file.write_text("LLM_API_KEY=dotenv-key\n")
+        env_file.write_text("LLM_API_KEY=dotenv-key\n", encoding="utf-8")
         config_file = tmp_path / "config.local.yaml"
-        config_file.write_text("")
+        config_file.write_text("", encoding="utf-8")
         ConfigManager._instance = None
         os.chdir(tmp_path)
         os.environ["LLM_API_KEY"] = "env-key"
@@ -249,9 +249,9 @@ class TestNewProviderAndDotEnv:
     def test_openai_api_key_not_from_dotenv(self, tmp_path):
         """OPENAI_API_KEY 不从 .env 读取（避免与 LLM_API_KEY 冲突）"""
         env_file = tmp_path / ".env"
-        env_file.write_text("OPENAI_API_KEY=should-not-appear\n")
+        env_file.write_text("OPENAI_API_KEY=should-not-appear\n", encoding="utf-8")
         config_file = tmp_path / "config.local.yaml"
-        config_file.write_text("")
+        config_file.write_text("", encoding="utf-8")
         ConfigManager._instance = None
         os.chdir(tmp_path)
         try:
