@@ -8,6 +8,7 @@
 """
 import io
 import os
+import subprocess
 import sys
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -111,12 +112,49 @@ class TestStdioUtf8:
         enc = stdio_encodings()
         assert set(enc) == {"stdin", "stdout", "stderr"}
 
-    def test_real_streams_are_utf8_after_call(self):
-        """真实环境下调用后，标准流应为 UTF-8"""
+    def test_real_streams_become_utf8_even_when_env_encoding_is_not(self):
+        """即使环境编码不是 UTF-8，调用后标准流也应为 UTF-8。
+
+        必须在子进程里做：pytest 会替换 sys.stdout/sys.stdin（capture），
+        宿主机又是「管道到 UTF-8 控制台」或「cp1252」各不相同，直接断言
+        当前进程的真实流编码只会得到一个依赖运行环境的假结果。
+        这里用 PYTHONIOENCODING=cp1252 造一个确定的非 UTF-8 环境，
+        再断言子进程调用后自报 utf-8。
+        """
+        code = (
+            "import sys;"
+            "from vidknot.utils.stdio import ensure_utf8_stdio;"
+            "ensure_utf8_stdio();"
+            "print(sys.stdout.encoding);"
+            "print(sys.stderr.encoding)"
+        )
+        env = dict(os.environ)
+        env["PYTHONIOENCODING"] = "cp1252"
+        env.pop("PYTHONUTF8", None)
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+            timeout=120,
+        )
+        encodings = [
+            line.strip().lower() for line in proc.stdout.splitlines() if line.strip()
+        ]
+        assert encodings, (
+            f"子进程无输出 (rc={proc.returncode}): {proc.stderr[:300]}"
+        )
+        assert all(enc in ("utf-8", "utf8") for enc in encodings), encodings
+
+    def test_stdio_encodings_never_raise_on_real_streams(self):
+        """在真实进程里调用不得抛异常，且三个流都要能被报告"""
         ensure_utf8_stdio()
-        for name in ("stdin", "stdout", "stderr"):
-            enc = stdio_encodings()[name]
-            assert enc in ("utf-8", "utf8", "unknown"), f"{name}={enc}"
+        enc = stdio_encodings()
+        assert set(enc) == {"stdin", "stdout", "stderr"}
+        for name, value in enc.items():
+            assert isinstance(value, str) and value, name
 
 
 class TestCurlUsesOsDevnull:

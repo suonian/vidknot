@@ -5,7 +5,7 @@ VidkNot is a **general research platform framework** (v0.6.11) that extracts kno
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-515%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-516%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | [中文](README.md) | English |
 

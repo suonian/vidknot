@@ -149,7 +149,21 @@ class TestExtractCorrectedTranscript:
 
 
 class TestMmxSearch:
-    """测试 _mmx_search（mock subprocess.run）"""
+    """测试 _mmx_search（mock subprocess.run）
+
+    注意：必须同时固定 `shutil.which` 的返回值。`_mmx_command()` 会先用
+    `shutil.which("mmx")` 定位入口，若本机/CI 未安装 mmx 就返回 None 并
+    提前给出「mmx CLI 未安装」，此时 mock 掉 subprocess.run 也不会走到
+    被测逻辑——测试结果会依赖运行机器是否装了 mmx（CI 环境即失败）。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _mmx_resolves(self):
+        with patch(
+            "vidknot.core.corrector.shutil.which",
+            return_value=r"C:\Users\me\AppData\Roaming\npm\mmx.CMD",
+        ):
+            yield
 
     def test_returns_summary_on_success(self):
         from vidknot.core.corrector import _mmx_search
@@ -200,7 +214,19 @@ class TestMmxSearch:
 
 
 class TestMmxChat:
-    """测试 _mmx_chat（mock subprocess.run）"""
+    """测试 _mmx_chat（mock subprocess.run）
+
+    同 TestMmxSearch：必须固定 `shutil.which`，否则测试依赖本机是否
+    安装了 mmx CLI。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _mmx_resolves(self):
+        with patch(
+            "vidknot.core.corrector.shutil.which",
+            return_value=r"C:\Users\me\AppData\Roaming\npm\mmx.CMD",
+        ):
+            yield
 
     def test_returns_text_content(self):
         from vidknot.core.corrector import _mmx_chat
