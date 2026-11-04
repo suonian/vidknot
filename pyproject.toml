@@ -45,6 +45,11 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.21",
     "ruff>=0.2.0",
+    # The observation-row schema assertion is a required check, not an
+    # optional one. Without it declared here, CI installs .[dev] without
+    # jsonschema and that assertion skips silently, so the gate is present
+    # in the description of the gate and absent from the run.
+    "jsonschema>=4.0.0",
 ]
 all = [
     "feishu-docx>=0.2.7",
