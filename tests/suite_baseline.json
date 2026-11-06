@@ -1,10 +1,10 @@
 {
   "schema": "suite_baseline.v1",
   "purpose": "Bind every count-shaped conclusion in this repo to a recorded commit and a recorded suite total, so a count cannot drift silently.",
-  "measured_at_commit": "64803fa0000063e20cb4d9ca4fc094342cf17e52",
-  "measured_at_commit_short": "64803fa",
-  "suite_total_at_measured_commit": 509,
-  "suite_total_note": "Collected at measured_at_commit, after the baseline module itself existed. A count-shaped conclusion is not recomputed and reused across a changed suite. The previous measurement was 501 at commit 328f687; the suite grew by the reason-binding module (8 assertions), which is why the total moved and was re-measured rather than adjusted.",
+  "measured_at_commit": "e24d73eeda9b267960f1ef7d3894793a62de479c",
+  "measured_at_commit_short": "e24d73e",
+  "suite_total_at_measured_commit": 523,
+  "suite_total_note": "Collected at measured_at_commit, after the baseline module itself existed. A count-shaped conclusion is not recomputed and reused across a changed suite. The previous measurement was 509 at commit 64803fa; the suite grew by the byte-stream comparability module (9 assertions) and the uniqueness module (5 assertions), which is why the total moved and was re-measured rather than adjusted.",
   "injection": {
     "mechanism": "scratch_tree",
     "source": "def project(row):\n    row['gate_status'] = row.get('gate_status')\n",
