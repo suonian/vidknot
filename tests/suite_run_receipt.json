@@ -1,0 +1,11 @@
+{
+  "collected": 555,
+  "commit": "864412bdc95ac5bfbfd603e1b40209760a6fd8ab",
+  "deselected": 1,
+  "errors": 0,
+  "failed": 0,
+  "passed": 554,
+  "product_tree_digest": "a5e1f0767834607a90d6af4cd2a2e9818e8f0d836f2c2e7fba8095caf255c1dd",
+  "returncode": 0,
+  "skipped": 0
+}
