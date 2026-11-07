@@ -197,6 +197,12 @@ def receipt(root: Path = ROOT) -> dict:
         "skipped": counters["skipped"],
         "errors": counters["errors"],
         "deselected": counters["deselected"],
+        "deselected_tests": [RECEIPT_TEST] if counters["deselected"] else [],
+        "deselected_reason": (
+            "this test reads the receipt, so its verdict is not knowable before the "
+            "receipt exists; a test that judges its own run is a detector with no "
+            "negative control"
+        ),
         "returncode": returncode,
         "commit": _git_commit(root),
         "product_tree_digest": product_tree_digest(root),

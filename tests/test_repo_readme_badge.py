@@ -156,6 +156,12 @@ def receipt_violations(receipt: dict, collected_count: int, tree_digest: str) ->
     if not receipt.get("commit"):
         violations.append("the receipt names no commit")
 
+    if receipt["deselected"] and not receipt.get("deselected_tests"):
+        violations.append(
+            "the receipt deselected %d tests but does not name them"
+            % receipt["deselected"]
+        )
+
     return violations
 
 
@@ -412,6 +418,7 @@ def _clean_receipt(count: int, digest: str) -> dict:
         "skipped": 0,
         "errors": 0,
         "deselected": 0,
+        "deselected_tests": [],
         "commit": "0" * 40,
         "product_tree_digest": digest,
     }
