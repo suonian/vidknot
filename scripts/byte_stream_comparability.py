@@ -46,6 +46,30 @@ path is not the path that actually appears:
 Both fall back to DIFFERENT. The false-green shape this module exists to
 prevent is a normaliser that turns everything into the same token and
 reports "equal" for two streams whose content differs.
+
+The scope of the normalisation
+------------------------------
+``compare_streams`` treats the path text as replaceable *wherever it
+appears* in the captured bytes. That is the right rule for an opaque
+stderr capture, where there is no field structure to consult and every
+path-looking string is an artefact of the runtime layout.
+
+It is the wrong rule for a structured record. A record carries business
+fields that a user can see, and one of those fields may legitimately
+contain the same path string. Blanket replacement then erases a real
+content difference and reports two records that differ in a visible field
+as equal -- the same false-green shape, reached from the opposite
+direction.
+
+So the scope of the replacement has to be declared, not assumed.
+``compare_records`` takes the set of fields that may be normalised and
+leaves every other field byte-for-byte alone. A peer supplied the case
+that made this concrete: a record pair where the caption embeds the
+source path and the caption itself changed. Under the blanket rule the
+two records normalise to the same bytes and the verdict comes out
+LOCATION_DEPENDENT, while the caption difference is a content difference
+and the verdict should be DIFFERENT. The field-scoped rule gets that
+right, and the two rules disagree, so they are not interchangeable.
 """
 
 from __future__ import annotations
@@ -157,4 +181,105 @@ def compare_streams(
         path_occurrences=occurrences_first,
         expected_byte_delta=expected_byte_delta,
         normalised_identical=normalised_identical,
+    )
+
+
+@dataclass(frozen=True)
+class RecordComparison:
+    """The outcome of comparing two structured records field by field.
+
+    ``differing_fields`` names the fields whose values differ, and
+    ``normalised_fields`` names the fields that were allowed to be
+    normalised. A difference in a field outside the declared scope is a
+    content difference: it is not explained by the environment and it
+    drives the verdict.
+    """
+
+    verdict: str
+    differing_fields: tuple[str, ...]
+    normalised_fields: tuple[str, ...]
+
+    @property
+    def enters_verdict(self) -> bool:
+        """Whether this comparison may contribute to a PASS/FAIL judgement.
+
+        A location-dependent reading may not. It is a property of where the
+        program ran, and folding it into a pass rate reports the runtime
+        layout as if it were the program's behaviour.
+        """
+        return self.verdict != LOCATION_DEPENDENT
+
+
+def _normalise_field(value: object, path: str) -> object:
+    """Replace the path with a token inside one field value.
+
+    Only the declared field is touched. A path string that appears in
+    another field is content, and content is left exactly as it is.
+    """
+    if not path or not isinstance(value, str):
+        return value
+    return value.replace(path, PATH_TOKEN)
+
+
+def compare_records(
+    first: dict,
+    second: dict,
+    normalisable_fields: tuple[str, ...],
+    first_path: str = "",
+    second_path: str = "",
+) -> RecordComparison:
+    """Compare two structured records, normalising only the declared fields.
+
+    ``normalisable_fields`` is the declared scope of the normalisation: the
+    only fields whose path text may be replaced. Every other field is
+    compared byte-for-byte, so a path string embedded in a business field
+    stays a content difference.
+
+    The verdict follows the same three-state domain as
+    :func:`compare_streams`:
+
+    IDENTICAL           every field matches exactly.
+    LOCATION_DEPENDENT  the fields that differ are exactly the declared
+                        normalisable ones, and they differ only by the path.
+    DIFFERENT           some field outside the declared scope differs, which
+                        is a content difference and may drive a verdict.
+    """
+    first_keys = set(first)
+    second_keys = set(second)
+    all_keys = sorted(first_keys | second_keys)
+
+    differing: list[str] = []
+    normalised_differing: list[str] = []
+    scope = set(normalisable_fields)
+
+    for key in all_keys:
+        in_first = key in first
+        in_second = key in second
+        if not in_first or not in_second:
+            differing.append(key)
+            continue
+
+        left = first[key]
+        right = second[key]
+        if left == right:
+            continue
+
+        differing.append(key)
+        if key in scope:
+            left_value = _normalise_field(left, first_path)
+            right_value = _normalise_field(right, second_path)
+            if left_value == right_value:
+                normalised_differing.append(key)
+
+    if not differing:
+        verdict = IDENTICAL
+    elif set(differing) <= scope and set(differing) == set(normalised_differing):
+        verdict = LOCATION_DEPENDENT
+    else:
+        verdict = DIFFERENT
+
+    return RecordComparison(
+        verdict=verdict,
+        differing_fields=tuple(differing),
+        normalised_fields=tuple(normalised_differing),
     )
