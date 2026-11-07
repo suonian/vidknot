@@ -1,4 +1,4 @@
-"""The repo README's test-count badge must be re-derivable.
+"""The repo README's test-count badges must be re-derivable.
 
 A badge is a picture of a number, and a picture of a number is read by
 nobody. The root README advertised "tests-431 passed" while the suite
@@ -7,10 +7,16 @@ because the badge is a URL and a URL is not a claim anything reads. The
 number went stale the way a prose-only number goes stale: silently, and
 without turning anything red.
 
-So the badge is re-derived here rather than trusted. The whole repo is
-collected with a collection-only pytest run, the count is read out of
-that run's own summary line, and the number the badge states is compared
-against it.
+The English README carried the same badge with the same stale value, and
+that one had no guard at all. A guard that covers one copy of a claim is
+not a guard on the claim: the second copy stays a declaration forever, and
+a reader who opens the English README sees a number that the suite has
+not produced for a long time. So both copies are read here, and both are
+compared against the same measured count.
+
+The suite is collected with a collection-only pytest run, the count is read
+out of that run's own summary line, and the number each badge states is
+compared against it.
 
 The README text is read through a pure function, so the check can be
 proven to go red on a wrong document instead of only ever confirming a
@@ -27,6 +33,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 README_PATH = ROOT / "README.md"
+README_EN_PATH = ROOT / "README.en.md"
 
 # The badge is a shields.io URL. The count lives in the path segment
 # between "badge/" and the closing parenthesis, so the segment is
@@ -35,7 +42,7 @@ BADGE_RE = re.compile(r"(https://img\.shields\.io/badge/)(tests-[^)\s]+)")
 BADGE_NUMBER_RE = re.compile(r"^tests-(\d+)(?:%20|\+|\s)passed")
 
 # The summary line of a collection-only run ends with
-# "533 tests collected in 1.05s", padded with "=" under -v.
+# "535 tests collected in 1.05s", padded with "=" under -v.
 COLLECTED_RE = re.compile(r"(\d+) tests collected")
 
 
@@ -164,7 +171,7 @@ def test_a_badge_with_an_unparseable_number_is_caught() -> None:
     assert mutated != text, "the badge segment was not found, so the mutation did nothing"
     violations = badge_violations(mutated, count)
     assert any("states no test count" in v for v in violations), (
-        "a badge with an unparseable number did not turn the check red; violations were: %s" % violations
+        "a badge with no number in it did not turn the check red; violations were: %s" % violations
     )
 
 
@@ -178,4 +185,46 @@ def test_a_missing_badge_is_caught() -> None:
     violations = badge_violations(mutated, count)
     assert any("states no tests badge" in v for v in violations), (
         "dropping the badge line did not turn the check red; violations were: %s" % violations
+    )
+
+
+def test_the_english_readme_badge_matches_the_collected_count() -> None:
+    """The English README states the same claim, so it must be checked too.
+
+    A guard that reads one copy of a claim leaves the other copy as a
+    declaration. The English badge was the unguarded copy: it kept the
+    stale value while the root badge was repaired and bound.
+    """
+    text = README_EN_PATH.read_text(encoding="utf-8")
+    count = _collected_count()
+    assert count > 0, "the collection run reported no tests at all"
+    violations = badge_violations(text, count)
+    assert not violations, (
+        "the English README badge does not hold up:\n" + "\n".join(violations)
+    )
+
+
+def test_a_wrong_english_readme_badge_number_is_caught() -> None:
+    """Mutation proof: only the English badge drifts, and it must go red.
+
+    The mutation moves the English badge's number down by a hundred-odd
+    while the root badge is left alone, so the check has to notice the
+    second copy on its own. A guard that read only the root badge would
+    stay green here.
+    """
+    text = README_EN_PATH.read_text(encoding="utf-8")
+    count = _collected_count()
+    assert not badge_violations(text, count), "the unmutated document must be clean to start from"
+
+    segment = _badge_segment(text)
+    assert segment is not None, "the English README states no badge to mutate"
+    number = _badge_number(segment)
+    assert number is not None, "the English README's badge states no number to mutate"
+
+    mutated = _mutate_badge_segment(text, "tests-%d%%20passed-brightgreen" % (number - 102))
+    assert mutated != text, "the badge segment was not found, so the mutation did nothing"
+    violations = badge_violations(mutated, count)
+    assert any("were collected" in v for v in violations), (
+        "changing only the English README badge did not turn the check red; "
+        "violations were: %s" % violations
     )
