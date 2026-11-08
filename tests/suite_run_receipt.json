@@ -1,7 +1,7 @@
 {
   "collected": 559,
-  "commit": "d4fd5295e818f76178ed5525e792190e3204d570",
-  "commit_tree_digest": "fc1edccdaf2bb055043be0e5c043e76bfc5fd4a4fb11d49a46067762b454d321",
+  "commit": "0e3c84ff16607cbf4026f88d63be530ecdc5be36",
+  "commit_tree_digest": "981a6f8b6b1e8cb8cfbc2654424cfcd805de82d3b101fafbd338247efe38dd5a",
   "deselected": 1,
   "deselected_reason": "this test reads the receipt, so its verdict is not knowable before the receipt exists; a test that judges its own run is a detector with no negative control",
   "deselected_tests": [
@@ -10,7 +10,7 @@
   "errors": 0,
   "failed": 0,
   "passed": 558,
-  "product_tree_digest": "fc1edccdaf2bb055043be0e5c043e76bfc5fd4a4fb11d49a46067762b454d321",
+  "product_tree_digest": "981a6f8b6b1e8cb8cfbc2654424cfcd805de82d3b101fafbd338247efe38dd5a",
   "returncode": 0,
   "skipped": 0,
   "workspace_clean": true
