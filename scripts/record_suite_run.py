@@ -98,39 +98,172 @@ def parse_summary(output: str) -> dict[str, int]:
     return {name: int(match.group(1)) if match else 0 for name, match in counters.items()}
 
 
-def product_tree_digest(root: Path) -> str:
-    """A digest over the tree the run measured, so a receipt names it.
+def _scope_paths(root: Path) -> list[str]:
+    """The tracked files a run measures, in a stable order.
 
-    The product tree is what the numbers are about: src/ and scripts/.
-    The suite's own python files are in it too, because a run measures
-    the tests as well as the code, and editing a test after the run
-    invalidates the run just as editing the code does.
+    Tracked only, and only what git knows about. A file that git does
+    not track is not part of the tree a receipt names, so a build
+    artefact that happens to sit under src/ must not move the digest:
+    otherwise the digest describes the machine rather than the tree,
+    and no receipt could ever be reproduced by someone else. The same
+    reason excludes ignored files: they are by definition local.
+
+    The scope is src/ and scripts/ in full, plus the suite's own python
+    files, because a run measures the tests as well as the code, and
+    editing a test after the run invalidates the run just as editing
+    the code does.
 
     The receipt itself is not in it: it is a json file, and a receipt
     that contained its own digest could never be written.
     """
-    digest = hashlib.sha256()
-    for base in ("src", "scripts"):
-        directory = root / base
-        if not directory.is_dir():
+    proc = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z", "--", "src", "scripts", "tests"],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return []
+    paths = []
+    for raw in proc.stdout.split("\0"):
+        if not raw:
             continue
-        for path in sorted(p for p in directory.rglob("*") if p.is_file()):
-            if "__pycache__" in path.parts or path.suffix == ".pyc":
-                continue
-            digest.update(str(path.relative_to(root)).encode("utf-8"))
-            digest.update(b"\0")
-            digest.update(path.read_bytes())
-            digest.update(b"\0")
-    tests = root / "tests"
-    if tests.is_dir():
-        for path in sorted(p for p in tests.rglob("*.py") if p.is_file()):
-            if "__pycache__" in path.parts:
-                continue
-            digest.update(str(path.relative_to(root)).encode("utf-8"))
-            digest.update(b"\0")
-            digest.update(path.read_bytes())
-            digest.update(b"\0")
+        rel = raw.replace("\\", "/")
+        if "/__pycache__/" in rel or rel.endswith(".pyc"):
+            continue
+        if rel.startswith("tests/") and not rel.endswith(".py"):
+            continue
+        paths.append(rel)
+    return sorted(paths)
+
+
+def _digest_over(paths: list[str], data_for) -> str:
+    """A digest over named paths, hashing path and bytes for each."""
+    digest = hashlib.sha256()
+    for rel in paths:
+        digest.update(rel.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(data_for(rel))
+        digest.update(b"\0")
     return digest.hexdigest()
+
+
+def product_tree_digest(root: Path) -> str:
+    """A digest over the tree the run measured, so a receipt names it.
+
+    Only tracked files count, so the digest is a property of the tree
+    rather than of the machine that happens to hold it. A build
+    artefact under src/ no longer moves it.
+    """
+    def read(rel: str) -> bytes:
+        path = root / rel
+        try:
+            return path.read_bytes()
+        except OSError:
+            return b""
+
+    return _digest_over(_scope_paths(root), read)
+
+
+def _commit_scope_entries(root: Path, commit: str) -> list[tuple[str, str]]:
+    """The scope as that commit has it: path and blob id for each file."""
+    proc = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "-r", "-z", commit, "--", "src", "scripts", "tests"],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return []
+    entries = []
+    for record in proc.stdout.split("\0"):
+        if not record:
+            continue
+        meta, _, path = record.partition("\t")
+        parts = meta.split()
+        if len(parts) < 3:
+            continue
+        rel = path.replace("\\", "/")
+        if "/__pycache__/" in rel or rel.endswith(".pyc"):
+            continue
+        if rel.startswith("tests/") and not rel.endswith(".py"):
+            continue
+        entries.append((rel, parts[2]))
+    return sorted(entries)
+
+
+def commit_tree_digest(root: Path, commit: str) -> str | None:
+    """The digest of the scope as that commit has it, or None if it cannot be resolved.
+
+    This is the other half of the receipt's binding. A receipt names a
+    commit and a digest; the digest says which bytes were measured. When
+    the two are read together they have to agree, and this function is
+    what turns "agree" into something checkable: it re-derives the
+    digest from the commit alone, with no working tree involved, so
+    anyone holding that commit can reproduce it.
+    """
+    entries = _commit_scope_entries(root, commit)
+    if not entries:
+        return None
+    shas = [sha for _, sha in entries]
+    proc = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "--batch"],
+        input=("\n".join(shas) + "\n").encode("utf-8"),
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return None
+    blobs: dict[str, bytes] = {}
+    out = proc.stdout
+    pos = 0
+    for sha in shas:
+        newline = out.find(b"\n", pos)
+        if newline == -1:
+            return None
+        parts = out[pos:newline].decode("utf-8", "replace").split()
+        if len(parts) < 3:
+            return None
+        size = int(parts[2])
+        start = newline + 1
+        blobs[sha] = out[start : start + size]
+        pos = start + size + 1
+    by_path = dict(entries)
+
+    def data(rel: str) -> bytes:
+        return blobs.get(by_path.get(rel, ""), b"")
+
+    return _digest_over([rel for rel, _ in entries], data)
+
+
+def commit_binding_violations(receipt: dict, resolved_digest: str | None) -> list[str]:
+    """Every way the receipt's commit can fail to name the tree it measured.
+
+    A receipt carries two facts: a commit and a digest. Checked on their
+    own they are two well-formed strings. Checked against each other
+    they are a claim about which tree was measured, and that claim is
+    the one thing a reader cannot make up, because the commit can be
+    resolved to its own bytes by anyone.
+
+    So the check is independent of both columns: the commit is resolved
+    to a digest on its own, and the digest the receipt recorded has to
+    be that one. A receipt whose commit and digest disagree is invalid
+    rather than failed: the receipt does not describe anything, so
+    there is no run to blame.
+    """
+    violations: list[str] = []
+    if not receipt.get("commit"):
+        return ["the receipt names no commit"]
+    if resolved_digest is None:
+        return ["the receipt names a commit that cannot be resolved to a tree"]
+    if receipt.get("product_tree_digest") != resolved_digest:
+        violations.append(
+            "the receipt names a commit whose tree is not the tree the receipt measured"
+        )
+    if "commit_tree_digest" not in receipt:
+        violations.append("the receipt does not record the tree of the commit it names")
+    elif receipt["commit_tree_digest"] != resolved_digest:
+        violations.append(
+            "the receipt's own record of its commit's tree does not match that commit"
+        )
+    return violations
 
 
 _tree_digest = product_tree_digest
@@ -190,6 +323,9 @@ def receipt(root: Path = ROOT) -> dict:
     """One receipt: what the suite collected, and what actually happened."""
     returncode, output = run_suite(root)
     counters = parse_summary(output)
+    commit = _git_commit(root)
+    measured = product_tree_digest(root)
+    committed = commit_tree_digest(root, commit) if commit else None
     return {
         "collected": collect_count(root),
         "passed": counters["passed"],
@@ -204,8 +340,10 @@ def receipt(root: Path = ROOT) -> dict:
             "negative control"
         ),
         "returncode": returncode,
-        "commit": _git_commit(root),
-        "product_tree_digest": product_tree_digest(root),
+        "commit": commit,
+        "product_tree_digest": measured,
+        "commit_tree_digest": committed,
+        "workspace_clean": bool(committed) and committed == measured,
     }
 
 
@@ -216,8 +354,23 @@ def write_receipt(root: Path = ROOT) -> dict:
     run that actually happened. A run that failed still gets written:
     the point of the receipt is to carry what happened, and a failed run
     is exactly what the badge must not be allowed to claim.
+
+    A receipt is refused when the working tree is not the commit it
+    names. The two facts it carries have to describe one tree: the
+    commit says which tree, and the digest says which bytes were
+    measured. Recording them while the tree carries uncommitted changes
+    puts two different trees in one receipt, and then the commit is a
+    claim nobody can check. So the recording is refused instead of
+    written, which is a smaller lie than a receipt that points at
+    something other than the tree it measured.
     """
     data = receipt(root)
+    if not data.get("workspace_clean"):
+        raise SystemExit(
+            "refusing to record a receipt: the working tree is not the commit it names "
+            "(commit %s, tree %s, measured %s). Commit the changes first, then record."
+            % (data.get("commit"), data.get("commit_tree_digest"), data.get("product_tree_digest"))
+        )
     path = root / "tests" / "suite_run_receipt.json"
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return data

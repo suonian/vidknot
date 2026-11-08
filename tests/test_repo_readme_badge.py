@@ -48,7 +48,11 @@ RECEIPT_PATH = ROOT / "tests" / "suite_run_receipt.json"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from record_suite_run import product_tree_digest  # noqa: E402
+from record_suite_run import (  # noqa: E402
+    commit_binding_violations,
+    commit_tree_digest,
+    product_tree_digest,
+)
 
 # The badge is a shields.io URL. The count lives in the path segment
 # between "badge/" and the closing parenthesis, so the segment is
@@ -163,6 +167,27 @@ def receipt_violations(receipt: dict, collected_count: int, tree_digest: str) ->
         )
 
     return violations
+
+
+def binding_violations(receipt: dict) -> list[str]:
+    """Every way the receipt's commit can fail to name the tree it measured.
+
+    The digest check above compares the receipt against the tree that
+    happens to be here now. That check cannot see the case where both
+    columns are individually well formed and jointly wrong: the commit
+    names one tree, the digest describes another, and the guard that
+    only compares a digest to the current tree never notices that the
+    commit is a claim nobody has checked.
+
+    So the commit is resolved to its own bytes, with no working tree
+    involved, and the receipt's two columns have to agree with that.
+    Anyone holding the commit can run the same resolution, so the
+    receipt becomes checkable by a reader who has nothing but the
+    commit.
+    """
+    commit = receipt.get("commit")
+    resolved = commit_tree_digest(ROOT, commit) if commit else None
+    return commit_binding_violations(receipt, resolved)
 
 
 @lru_cache(maxsize=1)
@@ -397,6 +422,10 @@ def test_the_badge_word_passed_is_backed_by_a_run_of_this_tree() -> None:
     count = _collected_count()
     violations = receipt_violations(receipt, count, product_tree_digest(ROOT))
     assert not violations, "the recorded run does not back the badge:\n" + "\n".join(violations)
+    binding = binding_violations(receipt)
+    assert not binding, (
+        "the recorded run's commit does not name the tree it measured:\n" + "\n".join(binding)
+    )
 
 
 def _clean_receipt(count: int, digest: str) -> dict:
@@ -411,6 +440,7 @@ def _clean_receipt(count: int, digest: str) -> dict:
     So the clean baseline is built from the measured count and the
     measured digest, and the proofs mutate that.
     """
+    commit = _git_head()
     return {
         "collected": count,
         "passed": count,
@@ -419,9 +449,137 @@ def _clean_receipt(count: int, digest: str) -> dict:
         "errors": 0,
         "deselected": 0,
         "deselected_tests": [],
-        "commit": "0" * 40,
+        "commit": commit,
         "product_tree_digest": digest,
+        "commit_tree_digest": commit_tree_digest(ROOT, commit),
     }
+
+
+def _git_head() -> str:
+    """The commit this tree is on, read from git."""
+    proc = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    return proc.stdout.strip()
+
+
+def _bound_receipt(count: int) -> dict:
+    """A receipt whose commit and digest name one and the same tree.
+
+    This is the baseline for the binding proofs, and it is built from
+    the commit rather than from the working tree. A receipt recorded on
+    a clean tree names the tree of its commit, and that is the only
+    shape in which the two columns agree. Building the baseline from
+    the commit keeps the proofs meaningful whether or not the tree
+    happens to be dirty while they run: a dirty tree is exactly the
+    state the recorded receipt is not allowed to describe.
+    """
+    commit = _git_head()
+    digest = commit_tree_digest(ROOT, commit)
+    assert digest, "the current commit resolves to no tree at all"
+    return {
+        "collected": count,
+        "passed": count,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "deselected": 0,
+        "deselected_tests": [],
+        "commit": commit,
+        "product_tree_digest": digest,
+        "commit_tree_digest": digest,
+    }
+
+
+def test_a_receipt_whose_commit_is_not_its_tree_does_not_back_the_badge() -> None:
+    """Mutation proof: a receipt whose commit names another tree goes red.
+
+    This is the false green that a digest-only guard cannot see. Both
+    columns are individually well formed: the commit is a real commit,
+    and the digest is a real digest of some tree. They are jointly
+    wrong, because the commit is not the tree the digest describes. A
+    guard that only compares the digest to the current tree passes this
+    receipt without noticing, so the binding has to be checked on its
+    own.
+    """
+    count = _collected_count()
+    receipt = _bound_receipt(count)
+    assert not binding_violations(receipt), (
+        "the clean baseline must be clean to start from"
+    )
+
+    other_commit = _some_other_commit()
+    assert other_commit and other_commit != receipt["commit"], (
+        "no second commit is available to bind the receipt to"
+    )
+    misbound = dict(receipt)
+    misbound["commit"] = other_commit
+    violations = binding_violations(misbound)
+    assert any("not the tree the receipt measured" in v for v in violations), (
+        "a receipt bound to the wrong commit did not turn the check red; "
+        "violations were: %s" % violations
+    )
+
+
+def _some_other_commit() -> str:
+    """A commit in this repository that is not the current head."""
+    proc = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-list", "--max-count=5", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    commits = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    head = _git_head()
+    for candidate in commits:
+        if candidate != head:
+            return candidate
+    return ""
+
+
+def test_a_receipt_that_records_its_own_commit_tree_wrongly_does_not_back_the_badge() -> None:
+    """Mutation proof: the receipt's own record of its commit's tree goes red.
+
+    The receipt carries the tree of its commit as a second column. If
+    that column disagrees with the commit, the receipt contradicts
+    itself, and a reader who checks only the columns would believe
+    whichever one they happened to read.
+    """
+    count = _collected_count()
+    receipt = _bound_receipt(count)
+    assert not binding_violations(receipt), (
+        "the clean baseline must be clean to start from"
+    )
+
+    wrong = dict(receipt)
+    wrong["commit_tree_digest"] = "0" * 64
+    violations = binding_violations(wrong)
+    assert any("does not match that commit" in v for v in violations), (
+        "a receipt whose own commit-tree record is wrong did not turn the check red; "
+        "violations were: %s" % violations
+    )
+
+
+def test_a_receipt_naming_no_commit_does_not_back_the_badge() -> None:
+    """Mutation proof: a receipt with no commit at all goes red.
+
+    A commit is what makes the receipt checkable by anyone else. A
+    receipt without one describes a run that only this machine can
+    vouch for, so it cannot back a published count.
+    """
+    count = _collected_count()
+    receipt = _bound_receipt(count)
+    assert not binding_violations(receipt), (
+        "the clean baseline must be clean to start from"
+    )
+
+    nameless = dict(receipt)
+    nameless["commit"] = ""
+    violations = binding_violations(nameless)
+    assert any("names no commit" in v for v in violations), (
+        "a receipt naming no commit did not turn the check red; violations were: %s" % violations
+    )
 
 
 def test_a_receipt_from_a_failing_run_does_not_back_the_badge() -> None:

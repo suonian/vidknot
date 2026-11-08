@@ -31,7 +31,7 @@ Closes #
 
 <!-- Describe the tests you ran. -->
 
-- [ ] `pytest tests/ -q` passes locally (555 tests)
+- [ ] `pytest tests/ -q` passes locally (558 tests)
 - [ ] Added new unit tests for the change
 - [ ] End-to-end verified with a real URL (describe):
 
