@@ -1,17 +1,19 @@
 {
-  "collected": 559,
-  "commit": "0e3c84ff16607cbf4026f88d63be530ecdc5be36",
-  "commit_tree_digest": "981a6f8b6b1e8cb8cfbc2654424cfcd805de82d3b101fafbd338247efe38dd5a",
+  "collected": 569,
+  "commit": "0c4b13e72540aad54dd2c31e612d9f9e905eb0fb",
+  "commit_tree_digest": "93a3d54d50aa33cb910ebc267910f4cc54d514667079e1de38ffdd8c22d4fa1e",
+  "criterion_version": "nf-v0.3",
   "deselected": 1,
   "deselected_reason": "this test reads the receipt, so its verdict is not knowable before the receipt exists; a test that judges its own run is a detector with no negative control",
   "deselected_tests": [
     "tests/test_repo_readme_badge.py::test_the_badge_word_passed_is_backed_by_a_run_of_this_tree"
   ],
   "errors": 0,
-  "failed": 0,
-  "passed": 558,
-  "product_tree_digest": "981a6f8b6b1e8cb8cfbc2654424cfcd805de82d3b101fafbd338247efe38dd5a",
-  "returncode": 0,
+  "failed": 1,
+  "passed": 567,
+  "product_tree_digest": "93a3d54d50aa33cb910ebc267910f4cc54d514667079e1de38ffdd8c22d4fa1e",
+  "returncode": 1,
+  "scope_version": "nf-scope-v0.1",
   "skipped": 0,
   "workspace_clean": true
 }

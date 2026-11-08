@@ -169,7 +169,7 @@ def receipt_violations(receipt: dict, collected_count: int, tree_digest: str) ->
     return violations
 
 
-def binding_violations(receipt: dict) -> list[str]:
+def binding_violations(receipt: dict, root: Path = ROOT) -> list[str]:
     """Every way the receipt's commit can fail to name the tree it measured.
 
     The digest check above compares the receipt against the tree that
@@ -186,7 +186,7 @@ def binding_violations(receipt: dict) -> list[str]:
     commit.
     """
     commit = receipt.get("commit")
-    resolved = commit_tree_digest(ROOT, commit) if commit else None
+    resolved = commit_tree_digest(root, commit) if commit else None
     return commit_binding_violations(receipt, resolved)
 
 
@@ -493,7 +493,7 @@ def _bound_receipt(count: int) -> dict:
     }
 
 
-def test_a_receipt_whose_commit_is_not_its_tree_does_not_back_the_badge() -> None:
+def test_a_receipt_whose_commit_is_not_its_tree_does_not_back_the_badge(tmp_path) -> None:
     """Mutation proof: a receipt whose commit names another tree goes red.
 
     This is the false green that a digest-only guard cannot see. Both
@@ -503,56 +503,104 @@ def test_a_receipt_whose_commit_is_not_its_tree_does_not_back_the_badge() -> Non
     guard that only compares the digest to the current tree passes this
     receipt without noticing, so the binding has to be checked on its
     own.
+
+    The pair of commits is built in a scratch repository, because this
+    repository's own history cannot supply it any more: every commit
+    before the scope declaration existed has no declaration, so it
+    resolves to no tree at all under any rule, and the head is the only
+    commit that resolves. The two scratch commits differ in one file
+    inside the scope, so they name two different trees.
     """
-    count = _collected_count()
-    receipt = _bound_receipt(count)
-    assert not binding_violations(receipt), (
+    repo = _scratch_repo_with_two_commits(tmp_path)
+    first, second = _scratch_commits(repo)
+    first_digest = commit_tree_digest(repo, first)
+    second_digest = commit_tree_digest(repo, second)
+    assert first_digest and second_digest, "both scratch commits must resolve to a tree"
+    assert first_digest != second_digest, "the two scratch commits must name different trees"
+
+    receipt = {
+        "collected": 0,
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "deselected": 0,
+        "deselected_tests": [],
+        "commit": first,
+        "product_tree_digest": first_digest,
+        "commit_tree_digest": first_digest,
+    }
+    assert not binding_violations(receipt, repo), (
         "the clean baseline must be clean to start from"
     )
 
-    other_commit = _some_other_commit()
-    assert other_commit and other_commit != receipt["commit"], (
-        "no second commit is available to bind the receipt to"
-    )
     misbound = dict(receipt)
-    misbound["commit"] = other_commit
-    violations = binding_violations(misbound)
+    misbound["commit"] = second
+    violations = binding_violations(misbound, repo)
     assert any("not the tree the receipt measured" in v for v in violations), (
         "a receipt bound to the wrong commit did not turn the check red; "
         "violations were: %s" % violations
     )
 
 
-def _some_other_commit() -> str:
-    """A commit in this repository that names a different tree than the head.
+def _scratch_repo_with_two_commits(tmp_path: Path) -> Path:
+    """A repository carrying this one's scope declaration, with two commits.
 
-    Not just a commit that is not the head. The digest scope is src,
-    scripts and the test modules, so a commit that only touches a file
-    outside that scope -- the receipt file itself is one -- resolves to
-    the same digest as the head. Binding the receipt to such a commit
-    produces a receipt the guard cannot tell from a correct one, and
-    the proof below would pass without proving anything.
-
-    So the commit has to differ where the digest is computed. If no
-    such commit exists the proof cannot run, and it says so rather than
-    quietly binding to a twin.
+    The two commits differ in one file inside the scope, so they
+    resolve to two different trees. The declaration is the one this
+    repository uses, so the scope under which they resolve is the scope
+    a reader would apply.
     """
+    from record_suite_run import SCOPE_DECLARATION_PATH, _scope_declaration
+
+    repo = tmp_path / "scratch"
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "tests").mkdir(parents=True)
+
+    declaration = _scope_declaration(ROOT)
+    (repo / SCOPE_DECLARATION_PATH).write_text(
+        json.dumps(declaration, indent=2) + "\n", encoding="utf-8"
+    )
+    (repo / "scripts" / "tool.py").write_text("VALUE = 1\n", encoding="utf-8")
+
+    def commit(message: str) -> None:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "user.email=scratch@example.invalid",
+                "-c",
+                "user.name=scratch",
+                "commit",
+                "-m",
+                message,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    subprocess.run(["git", "-C", str(repo), "init"], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], capture_output=True, check=True)
+    commit("first")
+    (repo / "scripts" / "tool.py").write_text("VALUE = 2\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], capture_output=True, check=True)
+    commit("second")
+    return repo
+
+
+def _scratch_commits(repo: Path) -> tuple[str, str]:
+    """The two commits of a scratch repository, oldest first."""
     proc = subprocess.run(
-        ["git", "-C", str(ROOT), "rev-list", "--max-count=20", "HEAD"],
+        ["git", "-C", str(repo), "rev-list", "--reverse", "HEAD"],
         capture_output=True,
         text=True,
     )
     commits = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-    head = _git_head()
-    head_digest = commit_tree_digest(ROOT, head)
-    for candidate in commits:
-        if candidate == head:
-            continue
-        digest = commit_tree_digest(ROOT, candidate)
-        if digest is None or digest == head_digest:
-            continue
-        return candidate
-    return ""
+    assert len(commits) >= 2, "the scratch repository needs two commits"
+    return commits[0], commits[-1]
 
 
 def test_a_receipt_that_records_its_own_commit_tree_wrongly_does_not_back_the_badge() -> None:
