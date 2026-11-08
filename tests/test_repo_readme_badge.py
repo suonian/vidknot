@@ -561,6 +561,38 @@ def test_a_receipt_that_records_its_own_commit_tree_wrongly_does_not_back_the_ba
     )
 
 
+def test_a_receipt_whose_both_digests_are_the_same_machine_polluted_value_does_not_back_the_badge() -> None:
+    """Mutation proof: two columns that agree on a polluted value still go red.
+
+    This is the case that a column-equality check cannot see. Both
+    columns carry one and the same digest, so they agree with each
+    other perfectly, and the receipt looks self-consistent. But the
+    digest describes the machine rather than the tree: it was taken
+    over build artefacts that the tree does not contain.
+
+    Only a digest resolved from the commit itself can catch it, because
+    the commit has no artefacts to include.
+    """
+    count = _collected_count()
+    receipt = _bound_receipt(count)
+    assert not binding_violations(receipt), (
+        "the clean baseline must be clean to start from"
+    )
+
+    polluted = "675c10c426e8ce5f94fd6c1d390bead82bca71c70151178b2457200e80df35ab"
+    both = dict(receipt)
+    both["product_tree_digest"] = polluted
+    both["commit_tree_digest"] = polluted
+    assert both["product_tree_digest"] == both["commit_tree_digest"], (
+        "the two columns must agree, or this proof is testing something else"
+    )
+    violations = binding_violations(both)
+    assert any("not the tree the receipt measured" in v for v in violations), (
+        "a receipt whose two columns agree on a machine-polluted digest did not turn the "
+        "check red; violations were: %s" % violations
+    )
+
+
 def test_a_receipt_naming_no_commit_does_not_back_the_badge() -> None:
     """Mutation proof: a receipt with no commit at all goes red.
 
