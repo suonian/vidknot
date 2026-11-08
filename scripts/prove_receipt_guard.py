@@ -72,6 +72,18 @@ def main() -> int:
     unaccounted["passed"] = receipt["passed"] - 1
     cases.append(("a receipt that does not account for every test", unaccounted))
 
+    misbound = dict(receipt)
+    misbound["commit"] = _some_other_commit()
+    cases.append(("a receipt whose commit names another tree", misbound))
+
+    self_contradicting = dict(receipt)
+    self_contradicting["commit_tree_digest"] = "0" * 64
+    cases.append(("a receipt whose own commit-tree record is wrong", self_contradicting))
+
+    nameless = dict(receipt)
+    nameless["commit"] = ""
+    cases.append(("a receipt that names no commit", nameless))
+
     noticed = 0
     try:
         for label, bad in cases:
@@ -87,6 +99,27 @@ def main() -> int:
 
     print("%d of %d bad receipts were refused" % (noticed, len(cases)))
     return 0 if noticed == len(cases) else 1
+
+
+def _some_other_commit() -> str:
+    """A commit in this repository that is not the current head."""
+    import subprocess
+
+    proc = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-list", "--max-count=5", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    commits = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    head = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    for candidate in commits:
+        if candidate != head:
+            return candidate
+    return ""
 
 
 if __name__ == "__main__":
