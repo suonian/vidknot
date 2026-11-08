@@ -35,6 +35,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# The scope rule is a data file, so the rule and the code that applies it
+# are one thing rather than two that can drift apart.
+SCOPE_DECLARATION_PATH = "tests/digest_scope.json"
+
+# The published criterion, whose version the receipt names.
+CRITERION_PATH = "tests/fixtures/agent_reliability/criterion_v0_3.yaml"
+
 COLLECTED_RE = re.compile(r"(\d+) tests collected")
 PASSED_RE = re.compile(r"(\d+) passed")
 FAILED_RE = re.compile(r"(\d+) failed")
@@ -98,6 +105,61 @@ def parse_summary(output: str) -> dict[str, int]:
     return {name: int(match.group(1)) if match else 0 for name, match in counters.items()}
 
 
+def _scope_declaration(root: Path) -> dict:
+    """The scope rule, read from its own file.
+
+    The rule that says what a run measures lives in a data file, so the
+    code that measures it cannot drift away from the rule that describes
+    it. A scope written only in a docstring is a declaration nobody can
+    check; a scope written only in code is a declaration a reader cannot
+    find.
+    """
+    path = root / SCOPE_DECLARATION_PATH
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _glob_to_regex(pattern: str) -> re.Pattern:
+    """A path glob, where '**' spans any number of path segments."""
+    out = ["^"]
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if pattern[index : index + 3] == "**/":
+            out.append("(?:[^/]+/)*")
+            index += 3
+            continue
+        if pattern[index : index + 2] == "**":
+            out.append(".*")
+            index += 2
+            continue
+        if char == "*":
+            out.append("[^/]*")
+            index += 1
+            continue
+        if char == "?":
+            out.append("[^/]")
+            index += 1
+            continue
+        out.append(re.escape(char))
+        index += 1
+    out.append("$")
+    return re.compile("".join(out))
+
+
+def _excluded(rel: str, declaration: dict) -> bool:
+    """Whether the declaration puts a path outside the scope."""
+    if rel in set(declaration.get("exclude_paths") or ()):
+        return True
+    for pattern in declaration.get("exclude_path_patterns") or ():
+        if _glob_to_regex(pattern).match(rel):
+            return True
+    return False
+
+
 def _scope_paths(root: Path) -> list[str]:
     """The tracked files a run measures, in a stable order.
 
@@ -108,16 +170,27 @@ def _scope_paths(root: Path) -> list[str]:
     and no receipt could ever be reproduced by someone else. The same
     reason excludes ignored files: they are by definition local.
 
-    The scope is src/ and scripts/ in full, plus the suite's own python
-    files, because a run measures the tests as well as the code, and
-    editing a test after the run invalidates the run just as editing
-    the code does.
+    The scope is whatever tests/digest_scope.json declares, read from
+    there rather than restated here. It used to be src/ and scripts/ in
+    full, plus the suite's own python files, which left the published
+    fixture artifacts outside it: a change to the criterion or to the
+    arm set did not move the digest, so a commit that changed only the
+    criterion was a twin of its parent in scope, and the receipt named
+    a tree it had not fully measured. A run measures the published
+    artifacts, because the assertions in the suite read them, so they
+    are in scope now.
 
-    The receipt itself is not in it: it is a json file, and a receipt
-    that contained its own digest could never be written.
+    The receipt itself is out of scope, because a receipt that contained
+    its own digest could never be written. That exclusion is declared
+    in the same file as everything else, so it is visible rather than
+    implied.
     """
+    declaration = _scope_declaration(root)
+    roots = list(declaration.get("include_roots") or ())
+    if not roots:
+        return []
     proc = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "-z", "--", "src", "scripts", "tests"],
+        ["git", "-C", str(root), "ls-files", "-z", "--", *roots],
         capture_output=True,
         text=True,
     )
@@ -128,12 +201,36 @@ def _scope_paths(root: Path) -> list[str]:
         if not raw:
             continue
         rel = raw.replace("\\", "/")
-        if "/__pycache__/" in rel or rel.endswith(".pyc"):
-            continue
-        if rel.startswith("tests/") and not rel.endswith(".py"):
+        if _excluded(rel, declaration):
             continue
         paths.append(rel)
     return sorted(paths)
+
+
+def scope_version(root: Path) -> str | None:
+    """The version the scope declaration states, or None when it states none."""
+    value = _scope_declaration(root).get("scope_version")
+    return value if isinstance(value, str) and value else None
+
+
+def criterion_version(root: Path) -> str | None:
+    """The version the criterion file states, or None when it states none.
+
+    The criterion is a published artifact, so its version belongs next
+    to the receipt that measured it: a reader who holds the receipt can
+    then tell which criterion the run was judged against, instead of
+    inferring it from a tree whose contents they would have to resolve
+    themselves.
+    """
+    path = root / CRITERION_PATH
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if line.startswith("criterion_version:"):
+            return line.split(":", 1)[1].strip() or None
+    return None
 
 
 def _digest_over(paths: list[str], data_for) -> str:
@@ -165,9 +262,21 @@ def product_tree_digest(root: Path) -> str:
 
 
 def _commit_scope_entries(root: Path, commit: str) -> list[tuple[str, str]]:
-    """The scope as that commit has it: path and blob id for each file."""
+    """The scope as that commit has it: path and blob id for each file.
+
+    The scope is resolved with the declaration as that commit has it, so
+    the commit and the working tree are measured by the same rule. If the
+    declaration itself changed in that commit, the old rule would still
+    be applied to the new tree, and the two digests would be computed
+    over different file sets -- which is the same shape as comparing two
+    readings that came from different definitions.
+    """
+    declaration = _commit_scope_declaration(root, commit)
+    roots = list(declaration.get("include_roots") or ())
+    if not roots:
+        return []
     proc = subprocess.run(
-        ["git", "-C", str(root), "ls-tree", "-r", "-z", commit, "--", "src", "scripts", "tests"],
+        ["git", "-C", str(root), "ls-tree", "-r", "-z", commit, "--", *roots],
         capture_output=True,
         text=True,
     )
@@ -182,12 +291,25 @@ def _commit_scope_entries(root: Path, commit: str) -> list[tuple[str, str]]:
         if len(parts) < 3:
             continue
         rel = path.replace("\\", "/")
-        if "/__pycache__/" in rel or rel.endswith(".pyc"):
-            continue
-        if rel.startswith("tests/") and not rel.endswith(".py"):
+        if _excluded(rel, declaration):
             continue
         entries.append((rel, parts[2]))
     return sorted(entries)
+
+
+def _commit_scope_declaration(root: Path, commit: str) -> dict:
+    """The scope declaration as that commit has it."""
+    proc = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "blob", "%s:%s" % (commit, SCOPE_DECLARATION_PATH)],
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return {}
+    try:
+        data = json.loads(proc.stdout.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def commit_tree_digest(root: Path, commit: str) -> str | None:
@@ -343,6 +465,8 @@ def receipt(root: Path = ROOT) -> dict:
         "commit": commit,
         "product_tree_digest": measured,
         "commit_tree_digest": committed,
+        "scope_version": scope_version(root),
+        "criterion_version": criterion_version(root),
         "workspace_clean": bool(committed) and committed == measured,
     }
 

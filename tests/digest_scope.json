@@ -1,0 +1,16 @@
+{
+  "scope_version": "nf-scope-v0.1",
+  "include_roots": [
+    "src",
+    "scripts",
+    "tests"
+  ],
+  "exclude_paths": [
+    "tests/suite_run_receipt.json"
+  ],
+  "exclude_path_patterns": [
+    "**/__pycache__/**",
+    "**/*.pyc"
+  ],
+  "note": "The scope is declared here as data so the rule that says what a run measures and the code that measures it are one thing rather than two that can drift. Everything tracked under the three roots is in scope, including the published fixture artifacts under tests/fixtures/agent_reliability/: a run measures the criterion and the arm set, because the assertions in the suite read them and a change to either changes what the run proved. Only the receipt itself is excluded, because a receipt that contained its own digest could never be written. Every other exclusion is a machine artefact, not a tracked file. Changing this file changes the scope, and therefore changes the digest: the scope rule is inside the hashed set."
+}
