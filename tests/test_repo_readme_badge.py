@@ -524,17 +524,34 @@ def test_a_receipt_whose_commit_is_not_its_tree_does_not_back_the_badge() -> Non
 
 
 def _some_other_commit() -> str:
-    """A commit in this repository that is not the current head."""
+    """A commit in this repository that names a different tree than the head.
+
+    Not just a commit that is not the head. The digest scope is src,
+    scripts and the test modules, so a commit that only touches a file
+    outside that scope -- the receipt file itself is one -- resolves to
+    the same digest as the head. Binding the receipt to such a commit
+    produces a receipt the guard cannot tell from a correct one, and
+    the proof below would pass without proving anything.
+
+    So the commit has to differ where the digest is computed. If no
+    such commit exists the proof cannot run, and it says so rather than
+    quietly binding to a twin.
+    """
     proc = subprocess.run(
-        ["git", "-C", str(ROOT), "rev-list", "--max-count=5", "HEAD"],
+        ["git", "-C", str(ROOT), "rev-list", "--max-count=20", "HEAD"],
         capture_output=True,
         text=True,
     )
     commits = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
     head = _git_head()
+    head_digest = commit_tree_digest(ROOT, head)
     for candidate in commits:
-        if candidate != head:
-            return candidate
+        if candidate == head:
+            continue
+        digest = commit_tree_digest(ROOT, candidate)
+        if digest is None or digest == head_digest:
+            continue
+        return candidate
     return ""
 
 
