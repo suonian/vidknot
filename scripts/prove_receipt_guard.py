@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tests"))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 RECEIPT_PATH = ROOT / "tests" / "suite_run_receipt.json"
 
@@ -73,7 +74,7 @@ def main() -> int:
     cases.append(("a receipt that does not account for every test", unaccounted))
 
     misbound = dict(receipt)
-    misbound["commit"] = _some_other_commit()
+    misbound["commit"] = _some_other_commit(receipt)
     cases.append(("a receipt whose commit names another tree", misbound))
 
     self_contradicting = dict(receipt)
@@ -87,6 +88,9 @@ def main() -> int:
     noticed = 0
     try:
         for label, bad in cases:
+            if bad == receipt:
+                print("EMPTY MUTATION: %s" % label)
+                continue
             RECEIPT_PATH.write_text(json.dumps(bad, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             code, output = _run_guard()
             if code == 0:
@@ -101,12 +105,26 @@ def main() -> int:
     return 0 if noticed == len(cases) else 1
 
 
-def _some_other_commit() -> str:
-    """A commit in this repository that is not the current head."""
+def _some_other_commit(receipt: dict) -> str:
+    """A commit that resolves to a tree other than the one the receipt names.
+
+    It has to be a commit the receipt does not already name, and it has
+    to resolve to a tree, or the mutation writes back the same receipt
+    and the check passes on a receipt nobody changed. That is the shape
+    of a proof that cannot go red: the guard was fine, the mutation was
+    empty.
+
+    Picking "any commit that is not HEAD" was enough while the receipt
+    named HEAD. Once the receipt named an older commit, that rule handed
+    back the receipt's own commit and the mutation became a no-op, so
+    the case silently stopped testing anything.
+    """
     import subprocess
 
+    from record_suite_run import commit_tree_digest
+
     proc = subprocess.run(
-        ["git", "-C", str(ROOT), "rev-list", "--max-count=5", "HEAD"],
+        ["git", "-C", str(ROOT), "rev-list", "--max-count=20", "HEAD"],
         capture_output=True,
         text=True,
     )
@@ -116,8 +134,14 @@ def _some_other_commit() -> str:
         capture_output=True,
         text=True,
     ).stdout.strip()
+
+    named = receipt.get("commit")
+    measured = receipt.get("product_tree_digest")
     for candidate in commits:
-        if candidate != head:
+        if candidate == head or candidate == named:
+            continue
+        resolved = commit_tree_digest(ROOT, candidate)
+        if resolved and resolved != measured:
             return candidate
     return ""
 
