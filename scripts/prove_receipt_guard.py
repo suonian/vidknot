@@ -85,11 +85,17 @@ def main() -> int:
     nameless["commit"] = ""
     cases.append(("a receipt that names no commit", nameless))
 
+    result = _run_cases(cases, receipt)
+    for label, duplicate_of in result.duplicates:
+        print("DUPLICATE CASE: %s is the same bytes as %s" % (label, duplicate_of))
+
     noticed = 0
     try:
         for label, bad in cases:
             if bad == receipt:
                 print("EMPTY MUTATION: %s" % label)
+                continue
+            if label in result.duplicate_labels:
                 continue
             RECEIPT_PATH.write_text(json.dumps(bad, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             code, output = _run_guard()
@@ -101,8 +107,59 @@ def main() -> int:
     finally:
         RECEIPT_PATH.write_text(original, encoding="utf-8")
 
-    print("%d of %d bad receipts were refused" % (noticed, len(cases)))
+    print(
+        "%d of %d bad receipts were refused"
+        % (noticed, len(cases) - len(result.duplicate_labels))
+    )
+    if result.duplicate_labels:
+        print(
+            "the proof covered %d distinct mutations, not %d"
+            % (result.distinct_count, len(cases))
+        )
+        return 1
     return 0 if noticed == len(cases) else 1
+
+
+def _run_cases(cases: list[tuple[str, dict]], receipt: dict) -> "_DistinctCases":
+    """Work out how many byte-distinct mutations a case list contains.
+
+    Two cases that write the same bytes are one case wearing two
+    labels. The guard refuses both, so a tally that counted labels would
+    read as full coverage while the suite exercised one shape fewer
+    than it claims. A case that has collapsed into another case has
+    stopped testing anything, which is the same failure as an empty
+    mutation, so it is reported as its own outcome rather than counted
+    as a refusal.
+    """
+    seen: dict[str, str] = {}
+    duplicates: list[tuple[str, str]] = []
+    duplicate_labels: set[str] = set()
+    for label, bad in cases:
+        key = json.dumps(bad, indent=2, sort_keys=True) + "\n"
+        if key in seen:
+            duplicates.append((label, seen[key]))
+            duplicate_labels.add(label)
+        else:
+            seen[key] = label
+    return _DistinctCases(
+        distinct_count=len(seen),
+        duplicates=duplicates,
+        duplicate_labels=duplicate_labels,
+    )
+
+
+class _DistinctCases:
+    """How many byte-distinct mutations a case list really contains."""
+
+    def __init__(
+        self,
+        distinct_count: int,
+        duplicates: list[tuple[str, str]],
+        duplicate_labels: set[str],
+    ) -> None:
+        self.distinct_count = distinct_count
+        self.duplicates = duplicates
+        self.duplicate_labels = duplicate_labels
 
 
 def _some_other_commit(receipt: dict) -> str:

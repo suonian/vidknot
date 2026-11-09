@@ -99,6 +99,142 @@ def test_the_proof_would_report_an_empty_mutation_instead_of_passing_it() -> Non
     )
 
 
+def test_the_proof_counts_byte_distinct_mutations_not_labels() -> None:
+    """Two labels that write the same bytes are one mutation, not two.
+
+    The proof's tally is a coverage number, so it has to count the
+    shapes the suite actually exercised. Two cases whose mutated
+    receipts are byte-identical are refused for the same reason, so
+    counting them separately would report coverage the suite never
+    had.
+    """
+    receipt = _receipt()
+
+    first = dict(receipt)
+    first["passed"] = receipt["passed"] - 1
+
+    # The same mutation under a second label.
+    second = dict(receipt)
+    second["passed"] = receipt["passed"] - 1
+
+    cases = [
+        ("a receipt that does not account for every test", first),
+        ("a receipt whose commit names another tree", second),
+    ]
+
+    result = prove_receipt_guard._run_cases(cases, receipt)
+    assert result.distinct_count == 1, (
+        "two byte-identical mutations were counted as %d distinct ones"
+        % result.distinct_count
+    )
+    assert result.duplicate_labels == {"a receipt whose commit names another tree"}, (
+        "the duplicate case was not identified: %s" % sorted(result.duplicate_labels)
+    )
+    assert result.duplicates, "the duplicate was not reported against its twin"
+
+
+def test_a_pair_of_distinct_mutations_is_not_reported_as_a_duplicate() -> None:
+    """The duplicate check must not fire on mutations that really differ.
+
+    A check that reported every pair as a duplicate would be a check
+    that cannot pass, so it proves nothing. This one requires two
+    genuinely different mutations to be counted as two.
+    """
+    receipt = _receipt()
+
+    first = dict(receipt)
+    first["passed"] = receipt["passed"] - 1
+
+    second = dict(receipt)
+    second["commit"] = "0" * 40
+
+    cases = [
+        ("a receipt that does not account for every test", first),
+        ("a receipt whose commit names another tree", second),
+    ]
+
+    result = prove_receipt_guard._run_cases(cases, receipt)
+    assert result.distinct_count == 2, (
+        "two different mutations were counted as %d distinct ones"
+        % result.distinct_count
+    )
+    assert not result.duplicate_labels, (
+        "distinct mutations were reported as duplicates: %s"
+        % sorted(result.duplicate_labels)
+    )
+
+
+def test_the_degenerate_case_list_is_not_reported_as_full_coverage() -> None:
+    """The shape that actually happens: a case collapses into another.
+
+    This is the real defect, not a synthetic one. When the rule that
+    picks the candidate commit finds nothing, the misbound case falls
+    back to an empty commit, which is byte-for-byte the nameless case.
+    The guard refuses both, so the old tally read seven of seven
+    refused while the suite had exercised six distinct shapes.
+
+    The check has to notice the collapse, and the coverage number it
+    reports has to be the number of distinct shapes rather than the
+    number of labels.
+    """
+    receipt = _receipt()
+
+    # What the misbound case becomes when no candidate commit resolves
+    # to a different tree.
+    misbound = dict(receipt)
+    misbound["commit"] = ""
+
+    nameless = dict(receipt)
+    nameless["commit"] = ""
+
+    cases = [
+        ("a receipt whose commit names another tree", misbound),
+        ("a receipt that names no commit", nameless),
+    ]
+
+    result = prove_receipt_guard._run_cases(cases, receipt)
+    assert result.distinct_count == 1, (
+        "the collapsed case list was counted as %d distinct mutations"
+        % result.distinct_count
+    )
+    assert result.duplicate_labels == {"a receipt that names no commit"}, (
+        "the collapse was not attributed to the case that duplicated: %s"
+        % sorted(result.duplicate_labels)
+    )
+
+
+def test_the_proof_script_reports_no_duplicate_case() -> None:
+    """The proof must end green, and it must not be counting labels.
+
+    This is the end-to-end check on the real case list: the script runs
+    as a whole, every case it lists has to be a byte-distinct
+    mutation, and the script has to exit zero. A case list that has
+    collapsed into itself would show up here as a duplicate line rather
+    than as a quiet overstatement of coverage.
+    """
+    proc = subprocess.run(
+        [sys.executable, "scripts/prove_receipt_guard.py"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, (
+        "the receipt guard proof did not refuse every bad receipt:\n%s\n%s"
+        % (proc.stdout[-4000:], proc.stderr[-4000:])
+    )
+    assert "EMPTY MUTATION" not in proc.stdout, (
+        "the proof reported an empty mutation, so a case stopped being exercised:\n%s"
+        % proc.stdout
+    )
+    assert "DUPLICATE CASE" not in proc.stdout, (
+        "the proof reported two labels over the same bytes, so it is "
+        "counting labels rather than shapes:\n%s" % proc.stdout
+    )
+    assert "NOT NOTICED" not in proc.stdout, (
+        "the guard passed a bad receipt it should have refused:\n%s" % proc.stdout
+    )
+
+
 def test_the_proof_script_runs_and_refuses_every_bad_receipt() -> None:
     """The proof itself must end green, on every case it lists.
 
