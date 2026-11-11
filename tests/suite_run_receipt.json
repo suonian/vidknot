@@ -1,7 +1,7 @@
 {
-  "collected": 577,
-  "commit": "abb29cccaccccc4062842a8df5f3c1d0fe83bdca",
-  "commit_tree_digest": "37a0b173a590068502efadb3ac12de61fc028bf7d61e4041a9ee0b468d421cb8",
+  "collected": 585,
+  "commit": "5195bb6b8f4a1ee386ada50c5f9975a048bfd9ad",
+  "commit_tree_digest": "a7b4589c913fce10c7b32a0258cb0c906a02ee3eb9884ca74806ddd3df4e2189",
   "criterion_version": "nf-v0.3",
   "deselected": 1,
   "deselected_reason": "this test reads the receipt, so its verdict is not knowable before the receipt exists; a test that judges its own run is a detector with no negative control",
@@ -10,10 +10,10 @@
   ],
   "errors": 0,
   "failed": 0,
-  "passed": 576,
-  "product_tree_digest": "37a0b173a590068502efadb3ac12de61fc028bf7d61e4041a9ee0b468d421cb8",
+  "passed": 584,
+  "product_tree_digest": "a7b4589c913fce10c7b32a0258cb0c906a02ee3eb9884ca74806ddd3df4e2189",
   "returncode": 0,
-  "scope_version": "nf-scope-v0.1",
+  "scope_version": "nf-scope-v0.2",
   "skipped": 0,
   "workspace_clean": true
 }
