@@ -379,3 +379,117 @@ def test_the_declaration_file_is_itself_inside_the_scope() -> None:
         "the scope declaration must be in scope, so changing the rule "
         "changes the digest"
     )
+
+
+# The files that decide which tests are collected and how they are
+# selected. They are tracked files that sit outside the three roots, so
+# they have to be named one by one.
+SELECTOR_PATHS = (
+    "pytest.ini",
+    "pyproject.toml",
+    ".github/workflows/ci.yml",
+)
+
+
+def test_the_selector_that_decides_which_tests_measure_is_inside_the_scope() -> None:
+    """The rule that says which tests measure the tree must be hashed too.
+
+    This is the same shape as the published artifacts having been outside
+    the scope, one level up. The scope covered the criterion and the arm
+    set, so a change to either moved the digest. But the selector -- the
+    pytest settings that decide which tests are collected, and the
+    pipeline command that runs them -- was outside the scope. Changing
+    the selector therefore moved the collected count while the tree
+    digest stayed exactly where it was: two numbers from two definitions
+    sharing one table, and the tree digest could not tell a reader that
+    the selection had changed under it.
+
+    The selector is in scope now, so this check reads it back.
+    """
+    scope = set(_scope_paths(ROOT))
+    missing = [name for name in SELECTOR_PATHS if name not in scope]
+    assert not missing, (
+        "these files decide which tests are collected and how they are "
+        "selected, but they are outside the digest scope, so changing the "
+        "selector moves the collected count without moving the digest: "
+        f"{', '.join(missing)}"
+    )
+
+
+def test_changing_the_selector_moves_the_digest() -> None:
+    """The point of the fix: a change to the selector must be visible.
+
+    The digest is a property of the tree the run measured. If the
+    selector is not in it, then two trees that differ only in the
+    selector have the same digest, and the receipt cannot tell a reader
+    which selection the run was taken under.
+    """
+    scope = _scope_paths(ROOT)
+    selector = "pytest.ini"
+    assert selector in scope, (
+        "the selector must be in scope for this check to mean anything"
+    )
+
+    def real_bytes(rel: str) -> bytes:
+        try:
+            return (ROOT / rel).read_bytes()
+        except OSError:
+            return b""
+
+    def edited_bytes(rel: str) -> bytes:
+        if rel == selector:
+            return real_bytes(rel) + b"\n# local edit\n"
+        return real_bytes(rel)
+
+    before = _digest_over(scope, real_bytes)
+    after = _digest_over(scope, edited_bytes)
+    assert before != after, (
+        "editing the selector did not move the digest, so the receipt "
+        "cannot distinguish a tree with one selection from a tree with "
+        "another"
+    )
+    assert before == product_tree_digest(ROOT), (
+        "the digest computed here must equal the one the receipt uses, "
+        "otherwise this check is about a different function"
+    )
+
+
+def test_the_scope_version_moved_when_the_selector_was_added() -> None:
+    """A scope that changed must be distinguishable from one that did not.
+
+    The scope version is how a reader tells two readings taken under
+    different rules apart. The selector was added to the scope, so the
+    scope changed, so the version has to say so: a reader comparing a
+    tree digest taken under the old scope with one taken under the new
+    one would otherwise have no way to tell that the two numbers were
+    computed over different file sets.
+    """
+    declaration = _scope_declaration(ROOT)
+    version = declaration.get("scope_version")
+    assert version, "the scope declaration must carry a version"
+    assert version != "nf-scope-v0.1", (
+        "the selector was added to the scope, which changed the scope, so "
+        "the scope version must move; a reader could not otherwise tell "
+        "that two tree digests were computed over different file sets"
+    )
+
+
+def test_a_scope_without_the_selector_paths_declared_is_not_accepted() -> None:
+    """The declaration must name the selector files it claims to cover.
+
+    A declaration that drops the include_paths key falls back to the
+    three roots alone, which is the scope that had the hole in it. This
+    check reads the declaration rather than the resolved scope, so it
+    catches the key going missing before the scope is resolved.
+    """
+    declaration = _scope_declaration(ROOT)
+    declared = list(declaration.get("include_paths") or ())
+    assert declared, (
+        "the declaration must name the selector files it covers; without "
+        "them the scope silently falls back to the roots alone"
+    )
+    for name in SELECTOR_PATHS:
+        assert name in declared, (
+            f"the declaration must name {name}, so the selector stays "
+            f"inside the scope"
+        )

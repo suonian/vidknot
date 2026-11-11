@@ -187,10 +187,11 @@ def _scope_paths(root: Path) -> list[str]:
     """
     declaration = _scope_declaration(root)
     roots = list(declaration.get("include_roots") or ())
-    if not roots:
+    files = list(declaration.get("include_paths") or ())
+    if not roots and not files:
         return []
     proc = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "-z", "--", *roots],
+        ["git", "-C", str(root), "ls-files", "-z", "--", *roots, *files],
         capture_output=True,
         text=True,
     )
@@ -273,10 +274,11 @@ def _commit_scope_entries(root: Path, commit: str) -> list[tuple[str, str]]:
     """
     declaration = _commit_scope_declaration(root, commit)
     roots = list(declaration.get("include_roots") or ())
-    if not roots:
+    files = list(declaration.get("include_paths") or ())
+    if not roots and not files:
         return []
     proc = subprocess.run(
-        ["git", "-C", str(root), "ls-tree", "-r", "-z", commit, "--", *roots],
+        ["git", "-C", str(root), "ls-tree", "-r", "-z", commit, "--", *roots, *files],
         capture_output=True,
         text=True,
     )

@@ -82,6 +82,14 @@ IDENTICAL = "IDENTICAL"
 LOCATION_DEPENDENT = "LOCATION_DEPENDENT"
 DIFFERENT = "DIFFERENT"
 
+# The verdicts that may contribute to a PASS/FAIL judgement. This is a
+# whitelist, not a blacklist: a new verdict must be named here before it
+# can enter a pass rate. A blacklist of the excluded value would let every
+# verdict added later pass the filter by default, so adding a state would
+# silently widen the denominator -- the "add a state and the check is
+# wrong" trap.
+VERDICTS_ENTERING = (IDENTICAL, DIFFERENT)
+
 
 @dataclass(frozen=True)
 class StreamComparison:
@@ -91,6 +99,7 @@ class StreamComparison:
     byte_delta: int
     path_length_delta: int
     path_occurrences: int
+    path_occurrences_second: int
     expected_byte_delta: int
     normalised_identical: bool
 
@@ -101,8 +110,15 @@ class StreamComparison:
         A location-dependent reading may not. It is a property of where the
         program ran, and folding it into a pass rate reports the runtime
         layout as if it were the program's behaviour.
+
+        The filter is a whitelist of the verdicts that may enter, not a
+        blacklist of the one that may not. A blacklist lets any verdict
+        added later enter by default, so widening the verdict domain
+        would silently widen the denominator. The whitelist makes the
+        default "does not enter", so a new state has to be named here
+        before it can be counted.
         """
-        return self.verdict != LOCATION_DEPENDENT
+        return self.verdict in VERDICTS_ENTERING
 
     @property
     def explained(self) -> bool:
@@ -179,6 +195,7 @@ def compare_streams(
         byte_delta=byte_delta,
         path_length_delta=path_length_delta,
         path_occurrences=occurrences_first,
+        path_occurrences_second=occurrences_second,
         expected_byte_delta=expected_byte_delta,
         normalised_identical=normalised_identical,
     )
@@ -206,8 +223,12 @@ class RecordComparison:
         A location-dependent reading may not. It is a property of where the
         program ran, and folding it into a pass rate reports the runtime
         layout as if it were the program's behaviour.
+
+        The filter is a whitelist, for the same reason as in
+        :class:`StreamComparison`: a verdict added later must be named
+        before it can enter a pass rate.
         """
-        return self.verdict != LOCATION_DEPENDENT
+        return self.verdict in VERDICTS_ENTERING
 
 
 def _normalise_field(value: object, path: str) -> object:

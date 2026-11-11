@@ -35,6 +35,8 @@ from byte_stream_comparability import (  # noqa: E402
     DIFFERENT,
     IDENTICAL,
     LOCATION_DEPENDENT,
+    VERDICTS_ENTERING,
+    StreamComparison,
     compare_streams,
 )
 
@@ -191,3 +193,89 @@ def test_the_verdict_domain_is_closed() -> None:
         result = compare_streams(first, second, SHORT_ROOT, LONG_ROOT)
         assert result.verdict in verdicts
         assert result.enters_verdict is (result.verdict != LOCATION_DEPENDENT)
+
+
+def test_a_verdict_outside_the_whitelist_does_not_enter_the_denominator() -> None:
+    """Must-fail arm: a new verdict must not enter a pass rate by default.
+
+    The filter used to be a blacklist: it excluded one known verdict and
+    let every other value through. A blacklist is a filter whose default
+    side is "enters", so adding a verdict later would silently widen the
+    denominator -- and a state that was added precisely because it must
+    not be counted would be counted anyway.
+
+    The filter is a whitelist now, so a value that is not named in it does
+    not enter. This arm checks that directly: it builds a comparison
+    carrying a verdict outside the whitelist and requires that it stays
+    out of the denominator. With the old blacklist this arm goes red.
+    """
+    result = StreamComparison(
+        verdict="NOT_COMPARABLE",
+        byte_delta=3,
+        path_length_delta=3,
+        path_occurrences=1,
+        path_occurrences_second=2,
+        expected_byte_delta=0,
+        normalised_identical=False,
+    )
+    assert result.enters_verdict is False, (
+        "a verdict that is not named in the whitelist must not enter a "
+        "PASS/FAIL denominator; the default side of the filter has to be "
+        "does-not-enter, or adding a state widens the denominator"
+    )
+
+
+def test_the_whitelist_names_exactly_the_two_verdicts_that_may_enter() -> None:
+    """The whitelist must be the set it claims to be, not a subset of it.
+
+    A whitelist that names too few verdicts silently drops real
+    differences from the denominator; one that names too many puts a
+    state back in that must stay out. Both directions are read here.
+    """
+    assert set(VERDICTS_ENTERING) == {IDENTICAL, DIFFERENT}, (
+        "the whitelist must name exactly the identical and different "
+        "verdicts; the location-dependent one measures where the program "
+        "ran and must not be counted"
+    )
+    assert LOCATION_DEPENDENT not in VERDICTS_ENTERING
+    assert len(set(VERDICTS_ENTERING)) == len(VERDICTS_ENTERING), (
+        "the whitelist must not name a verdict twice"
+    )
+
+
+def test_both_occurrence_counts_are_recorded() -> None:
+    """Must-fail arm: the second stream's occurrence count must be kept.
+
+    The occurrence count of the first stream was recorded and the second
+    one's was computed and then thrown away, so a comparison that came
+    out as not-comparable could not be re-examined afterwards: the
+    evidence for which side carried the path an extra time was gone. The
+    count is the evidence, so it is recorded for both sides.
+    """
+    first = _stream(SHORT_ROOT, occurrences=1)
+    second = _stream(LONG_ROOT, occurrences=2)
+    result = compare_streams(first, second, SHORT_ROOT, LONG_ROOT)
+
+    assert result.path_occurrences == 1, (
+        f"the first stream's occurrence count must be recorded, got "
+        f"{result.path_occurrences}"
+    )
+    assert result.path_occurrences_second == 2, (
+        "the second stream's occurrence count must be recorded too; it was "
+        "computed and discarded, so the evidence for which side carried "
+        "the path an extra time was lost"
+    )
+
+
+def test_the_two_occurrence_counts_differ_when_the_streams_do() -> None:
+    """A pair whose counts differ must show it in both recorded columns."""
+    result = compare_streams(
+        _stream(SHORT_ROOT, occurrences=1),
+        _stream(LONG_ROOT, occurrences=2),
+        SHORT_ROOT,
+        LONG_ROOT,
+    )
+    assert result.path_occurrences != result.path_occurrences_second, (
+        f"the two recorded counts must show the difference, got "
+        f"{result.path_occurrences} and {result.path_occurrences_second}"
+    )

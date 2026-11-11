@@ -1,9 +1,14 @@
 {
-  "scope_version": "nf-scope-v0.1",
+  "scope_version": "nf-scope-v0.2",
   "include_roots": [
     "src",
     "scripts",
     "tests"
+  ],
+  "include_paths": [
+    "pytest.ini",
+    "pyproject.toml",
+    ".github/workflows/ci.yml"
   ],
   "exclude_paths": [
     "tests/suite_run_receipt.json"
@@ -12,5 +17,5 @@
     "**/__pycache__/**",
     "**/*.pyc"
   ],
-  "note": "The scope is declared here as data so the rule that says what a run measures and the code that measures it are one thing rather than two that can drift. Everything tracked under the three roots is in scope, including the published fixture artifacts under tests/fixtures/agent_reliability/: a run measures the criterion and the arm set, because the assertions in the suite read them and a change to either changes what the run proved. Only the receipt itself is excluded, because a receipt that contained its own digest could never be written. Every other exclusion is a machine artefact, not a tracked file. Changing this file changes the scope, and therefore changes the digest: the scope rule is inside the hashed set."
+  "note": "The scope is declared here as data so the rule that says what a run measures and the code that measures it are one thing rather than two that can drift. Everything tracked under the three roots is in scope, including the published fixture artifacts under tests/fixtures/agent_reliability/: a run measures the criterion and the arm set, because the assertions in the suite read them and a change to either changes what the run proved. The three files in include_paths are the selector: pytest.ini and pyproject.toml carry the pytest settings that decide which tests are collected and how they are selected, and .github/workflows/ci.yml carries the command the pipeline runs. They were outside the scope, and that was the same shape as the published artifacts having been outside it one level up: the rule that says what is measured was inside the hashed set, but the rule that says which tests measure it was not, so changing the selector moved the collected count while the tree digest stayed where it was. Two numbers from two definitions were sharing one table. They are in scope now, so a change to the selector moves the digest as well. The receipt itself is excluded, because a receipt that contained its own digest could never be written. Every other exclusion is a machine artefact, not a tracked file. Changing this file changes the scope, and therefore changes the digest: the scope rule is inside the hashed set."
 }
