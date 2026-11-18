@@ -297,8 +297,8 @@ class TestDualASRCorrector:
         fw = "[  0.0s -    3.4s] 三大平台瞒了创作者们整整8年"
         sf = "三大平台瞒了创作者们整整8年"
 
-        # 不应该调用任何 mmx
-        with patch("vidknot.core.corrector._mmx_chat") as mock_chat:
+        # 不应该调用任何 LLM
+        with patch("vidknot.core.corrector._correction_chat") as mock_chat:
             c = DualASRCorrector(version="v4")
             result = c.correct(fw, sf, "测试视频")
 
@@ -311,7 +311,7 @@ class TestDualASRCorrector:
         fw = "[  0.0s -    3.4s] papi酱是知名创作者"
         sf = "puppy酱是知名创作者"
 
-        # Mock mmx_chat 返回两次（一次清单，一次校正）
+        # Mock 校正对话返回两次（一次清单，一次校正）
         mock_chat = MagicMock(side_effect=[
             "1. 搜证 [papi酱] - 知名网红",  # 搜证清单
             """校正决定表...
@@ -321,9 +321,10 @@ class TestDualASRCorrector:
 ===END===""",  # 校正结果
         ])
 
-        # Mock mmx_search
-        with patch("vidknot.core.corrector._mmx_chat", mock_chat):
-            with patch("vidknot.core.corrector._mmx_search", return_value="[papi酱] 知名网红"):
+        # Mock 搜证（patch 后端分发层，与具体厂商无关）
+        with patch("vidknot.core.corrector._correction_chat", mock_chat):
+            with patch("vidknot.core.corrector._search_web",
+                       return_value="[papi酱] 知名网红"):
                 c = DualASRCorrector(version="v4")
                 result = c.correct(fw, sf, "测试视频")
 
@@ -350,8 +351,8 @@ class TestDualASRCorrector:
 [  0.0s -    3.4s] papi酱是知名创作者
 ===END==="""
 
-        with patch("vidknot.core.corrector._mmx_chat", side_effect=capture):
-            with patch("vidknot.core.corrector._mmx_search", return_value="mock result"):
+        with patch("vidknot.core.corrector._correction_chat", side_effect=capture):
+            with patch("vidknot.core.corrector._search_web", return_value="mock result"):
                 c = DualASRCorrector(version="v4")
                 c.correct(fw, sf, "测试视频")
 
@@ -364,13 +365,13 @@ class TestDualASRCorrector:
         fw = "[  0.0s -    3.4s] papi酱是知名创作者"
         sf = "puppy酱是知名创作者"
 
-        with patch("vidknot.core.corrector._mmx_chat", side_effect=[
+        with patch("vidknot.core.corrector._correction_chat", side_effect=[
             "1. 搜证 [papi酱] - 知名网红",
             """===CORRECTED===
 [  0.0s -    3.4s] papi酱是知名创作者
 ===END===""",
         ]):
-            with patch("vidknot.core.corrector._mmx_search", return_value="mock"):
+            with patch("vidknot.core.corrector._search_web", return_value="mock"):
                 c = DualASRCorrector(version="v4")
                 result = c.correct(fw, sf, "测试")
 

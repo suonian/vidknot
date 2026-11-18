@@ -5,6 +5,7 @@
 - [错误速查表](#错误速查表)
 - [安装与环境](#安装与环境)
 - [平台支持](#平台支持)
+- [模型与搜证（不绑定厂商）](#模型与搜证不绑定厂商)
 - [Cookie 与认证](#cookie-与认证)
 - [API 与配置](#api-与配置)
 - [输出与保存](#输出与保存)
@@ -225,6 +226,81 @@ python -m vidknot "URL" --destination none
 ### Q: 生成的笔记长什么样？
 
 见下方 [示例输出](#示例输出)。
+
+### Q: 保存没有生效，笔记去哪了？
+
+**v0.6.13 之前这是一个静默失效的缺陷**，现已修复。
+
+旧行为有两个叠加原因：
+
+1. 写入器只在传入**非空** config 时才被实例化 —— CLI 传的
+   `feishu_config` 是空 dict（falsy），MCP 完全不传，于是
+   `_get_obsidian_writer()` 等全部返回 `None`，`save()` 直接返回空串；
+2. `FeishuWriter.create_document` 被误声明为 `async`，同步调用方拿到的
+   只是**从未被 await 的协程对象**，飞书文档同样从未创建。
+
+现在：
+
+- 写入器一律惰性构造（无显式 config 时回落到 `config.yaml`，并忽略
+  `YOUR_XXX` 占位符）；
+- 凭证缺失会**明确报错**（`StorageError`，带修正建议），不再静默跳过；
+- CLI 先输出笔记再执行保存 —— 保存失败时笔记不会丢，命令以非零码退出；
+- MCP 在保存失败时把已生成的 Markdown 一并回传。
+
+如果仍然遇到保存失败，按提示补齐对应凭证即可：
+
+| 目的地 | 需要的凭证 |
+|--------|-----------|
+| Obsidian | `OBSIDIAN_VAULT_PATH`（或 `config.yaml` 的 `obsidian.vault_path`）|
+| 飞书 | `FEISHU_APP_ID` + `FEISHU_APP_SECRET` |
+| Notion | `NOTION_TOKEN`（+ `NOTION_PAGE_ID`）|
+| 语雀 | `YUQUE_TOKEN`（+ `YUQUE_LOGIN`）|
+
+---
+
+## 模型与搜证（不绑定厂商）
+
+### Q: 搜证和纠错用的是哪个模型？
+
+**取决于你怎么用 VidkNot。**
+
+**方式 A（两段式，推荐给 Agent）**：VidkNot **不调任何大模型、不联网搜索**。
+`video_material` / `--material` 只产出「素材包」（转写全文 + 双 ASR 差异 +
+待搜证词），你用**自己的搜索工具**搜证、用**自己的模型**纠错与成稿，
+再通过 `save_note` / `--save-note` 落库。
+
+**方式 B（一键成稿）**：VidkNot 内部调 LLM。走 `providers.default_provider`
+配的 OpenAI 兼容端点，与你笔记生成用的是同一个 provider 和同一个模型。
+
+双 ASR 校正的后端由 `settings.correction_backend` 决定：
+
+| 值 | 行为 |
+|----|------|
+| `auto`（默认）| 按 **provider → mmx → 跳过** 选第一个可用的，不绑定厂商 |
+| `provider` | 强制用 OpenAI 兼容端点（DeepSeek / 豆包 / 通义 / 本地 Ollama 均可）|
+| `mmx` | 强制用 MiniMax 官方 CLI（`mmx text chat`）|
+| `none` | 不做校正 |
+
+联网搜证由 `settings.search_backend` 决定（`mmx` / `none`）；
+`settings.correction_model` 只对 `mmx` 后端生效，留空则用 `mmx` CLI 自身
+的默认模型。
+
+### Q: 必须装 MiniMax 的 mmx CLI 吗？
+
+**不必须。** `mmx` 只是一个可选后端：
+
+- `correction_backend: auto`（默认）会先看你的 provider 可不可用，可用就用
+  provider，完全不碰 mmx；
+- 方式 A（两段式）下，搜证与校正都在你的智能体里，VidkNot 根本不调用校正
+  与搜证链路；
+- 装了 mmx 也不代表会被强制使用 —— `search_backend: none` 就能关掉它的
+  联网搜索。
+
+### Q: `providers.siliconflow.model` 改了没反应？
+
+v0.6.13 之前它是**死键** —— 4 个调用点全是无参 `SiliconFlowASR()`，
+模型取的是构造函数签名默认值。现已真正透传给 ASR 请求，
+`providers.siliconflow.base_url` 也可以覆盖端点。
 
 ---
 

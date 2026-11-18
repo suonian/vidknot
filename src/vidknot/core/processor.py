@@ -259,6 +259,14 @@ summary: [一句话总结视频内容]
 
         return self._client
 
+    def chat(self, prompt: str) -> str:
+        """用配置的 provider 做一次纯文本对话（不套用笔记模板）。
+
+        供双 ASR 校正等需要自由 prompt 的场景复用——这样校正与笔记生成
+        走同一个 provider / 模型，不绑定任何厂商。
+        """
+        return self._call_llm(prompt)
+
     def summarize(
         self,
         transcription: str,

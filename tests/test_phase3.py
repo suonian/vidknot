@@ -24,7 +24,15 @@ class TestListToolsSchema:
 
         tools = list_tools_schema()
         names = {t["name"] for t in tools}
-        assert names == {"video_to_notes", "batch_process", "platform_status", "search_video"}
+        assert names == {
+            "video_to_notes",
+            "batch_process",
+            "platform_status",
+            "search_video",
+            # 两段式 Agent 契约（v0.6.13）
+            "video_material",
+            "save_note",
+        }
 
     def test_each_tool_has_input_schema(self):
         from vidknot.adapters.mcp_server import list_tools_schema

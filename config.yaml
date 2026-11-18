@@ -4,6 +4,17 @@ settings:
   # Dual-ASR correction pipeline
   enable_correction: true
   correction_version: v4  # v4 = conservative, v3 = aggressive
+  # 校正 / 搜证后端 —— 不绑定任何厂商
+  #   correction_backend: auto | provider | mmx | none
+  #     auto     = 按 provider -> mmx -> 跳过 的顺序自动选第一个可用的（默认）
+  #     provider = 强制用 providers.default_provider 配的 OpenAI 兼容端点
+  #     mmx      = 强制用 mmx CLI（MiniMax 官方 CLI）
+  #     none     = 不做双 ASR 校正
+  #   search_backend: mmx | none（mmx 未安装时自动跳过搜证，不报错）
+  #   correction_model: 仅 mmx 后端生效；留空则用 mmx CLI 自身默认模型
+  correction_backend: auto
+  search_backend: mmx
+  correction_model: MiniMax-M3
 network:
   # 网络超时与重试（秒）。瞬断场景自动指数退避重试，永久错误（401/403/404）不重试
   http_timeout: 30        # 平台解析类 HTTP 请求
@@ -57,6 +68,9 @@ providers:
     max_tokens: 4000
   siliconflow:
     api_key: YOUR_SILICONFLOW_KEY
+    # ASR 模型（v0.6.13 起真正生效；此前该键为死配置）
+    model: FunAudioLLM/SenseVoiceSmall
+    base_url: https://api.siliconflow.cn/v1
 feishu:
   app_id: YOUR_FEISHU_APP_ID
   app_secret: YOUR_FEISHU_APP_SECRET
@@ -67,3 +81,7 @@ obsidian:
 notion:
   token: YOUR_NOTION_TOKEN
   page_id: YOUR_NOTION_PAGE_ID
+yuque:
+  token: YOUR_YUQUE_TOKEN
+  login: YOUR_YUQUE_LOGIN
+  default_path: VidkNot

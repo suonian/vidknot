@@ -48,13 +48,55 @@ class SiliconFlowASR:
 
     SUPPORTED_FORMATS = {".mp3", ".m4a", ".wav", ".flac", ".ogg", ".opus", ".webm", ".aac", ".amr", ".wma", ".mka"}
 
+    DEFAULT_MODEL = "FunAudioLLM/SenseVoiceSmall"
+    DEFAULT_BASE_URL = "https://api.siliconflow.cn/v1"
+
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "FunAudioLLM/SenseVoiceSmall",
+        model: str | None = None,
+        base_url: str | None = None,
     ):
+        """
+        Args:
+            api_key: SiliconFlow API Key（留空则从 providers.siliconflow / 顶层
+                siliconflow 块 / SILICONFLOW_API_KEY 环境变量依次取）
+            model: ASR 模型（留空则从配置取；v0.6.13 起该配置项真正生效）
+            base_url: API 基地址（留空则从配置取）
+        """
         self.api_key = api_key
         self.model = model
+        self.base_url = base_url
+
+    def _resolve_model(self) -> str:
+        """解析实际使用的 ASR 模型
+
+        优先 providers.siliconflow.model，其次顶层 siliconflow.model，
+        最后用默认值。v0.6.13 之前这两个配置项从未被读取（死配置）。
+        """
+        if self.model:
+            return self.model
+        from ..utils.config_manager import ConfigManager
+
+        config = ConfigManager()
+        for path in (("providers", "siliconflow", "model"), ("siliconflow", "model")):
+            value = config.get(*path)
+            if value and not str(value).startswith("YOUR_"):
+                return str(value).strip()
+        return self.DEFAULT_MODEL
+
+    def _resolve_base_url(self) -> str:
+        """解析实际使用的 API 基地址"""
+        if self.base_url:
+            return self.base_url
+        from ..utils.config_manager import ConfigManager
+
+        config = ConfigManager()
+        for path in (("providers", "siliconflow", "base_url"), ("siliconflow", "base_url")):
+            value = config.get(*path)
+            if value and not str(value).startswith("YOUR_"):
+                return str(value).strip()
+        return self.DEFAULT_BASE_URL
 
     def _get_client(self):
         """获取 OpenAI-compatible 客户端"""
@@ -67,6 +109,8 @@ class SiliconFlowASR:
         else:
             config = ConfigManager()
             key = config.get("providers", "siliconflow", "api_key") or ""
+            if not key or str(key).startswith("YOUR_"):
+                key = config.get("siliconflow", "api_key") or ""
             key = (key or os.getenv("SILICONFLOW_API_KEY", "")).strip()
 
         if not key:
@@ -77,7 +121,7 @@ class SiliconFlowASR:
 
         return OpenAI(
             api_key=key,
-            base_url="https://api.siliconflow.cn/v1",
+            base_url=self._resolve_base_url(),
         )
 
     def _validate_audio(self, audio_path: Path) -> None:
@@ -115,14 +159,15 @@ class SiliconFlowASR:
         audio_path = Path(audio_path)
         self._validate_audio(audio_path)
 
-        logger.info(f"[SiliconFlow] 开始云端转录: {audio_path.name} - {self.model}")
+        model = self._resolve_model()
+        logger.info(f"[SiliconFlow] 开始云端转录: {audio_path.name} - {model}")
 
         client = self._get_client()
 
         try:
             with open(audio_path, "rb") as f:
                 response = client.audio.transcriptions.create(
-                    model=self.model,
+                    model=model,
                     file=f,
                     timeout=timeout,
                 )
@@ -148,7 +193,7 @@ class SiliconFlowASR:
         except Exception as e:
             raise TranscriptionError(
                 "硅基流动转录失败",
-                details=f"model={self.model}, error={e}",
+                details=f"model={self._resolve_model()}, error={e}",
             )
 
     @staticmethod

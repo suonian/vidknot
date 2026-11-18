@@ -1,27 +1,41 @@
 # VidkNot
 
-视频知识提取与研究平台（v0.6.12 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.5.0 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）；v0.6.0 新增统一重试/超时配置、内置 FFmpeg 可选依赖（`[bundled-ffmpeg]`）、异常修正建议（hint）与 CLI 友好错误、国内镜像安装支持；v0.6.1 修复视频时长格式化崩溃，市场展示信息中文化；v0.6.2 SKILL.md 全文中文化（市场概述页中文展示）；v0.6.3 市场描述通俗化改写，突出「一键提取视频文案」等普通人易懂表述；v0.6.4 文档深度优化：集中反模式章节、MCP 工具文档与实现对齐、错误分类速查、平台限制说明写透；v0.6.5 多源审计修复：CI 恢复全绿、LICENSE 恢复 MIT 识别、f2 测试环境无关化；v0.6.6 修复外部智能体审计发现的三个 Bug（#8/#9/#10）：新增 `fw`/`fw_file` 目的地保留 FW 时间戳段、双 ASR 校正失败不再丢失 FW 数据、临时子目录命名规范化并加路径穿越防护；v0.6.11 Windows 全链路实测后的跨平台兼容性修复共 13 项，含双 ASR 校正在 Windows 上静默失效的 P0 级缺陷修复，新增 `scripts/install.ps1` 一键安装脚本与 Windows CI 矩阵；v0.6.12 消除测试用例对运行环境的依赖，CI 全矩阵转绿。
+视频知识提取与研究平台（v0.6.13 通用研究平台框架）。从 **11+ 自媒体平台**（YouTube、B 站、抖音、小红书、快手、TikTok、Twitter/X、Instagram、微信视频号、微博、Vimeo）提取视频笔记：下载音频、双 ASR 交叉校验、生成结构化笔记，保存到 Obsidian、飞书、Notion、语雀。v0.4.0 新增可插拔存储后端、异步周期调度器、批处理 driver 和凭证注入保护的订阅源加载器；v0.5.0 新增标准 Agent Skill 合规（SKILL.md + `--demo` 模式 + `scripts/install.sh`）；v0.6.0 新增统一重试/超时配置、内置 FFmpeg 可选依赖（`[bundled-ffmpeg]`）、异常修正建议（hint）与 CLI 友好错误、国内镜像安装支持；v0.6.1 修复视频时长格式化崩溃，市场展示信息中文化；v0.6.2 SKILL.md 全文中文化（市场概述页中文展示）；v0.6.3 市场描述通俗化改写，突出「一键提取视频文案」等普通人易懂表述；v0.6.4 文档深度优化：集中反模式章节、MCP 工具文档与实现对齐、错误分类速查、平台限制说明写透；v0.6.5 多源审计修复：CI 恢复全绿、LICENSE 恢复 MIT 识别、f2 测试环境无关化；v0.6.6 修复外部智能体审计发现的三个 Bug（#8/#9/#10）：新增 `fw`/`fw_file` 目的地保留 FW 时间戳段、双 ASR 校正失败不再丢失 FW 数据、临时子目录命名规范化并加路径穿越防护；v0.6.11 Windows 全链路实测后的跨平台兼容性修复共 13 项，含双 ASR 校正在 Windows 上静默失效的 P0 级缺陷修复，新增 `scripts/install.ps1` 一键安装脚本与 Windows CI 矩阵；v0.6.12 消除测试用例对运行环境的依赖，CI 全矩阵转绿；v0.6.13 解绑厂商绑定，新增两段式 Agent 契约（`video_material` + `save_note`），搜证用智能体自己的搜索工具、纠错与成稿用它自己的模型。
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-516%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-557%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | 中文 | [English](README.en.md) |
 
-## 本次更新（v0.6.12）
+## 本次更新（v0.6.13）
 
-消除测试用例对运行环境的依赖，CI 全矩阵转绿。v0.6.11 引入的 `mmx` 入口
-解析让部分用例的结果取决于「运行机器是否装了 mmx CLI」——本地装有 mmx
-而假绿，CI 未安装而失败。现已把该依赖从测试中剥离，并改为在子进程里构造
-确定的非 UTF-8 环境来验证标准流归一化。
+**解绑厂商绑定：搜证用智能体自己的搜索工具，纠错与成稿用它自己的模型。**
 
-v0.6.11 的 13 项 Windows 跨平台兼容性修复全部保留，其中最关键的一项是
-**双 ASR 校正在 Windows 上静默失效**：子进程输出被按本地代码页（GBK）
-解码，流程不报错、笔记照常产出，但交叉校验被悄悄跳过——现已修复。
-同时修复 Windows 保留设备名导致的笔记丢失、MCP stdio 中文乱码、
-YouTube 强制音频下载失败、本地 faster-whisper 因 PyAV 版本不可用；
-新增 Windows 一键安装脚本 `scripts/install.ps1`，CI 增加 Windows 矩阵。
+新增**两段式 Agent 契约**，把「确定性的部分」和「需要判断的部分」拆开：
+
+| | 第一段：采集 | 第二段：成稿落库 |
+| --- | --- | --- |
+| MCP 工具 | `video_material` | `save_note` |
+| CLI | `vidknot <url> --material` | `vidknot <url> --save-note note.md` |
+| 是否调 LLM | **否** | **否** |
+| 是否联网搜索 | **否** | **否** |
+
+第一段只产出「素材包」：转写全文、双 ASR 差异清单、以及用纯算法从差异里
+提取的待搜证词。你用**自己的搜索工具**对候选词搜证，用**自己的模型**完成
+纠错与成稿，再通过第二段落库。VidkNot 不再替你决定用哪家厂商。
+
+同时修复了三个实测发现的缺陷：
+
+- **保存链路实际从未生效**：写入器只在传入**非空** config 时才实例化
+  （CLI 传的空 dict 与 MCP 完全不传都会让它变成 `None`），`save()` 静默
+  返回空串；且 `FeishuWriter.create_document` 被误声明为 `async`，同步调用
+  拿到的只是从未被 await 的协程对象。两者均已修复，凭证缺失现在明确报错。
+- **双 ASR 校正硬绑定 MiniMax**：写死 `--model MiniMax-M3`。现改为可插拔
+  后端 `settings.correction_backend`（`auto`/`provider`/`mmx`/`none`），
+  `auto` 按 provider → mmx → 跳过自动选，不绑定厂商。
+- **`siliconflow.model` 是死键**：从未生效，现已真正透传给 ASR 请求。
 
 授权边界与「免费优先」策略不变。
 
@@ -68,14 +82,14 @@ YouTube 强制音频下载失败、本地 faster-whisper 因 PyAV 版本不可�
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **不想装系统 FFmpeg？** 使用内置静态版本（wheel 自带二进制，离线可用）：
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.12"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.13"`
 >
 > 环境自检：`python -m vidknot --check-env`（会给出缺失项的安装命令）
 
-当前 GitHub 版本为 `v0.6.12`。从 GitHub 安装：
+当前 GitHub 版本为 `v0.6.13`。从 GitHub 安装：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
 ```
 
 > 🇨🇳 **大陆网络提示**：如访问 GitHub 缓慢，可给 pip 指定国内镜像加速依赖下载
@@ -83,7 +97,7 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
 > ```
 >
 > 清华镜像同样覆盖 yt-dlp、faster-whisper 等海外依赖，无需逐个找源。
@@ -114,11 +128,30 @@ VidkNot 提供四种使用方式，根据你的场景选择：
 | 方式 | 适用场景 | 命令 |
 |------|----------|------|
 | **CLI** | 日常使用、脚本批处理 | `python -m vidknot "URL"` |
+| **CLI（两段式）** | 你自己搜证、自己写笔记，VidkNot 只做采集与落库 | `python -m vidknot "URL" --material` |
 | **Python API** | 集成到自己的 Python 项目 | `from vidknot import VideoKnowledgePipeline` |
 | **FastAPI** | 部署为 Web 服务 | `uvicorn vidknot.api:app` |
 | **MCP** | 接入 AI Agent（如 Claude、Codex） | `python -m vidknot --mcp` |
 
 不确定用哪个？**CLI 适合大多数用户**，一条命令搞定。
+
+### 给 AI Agent 的两段式契约
+
+如果你是在 Agent 里用 VidkNot，推荐**两段式**：VidkNot 只做确定性的部分，
+搜证与成稿交给你自己的工具。
+
+```bash
+# 第一段：采集素材包（不调 LLM、不联网搜索）
+python -m vidknot "URL" --material -o material.json
+
+# ← 你用自己的搜索工具搜证，用自己的模型成稿 → note.md
+
+# 第二段：成稿落库（不调 LLM）
+python -m vidknot "URL" --save-note note.md --destination obsidian
+```
+
+MCP 对应 `video_material` 与 `save_note` 两个工具，详见
+[SKILL.md](SKILL.md)。
 
 ## 配置
 
@@ -165,6 +198,21 @@ faster_whisper:
 
 `v4` 是默认保守策略，只在证据充分时修改；`v3` 更激进，适合愿意承担更高误改风险的场景。
 
+双 ASR 校正用哪个后端、要不要联网搜证，都由配置决定，**不绑定任何厂商**：
+
+```yaml
+settings:
+  correction_backend: auto   # auto | provider | mmx | none
+  search_backend: mmx        # mmx | none
+  correction_model: ""       # 仅 mmx 后端生效，留空用 mmx CLI 默认模型
+```
+
+- `auto`（默认）按 **provider → mmx → 跳过** 选第一个可用的：provider 即
+  `providers.default_provider` 配的 OpenAI 兼容端点（DeepSeek / 豆包 /
+  通义 / 本地 Ollama 都行），与笔记生成共用同一个模型。
+- 用两段式契约（`--material` / `video_material`）时，搜证与校正由智能体
+  自己完成，这些开关一律不生效。
+
 ## 使用
 
 命令行：
@@ -181,6 +229,12 @@ python -m vidknot "https://v.douyin.com/example/" --destination feishu
 
 # 禁用双 ASR 校正
 python -m vidknot "https://v.douyin.com/example/" --no-correct
+
+# 采集素材包（不调 LLM、不联网搜索）
+python -m vidknot "https://v.douyin.com/example/" --material -o material.json
+
+# 成稿落库（不调 LLM）
+python -m vidknot "https://v.douyin.com/example/" --save-note note.md
 
 # 检查运行环境
 python -m vidknot --check-env

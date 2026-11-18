@@ -28,6 +28,9 @@ Configuration is merged via deep merge; process env always wins.
 | `VIDKNOT_DEFAULT_DESTINATION`  | `settings.default_destination`               |
 | `VIDKNOT_ENABLE_CORRECTION`    | `settings.enable_correction`                 |
 | `VIDKNOT_CORRECTION_VERSION`   | `settings.correction_version`                |
+| `VIDKNOT_CORRECTION_BACKEND`   | `settings.correction_backend`                |
+| `VIDKNOT_SEARCH_BACKEND`       | `settings.search_backend`                    |
+| `VIDKNOT_CORRECTION_MODEL`     | `settings.correction_model`                  |
 | `VIDKNOT_DOUYIN_COOKIE_FILE`   | `douyin.cookie_file`                         |
 | `VIDKNOT_DOUYIN_ENABLE_THIRD_PARTY` | `douyin.enable_third_party`              |
 | `TIKHUB_API_KEY`               | `douyin.tikhub.api_key`                      |
@@ -48,6 +51,29 @@ Configuration is merged via deep merge; process env always wins.
 
 > Variables with the `VIDKNOT_*` prefix are reserved for the framework.
 > Other variables follow OpenAI-compatible conventions (e.g. `LLM_*`).
+
+## Correction and search backends (no vendor lock-in)
+
+These three settings decide **which backend** performs dual-ASR correction
+and web evidence lookup. None of them binds you to a specific vendor.
+
+| Setting | Values | Meaning |
+| ------- | ------ | ------- |
+| `settings.correction_backend` | `auto` (default) / `provider` / `mmx` / `none` | `auto` picks the first available of **provider → mmx → skip**. `provider` reuses the OpenAI-compatible endpoint under `providers.default_provider` (DeepSeek / Doubao / Qwen / local Ollama all work) and shares the same model as note generation. `mmx` forces the MiniMax `mmx` CLI. `none` disables correction. |
+| `settings.search_backend` | `mmx` (default) / `none` | Whether correction may look things up on the web. `mmx` uses the `mmx` CLI's search; if `mmx` is not installed, lookup is skipped instead of failing. `none` disables lookup. |
+| `settings.correction_model` | model ID (default empty) | Only used by the `mmx` backend. Empty means "use the `mmx` CLI's own default model". |
+
+> **Two-stage agent contract:** when you use `video_material` / `--material`,
+> VidkNot performs **no** correction and **no** search — the material bundle
+> is handed to your agent, which does the searching and drafting with its own
+> tools. These settings then have no effect.
+
+## ASR model and endpoint
+
+| Setting | Meaning |
+| ------- | ------- |
+| `providers.siliconflow.model` | The ASR model actually sent to SiliconFlow (e.g. `FunAudioLLM/SenseVoiceSmall`). This key was a dead configuration before v0.6.13 — it now really reaches the request. |
+| `providers.siliconflow.base_url` | Overrides the SiliconFlow API base URL. |
 
 ## Secret isolation
 

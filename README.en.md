@@ -1,32 +1,49 @@
 # VidkNot
 
-VidkNot is a **general research platform framework** (v0.6.12) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 added Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`); v0.6.0 adds unified retry/timeout configuration, a bundled-FFmpeg optional extra, actionable error hints with a friendly CLI error path, and domestic-mirror install support; v0.6.1 fixes a video-duration formatting crash and localizes marketplace display copy to Chinese; v0.6.2 fully translates SKILL.md into Chinese so the marketplace overview page displays in Chinese; v0.6.3 rewrites the marketplace description in plain, everyday language so non-technical users instantly understand what the tool does; v0.6.4 deepens the documentation: a consolidated anti-pattern section, MCP tool docs aligned with the real implementation, an error-classification quick table, and fully spelled-out platform limitation levels; v0.6.5 multi-source audit fixes: CI fully green again, LICENSE restored to proper MIT detection, and environment-independent f2 tests; v0.6.6 fixes three bugs found by an external agent audit (#8/#9/#10): new `fw`/`fw_file` destinations that preserve FasterWhisper timestamp segments, no more FW data loss when dual-ASR correction fails, and standardized temp-subdir naming with path-traversal protection; v0.6.11 cross-platform compatibility fixes after a full Windows end-to-end run — 13 issues including the P0 defect where dual-ASR correction silently failed on Windows, plus a one-command Windows installer (`scripts/install.ps1`) and a Windows CI matrix; v0.6.12 removes the test suite's dependency on the host environment, so the full CI matrix is green again.
+VidkNot is a **general research platform framework** (v0.6.13) that extracts knowledge from **11+ self-media platforms** (YouTube, Bilibili, Douyin, Xiaohongshu, Kuaishou, TikTok, Twitter/X, Instagram, WeChat Channels, Weibo, Vimeo). It downloads audio, transcribes speech via dual-ASR cross-validation, generates Markdown notes, and saves them to Obsidian, Feishu, Notion, or Yuque. v0.4.0 added pluggable storage backends, an async periodic scheduler, a batch runner, and a credential-leak-proof subscription source loader; v0.5.0 added Standard Agent Skill compliance (SKILL.md + `--demo` mode + `scripts/install.sh`); v0.6.0 adds unified retry/timeout configuration, a bundled-FFmpeg optional extra, actionable error hints with a friendly CLI error path, and domestic-mirror install support; v0.6.1 fixes a video-duration formatting crash and localizes marketplace display copy to Chinese; v0.6.2 fully translates SKILL.md into Chinese so the marketplace overview page displays in Chinese; v0.6.3 rewrites the marketplace description in plain, everyday language so non-technical users instantly understand what the tool does; v0.6.4 deepens the documentation: a consolidated anti-pattern section, MCP tool docs aligned with the real implementation, an error-classification quick table, and fully spelled-out platform limitation levels; v0.6.5 multi-source audit fixes: CI fully green again, LICENSE restored to proper MIT detection, and environment-independent f2 tests; v0.6.6 fixes three bugs found by an external agent audit (#8/#9/#10): new `fw`/`fw_file` destinations that preserve FasterWhisper timestamp segments, no more FW data loss when dual-ASR correction fails, and standardized temp-subdir naming with path-traversal protection; v0.6.11 cross-platform compatibility fixes after a full Windows end-to-end run — 13 issues including the P0 defect where dual-ASR correction silently failed on Windows, plus a one-command Windows installer (`scripts/install.ps1`) and a Windows CI matrix; v0.6.12 removes the test suite's dependency on the host environment, so the full CI matrix is green again.
 
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-516%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-557%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | [中文](README.md) | English |
 
-## What's new in v0.6.12
+## What's new in v0.6.13
 
-Removes a test-suite dependency on the host environment; the full CI matrix is
-green again. The `mmx` entry-point resolution introduced in v0.6.11 made some
-test outcomes depend on whether the machine running them had the `mmx` CLI
-installed — green locally (mmx present), red on CI (mmx absent). That
-dependency is now removed from the tests, and standard-stream normalization is
-verified in a subprocess with a deliberately non-UTF-8 environment.
+**No vendor lock-in: search with your own agent's search tools, correct and
+write with your own agent's model.**
 
-All 13 Windows cross-platform compatibility fixes from v0.6.11 are retained.
-The most significant one: **dual-ASR correction silently failed on Windows**,
-because subprocess output was decoded with the local code page (GBK) instead
-of UTF-8. The pipeline raised no error and still produced notes — it just
-quietly skipped the cross-validation. Also fixed: Windows reserved device
-names dropping notes, Chinese garbling in MCP stdio, YouTube forced-audio
-download failures, and a broken local faster-whisper caused by an unpinned
-PyAV upper bound. Adds a one-command Windows installer
-(`scripts/install.ps1`) and a Windows CI matrix.
+Adds a **two-stage agent contract** that separates the deterministic work from
+the judgment work:
+
+| | Stage 1: collect | Stage 2: save the finished note |
+| --- | --- | --- |
+| MCP tool | `video_material` | `save_note` |
+| CLI | `vidknot <url> --material` | `vidknot <url> --save-note note.md` |
+| Calls an LLM | **No** | **No** |
+| Performs a web search | **No** | **No** |
+
+Stage 1 only produces a *material bundle*: the full transcript, the dual-ASR
+diff list, and the search candidates extracted from those diffs by a pure
+algorithm. You search those candidates with **your own search tool**, correct
+and draft the note with **your own model**, then save it through stage 2.
+VidkNot no longer decides which vendor to use for you.
+
+Three defects found during a hands-on audit are also fixed:
+
+- **The save path never actually worked.** Writers were only instantiated when
+  a *non-empty* config dict was passed (the CLI passes an empty dict, MCP
+  passes none), so `save()` silently returned an empty string; and
+  `FeishuWriter.create_document` was mistakenly declared `async`, so a
+  synchronous call received a coroutine that was never awaited. Both are
+  fixed, and missing credentials now raise a clear error.
+- **Dual-ASR correction was hard-bound to MiniMax** (`--model MiniMax-M3`).
+  It is now a pluggable backend: `settings.correction_backend`
+  (`auto`/`provider`/`mmx`/`none`), where `auto` picks provider → mmx → skip
+  without binding any vendor.
+- **`siliconflow.model` was a dead key** — it never reached the ASR request.
+  It now does.
 
 Content authorization boundaries and the free-first policy are unchanged.
 
@@ -48,7 +65,7 @@ Content authorization boundaries and the free-first policy are unchanged.
 | Twitter / X | Short video | ✅ Stable via yt-dlp |
 | Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
 | WeChat Channels (视频号) | Short video | ⚠️ Reserved (closed WeChat ecosystem; export via packet-capture tools, then use local batch mode) |
-| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.12) |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.13) |
 | Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
 | Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
 | Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
@@ -73,14 +90,14 @@ See [docs/PLATFORMS.md](docs/PLATFORMS.md) for the full capability matrix
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **Don't want a system FFmpeg?** Use the bundled static build (binary ships in the wheel, works offline):
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.12"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.13"`
 >
 > Environment self-check: `python -m vidknot --check-env` (prints install commands for anything missing)
 
-The current GitHub release is `v0.6.12`. Install from GitHub:
+The current GitHub release is `v0.6.13`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
 ```
 
 > 🇨🇳 **Mainland China note**: if GitHub is slow, point pip at a domestic
@@ -89,7 +106,7 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
 > ```
 >
 > The Tsinghua mirror also covers overseas dependencies such as yt-dlp and
@@ -122,11 +139,30 @@ VidkNot offers four ways to use it. Pick the one that fits your scenario:
 | Interface | Best For | Command |
 |-----------|----------|---------|
 | **CLI** | Daily use, batch scripts | `python -m vidknot "URL"` |
+| **CLI (two-stage)** | You search and write; VidkNot only collects and saves | `python -m vidknot "URL" --material` |
 | **Python API** | Embedding in your own Python project | `from vidknot import VideoKnowledgePipeline` |
 | **FastAPI** | Deploying as a web service | `uvicorn vidknot.api:app` |
 | **MCP** | Integrating with AI Agents (Claude, Codex) | `python -m vidknot --mcp` |
 
 Not sure which to use? **CLI works for most users** — one command, done.
+
+### Two-stage contract for AI agents
+
+If you use VidkNot inside an agent, prefer the **two-stage** flow: VidkNot does
+only the deterministic part, and searching and drafting stay with your tools.
+
+```bash
+# Stage 1: collect the material bundle (no LLM, no web search)
+python -m vidknot "URL" --material -o material.json
+
+# ← search with your own search tool, draft with your own model → note.md
+
+# Stage 2: save the finished note (no LLM)
+python -m vidknot "URL" --save-note note.md --destination obsidian
+```
+
+The MCP equivalents are the `video_material` and `save_note` tools — see
+[SKILL.md](SKILL.md).
 
 ## Configuration
 
@@ -173,6 +209,23 @@ faster_whisper:
 
 `v4` is the conservative default. `v3` makes broader corrections and carries a higher risk of changing valid text.
 
+Which backend performs the dual-ASR correction — and whether it searches the
+web at all — is configuration, not a vendor lock-in:
+
+```yaml
+settings:
+  correction_backend: auto   # auto | provider | mmx | none
+  search_backend: mmx        # mmx | none
+  correction_model: ""       # mmx backend only; empty = mmx CLI default model
+```
+
+- `auto` (default) picks the first available of **provider → mmx → skip**:
+  *provider* is the OpenAI-compatible endpoint configured under
+  `providers.default_provider` (DeepSeek / Doubao / Qwen / local Ollama all
+  work), sharing the same model as note generation.
+- With the two-stage contract (`--material` / `video_material`), searching and
+  correction are done by your agent, so these switches have no effect.
+
 ## Usage
 
 CLI:
@@ -189,6 +242,12 @@ python -m vidknot "https://v.douyin.com/example/" --destination feishu
 
 # Disable dual-ASR correction
 python -m vidknot "https://v.douyin.com/example/" --no-correct
+
+# Collect the material bundle (no LLM, no web search)
+python -m vidknot "https://v.douyin.com/example/" --material -o material.json
+
+# Save a finished note (no LLM)
+python -m vidknot "https://v.douyin.com/example/" --save-note note.md
 
 # Check local requirements
 python -m vidknot --check-env

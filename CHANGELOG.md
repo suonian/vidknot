@@ -5,6 +5,114 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.13] - 2026-11-18
+
+### 解绑厂商绑定：两段式 Agent 契约
+
+本轮按项目设计初衷改造：**搜证用智能体自带的搜索工具（mmx 只是其中一种），
+笔记生成与纠错用智能体自己默认的模型**——VidkNot 不再强制 MiniMax，
+也不再强制某类大模型。
+
+- **新增「两段式 Agent 契约」**：
+  - 第一段 `video_material`（MCP）/ `--material`（CLI）：只做**确定性**
+    采集（下载 → 字幕/ASR 转写 → 双 ASR 差异 → 待搜证词提取），
+    **零 LLM 调用、零联网搜索**，返回 schema `vidknot.material/1` 的素材包。
+  - 第二段 `save_note`（MCP）/ `--save-note <file>`（CLI）：把宿主智能体
+    用自己的模型写好的 Markdown 回存到 Obsidian / 飞书 / Notion / 语雀，
+    **同样零 LLM 调用**。
+  - 待搜证词用**纯算法**从双 ASR 差异清单里提取（拉丁/数字 token 优先，
+    中文差异片段兜底），保证第一段完全不需要 LLM。
+- **新增 `src/vidknot/core/agent_material.py`**：素材包组装与候选词提取。
+- **新增 `VideoKnowledgePipeline.collect_material()` / `.save_markdown()`**。
+- **待搜证词改为原文词级提取**：此前从 `_make_diff` 的差异片段里直接抽
+  token，而 diff 跑在**去标点的归一化文本**上，抽出来的是
+  「infr」「baaaaaaaaaaahhha」这类拼接碎片，搜它们没有意义。现改为在
+  **两份转写的原文**上做字符级比较，再把差异位置扩展成可搜证的词：
+  拉丁词须含大写字母或数字（`ByteDance` / `iPhone` / `GPT-4` / `2024`），
+  中文取差异位置前后 2-4 个汉字的词块；英文句首大写的常见词
+  （`All` / `And` / `The` …）与标点碎片一律过滤。
+- **字幕路径补下载音频**：平台已提供官方字幕时不会下载音频，FW 对照因此
+  拿不到输入，差异清单与待搜证词会是空的。现改为 `with_diff=True` 时补
+  一次纯音频下载（转写仍用字幕——质量更高且免 ASR）。
+
+### 校正与搜证后端可插拔
+
+- **Fixed**：双 ASR 校正此前**硬绑定 MiniMax** —— `corrector.py` 两处写死
+  `--model MiniMax-M3`，且 `DualASRCorrector` 没有 model 参数；mmx 未安装
+  时还会静默降级为单源转写。现改为可插拔后端：
+  - `settings.correction_backend`：`auto`（默认，provider → mmx → 跳过）/
+    `provider` / `mmx` / `none`；`auto` 不绑定任何厂商。
+  - `settings.search_backend`：`mmx` / `none`；mmx 未安装时自动跳过搜证。
+  - `settings.correction_model`：仅 mmx 后端生效，留空则用 mmx CLI 自身
+    默认模型。
+  - `provider` 后端复用 `ContentProcessor`，与笔记生成共用同一
+    provider / 模型配置。
+  - 新增环境变量 `VIDKNOT_CORRECTION_BACKEND` / `VIDKNOT_SEARCH_BACKEND` /
+    `VIDKNOT_CORRECTION_MODEL`。
+
+### Fixed：保存链路实际从未生效
+
+本轮实测发现两个叠加的静默失效缺陷：
+
+- **写入器只在传入非空 config 时才实例化**。CLI 只传 `feishu_config`
+  （且空 dict 为 falsy），MCP 完全不传 —— `_get_obsidian_writer()` 等
+  全部返回 `None`，`save()` 静默返回空串，**Obsidian / 飞书 / Notion /
+  语雀的保存链路实际从未生效且不报错**。
+- **`FeishuWriter.create_document` 被误声明为 `async`**。其函数体内部
+  全部是同步调用，同步调用方拿到的只是一个**从未被 await 的协程对象**
+  —— 文档同样从未创建。
+
+修复：写入器一律惰性构造（无显式 config 时回落到 `config.yaml`，并忽略
+`YOUR_XXX` 占位符）；`create_document` 改为同步方法（保留
+`create_document_async` 包装兼容旧的 `await` 调用方）；保存失败现在**明确
+抛错**（`StorageError`，带修正建议），不再静默跳过；`destination=both`
+时汇总各目的地成败。CLI 先输出笔记再执行保存，保存失败不会让已生成的
+笔记丢失；MCP 在保存失败时把已生成的 Markdown 一并回传。
+
+### Fixed：死配置与静默吞错
+
+- `siliconflow.model` 是**死键**：4 个调用点全是无参 `SiliconFlowASR()`，
+  model 取 `__init__` 签名默认值，`providers.siliconflow.model` /
+  `base_url` 从未生效。现已真正透传给 ASR 请求，并支持
+  `providers.siliconflow.base_url` 覆盖。
+- `options["obsidian_tags"]` 此前被 `save()` 忽略（它只读 `options["tags"]`），
+  `--obsidian-tags` 实际从未落到笔记上。现两键名都生效。
+
+### Added
+
+- MCP 新增 `video_material` / `save_note` 两个工具（自研 JSON-RPC 与
+  FastMCP 两个入口均已注册）。
+- CLI 新增 `--material` / `--save-note <file>`（`-` 表示从 stdin 读）/
+  `--note-title` / `--note-author` / `--note-platform` /
+  `--max-candidates` / `--no-diff`。
+- `config.yaml` 新增 `yuque` 段；`ConfigManager` 默认配置新增
+  `notion` / `yuque` 段。
+
+### Tests
+
+- 全量测试 **516 → 557 passed**（新增 `tests/test_agent_contract.py` 41 项）；
+  Ruff 检查通过。
+- **验证矩阵**：常规环境（本机装有 mmx / FFmpeg）**557 passed**；
+  模拟 CI 环境（PATH 移除 npm 目录使 `shutil.which("mmx")` 返回 `None`，
+  同时移除 FFmpeg 目录）**557 passed**。
+- 修正了两处测试与环境的耦合：
+  - `tests/test_corrector.py` 的 `DualASRCorrector` 用例改为 mock 后端分发层
+    （`_correction_chat` / `_search_web`）而非 mmx 专有函数——此前它们
+    mock 的是已被重构替换掉的调用点，**实际会发出真实 LLM 请求**，
+    结果取决于本机 `.env` 与模型输出，不确定且有费用。
+  - `tests/test_agent_contract.py` 调用 `cli.main()` 会触发
+    `load_dotenv(cwd/.env)` 往进程环境注入变量，已在用例内完整还原
+    `os.environ`，避免污染后续用例。
+
+### Changed
+
+- `SKILL.md` 改写为两段式 Agent 契约：新增「两种工作模式」章节，
+  明确模式 A（两段式，推荐给 Agent）与模式 B（一键成稿）的分工，
+  并补齐 MCP 工具表、CLI 示例、架构图与高级开关说明。
+- 同步版本位点至 `v0.6.13`（`pyproject.toml` / `_version.py` / `install.sh` /
+  `install.ps1` / `SECURITY.md` / issue 模板 / README 双语 / `SKILL.md` /
+  `INSTALL.md` / `docs/BEST_PRACTICES.md`）。
+
 ## [0.6.12] - 2026-10-31
 
 ### 消除测试用例对运行环境的依赖

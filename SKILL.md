@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.12
+version: 0.6.13
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -40,6 +40,75 @@ repository: https://github.com/suonian/vidknot
 本技能能做什么、不能做什么的完整清单（含常见错误用法），
 见下方 [应避免的用法（反模式）](#应避免的用法反模式) 章节。
 
+## 两种工作模式（重要）
+
+VidkNot 有两种用法，**由你（宿主智能体）选择**：
+
+| | 模式 A：两段式契约（推荐给 Agent） | 模式 B：一键成稿 |
+| --- | --- | --- |
+| 谁做搜证与纠错 | **你自己** —— 用你自带的搜索工具与你自己的模型 | VidkNot 内部用可配置的 LLM provider |
+| VidkNot 做什么 | 只做确定性采集：下载 → 转写 → 双 ASR 差异 → 待搜证词 | 下载 → 转写 → 校正 → 生成笔记 → 保存 |
+| 用到的工具 | `video_material` + `save_note` | `video_to_notes` / `batch_process` |
+| 厂商绑定 | **无** | 无（`providers.default_provider` 可配任意 OpenAI 兼容端点） |
+
+**模式 A 的关键点**：`video_material` **不调用任何大模型、不发起任何联网搜索**，
+它只产出一份「素材包」——转写全文、双 ASR 差异清单、以及从差异里算法提取的
+待搜证词。拿到素材包后：
+
+1. 用**你自己的搜索工具**对 `search_candidates` 逐个搜证；
+2. 用**你自己的模型**结合搜索结果完成纠错与结构化成稿；
+3. 调用 `save_note` 把成稿落库（此步同样不调用任何大模型）。
+
+这样搜证走你信任的搜索通道、模型走你已付费已配置的模型，
+VidkNot 不再替你决定用哪家厂商。
+
+### 模式 A 调用示例（MCP）
+
+```python
+# 第一段：采集素材包（零 LLM、零搜索）
+bundle = call_tool(
+    "video_material",
+    url="https://www.bilibili.com/video/BV1xx",
+    with_diff=True,        # 跑 faster-whisper 对照，产出差异清单
+    max_candidates=12,     # 待搜证词上限
+)
+# bundle 是 JSON 字符串：
+# {"schema": "vidknot.material/1", "title": ..., "duration": ...,
+#  "transcription": "字幕/ASR 完整转写",
+#  "fw_segments": "[00:00.0 - 00:07.2] faster-whisper 时间戳段",
+#  "diffs": ["[0] replace: SF='...' ↔ FW='...' | ctx: ..."],
+#  "search_candidates": ["ByteDance", "字节跳动"], ...}
+#
+# search_candidates 是**原文词级**差异里提取的待搜证词：
+#   拉丁词须含大写字母或数字（ByteDance / iPhone / GPT-4 / 2024），
+#   中文取差异位置前后 2-4 个汉字的词块；
+#   英文句首大写的常见词与标点碎片已被过滤，不会拿噪声去搜。
+
+# ← 这里用你自己的搜索工具搜证，用你自己的模型成稿 → markdown
+
+# 第二段：成稿落库
+result = call_tool(
+    "save_note",
+    markdown=markdown,                 # 你生成的笔记正文
+    url="https://www.bilibili.com/video/BV1xx",
+    title=bundle["title"],
+    destination="obsidian",
+    tags=["视频笔记"],
+)
+```
+
+### 模式 A 调用示例（CLI）
+
+```bash
+# 第一段：采集素材包到 material.json
+vidknot "URL" --material -o material.json
+
+# ← 你自己搜证、自己成稿 → note.md
+
+# 第二段：成稿落库
+vidknot "URL" --save-note note.md --destination obsidian
+```
+
 ### 长视频 vs 短视频（触发指引）
 
 | 场景 | 建议 |
@@ -66,7 +135,7 @@ repository: https://github.com/suonian/vidknot
 
 ```bash
 # 1. 安装（一条命令）
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.12"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
 
 # 2. 配置（只需要 1 个 API key）
 echo "SILICONFLOW_API_KEY=sk-your-key" > .env
@@ -129,6 +198,7 @@ VidkNot 为 Agent / 脚本提供四种接口：
 | 接口 | 调用方式 | 适用场景 |
 | --- | --- | --- |
 | **CLI** | `vidknot <url> [--destination <obsidian|feishu|notion|yuque|none|fw|fw_file>]` | 单次命令行处理 |
+| **CLI（两段式）** | `vidknot <url> --material` / `vidknot <url> --save-note <file>` | Agent 自己搜证与成稿，VidkNot 只做采集与落库 |
 | **Python API** | `from vidknot import VideoKnowledgePipeline; pipeline.run(url)` | 嵌入式脚本 |
 | **FastAPI** | `uvicorn vidknot.api:app --reload` | 为其他工具提供 HTTP 服务 |
 | **MCP** | `vidknot --mcp` | Claude / Qoder / Cursor / Cline 等通过 Model Context Protocol 调用 |
@@ -148,6 +218,8 @@ MCP 服务启动后（stdio 传输），Agent 获得以下工具：
 | `batch_process` | 并发批处理 → JSON | `(urls: list[str], destination="none", max_workers=3, …)` |
 | `platform_status` | 平台支持状态查询 → JSON | 域名、字幕、Cookie、策略 一键查看 |
 | `search_video` | 预留搜索接口 | 当前直接提示改用 URL 调用 |
+| `video_material` | **两段式第一段**：采集素材包（零 LLM、零搜索） | `(url, with_diff=True, max_candidates=12, language="auto")` |
+| `save_note` | **两段式第二段**：把成稿落库（零 LLM） | `(markdown, url="", title="", destination="obsidian", tags=[])` |
 
 > `fw`：不保存，输出 SF 文本 + FW 时间戳段；`fw_file`：FW 段写到 `<输出文件>.fw.txt`（须配合路径）。
 
@@ -201,6 +273,22 @@ VIDKNOT_DOUYIN_COOKIE_FILE=/path/to/douyin-cookies.txt
 SILICONFLOW_API_KEY=
 ```
 
+### ④ 双 ASR 校正 / 搜证后端（不绑定任何厂商）
+
+仅在用**模式 B（一键成稿）**并开启双 ASR 校正时才需要；
+**模式 A（两段式）**下搜证与校正由智能体自己完成，这些开关一律不生效。
+
+```bash
+# 校正后端：auto(默认, provider → mmx → 跳过) / provider / mmx / none
+VIDKNOT_CORRECTION_BACKEND=auto
+
+# 搜证后端：mmx / none（mmx 未安装时自动跳过搜证，不报错）
+VIDKNOT_SEARCH_BACKEND=mmx
+
+# mmx 后端使用的模型（留空则用 mmx CLI 自身默认模型）
+VIDKNOT_CORRECTION_MODEL=MiniMax-M3
+```
+
 完整变量参考见 `.env.example`，逐项详解见 `docs/CONFIG.md`。
 
 ## 使用示例
@@ -226,6 +314,16 @@ vidknot --batch urls.txt -d obsidian --max-workers 3
 
 # 本地 mp4
 vidknot --batch-dir ./videos/ -d feishu
+
+# ===== 两段式契约（Agent 模式）=====
+
+# 第一段：采集素材包（不调 LLM、不联网搜索）
+vidknot "URL" --material -o material.json
+vidknot "URL" --material --no-diff          # 跳过 faster-whisper 对照
+
+# 第二段：把智能体写好的成稿落库（不调 LLM）
+vidknot "URL" --save-note note.md --destination obsidian
+cat note.md | vidknot "URL" --save-note -    # 从 stdin 读
 ```
 
 ### Python API
@@ -274,19 +372,27 @@ summary = call_tool(
         └──────────────────────┘           │
                                             ▼
         ┌─────────────────────────────────────────────────────────┐
-        │                  core/（流水线）                         │
-        │  downloader → transcriber (双 ASR) → corrector          │
-        │  → processor (LLM, OpenAI 兼容) → writer                │
+        │           core/（确定性部分：无 LLM、无联网搜索）          │
+        │  downloader → transcriber (字幕 / 双 ASR) → diff          │
+        │  → agent_material（待搜证词，算法提取）                    │
         └─────────────────────────────────────────────────────────┘
-                                            │
-                                            ▼
-        4+ 存储目标                           + v0.4.0 框架能力
-        ┌──────────────────────┐            ┌──────────────────────┐
-        │ Obsidian              │            │ core/backend/         │
-        │ Feishu (飞书)         │  ────►     │ core/source/          │
-        │ Notion                │            │ core/batch/           │
-        │ Yuque (语雀)          │            │ core/monitor/         │
-        └──────────────────────┘            └──────────────────────┘
+                        │                          │
+        模式 A（两段式） │                          │ 模式 B（一键成稿）
+                        ▼                          ▼
+        ┌───────────────────────────┐   ┌────────────────────────────┐
+        │ 宿主智能体（你）            │   │ processor（LLM provider，   │
+        │  自己的搜索工具 → 自己的模型  │   │  可配任意 OpenAI 兼容端点）  │
+        └───────────────────────────┘   │  → corrector（后端可插拔）    │
+                        │                └────────────────────────────┘
+                        ▼                          │
+              save_note（只落库）                   ▼
+                        └──────────►  4+ 存储目标
+                                    ┌──────────────────────┐
+                                    │ Obsidian              │
+                                    │ Feishu (飞书)         │
+                                    │ Notion                │
+                                    │ Yuque (语雀)          │
+                                    └──────────────────────┘
 ```
 
 ## 配置文件发现
@@ -325,13 +431,28 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.12** — 消除测试用例对运行环境的依赖（CI 全矩阵转绿）。
-v0.6.11 的 13 项 Windows 跨平台兼容性修复不变，其中最关键的一项是
-**双 ASR 校正在 Windows 上静默失效**（子进程输出被按本地代码页解码，
-流程不报错但交叉校验被悄悄跳过），已修复。双 ASR 校正、
-Windows 保留设备名、MCP stdio UTF-8、YouTube 音频回退顺序、本地
-faster-whisper 的 PyAV 版本上界等一并修复；新增 Windows 一键安装脚本
-`scripts/install.ps1`。不改变付费 / 会员 / DRM 内容的授权边界。
+最新版：**0.6.13** — 解绑厂商绑定，改为「两段式 Agent 契约」。
+
+- **不再强制 MiniMax、不再强制某类大模型**：新增 `video_material` +
+  `save_note` 两个 MCP 工具与 `--material` / `--save-note` 两个 CLI 模式。
+  第一段只做确定性采集（下载 / 转写 / 双 ASR 差异 / 待搜证词），**零 LLM、
+  零联网搜索**；搜证用宿主智能体自己的搜索工具，纠错与成稿用它自己的模型。
+- **双 ASR 校正后端可插拔**：`settings.correction_backend` 支持
+  `auto`（默认，provider → mmx → 跳过）/ `provider` / `mmx` / `none`，
+  `settings.search_backend` 支持 `mmx` / `none`，
+  `settings.correction_model` 可指定 mmx 后端使用的模型。
+  此前校正硬编码 `MiniMax-M3`，且 mmx 未安装时静默降级。
+- **修复保存链路从未生效**：`save()` 此前只在传入**非空** config 时才实例化
+  写入器，CLI 传的空 dict 与 MCP 完全不传都会让写入器变成 `None`，
+  保存静默返回空串；同时 `FeishuWriter.create_document` 被误声明为
+  `async`，同步调用拿到的只是从未被 await 的协程对象。两者均已修复，
+  凭证缺失现在会明确报错而不是静默跳过。
+- **修复 `siliconflow.model` 死键**：该配置此前从未生效，现已真正透传给
+  ASR 请求，并支持 `providers.siliconflow.base_url` 覆盖。
+
+v0.6.12 的「消除测试用例对运行环境的依赖（CI 全矩阵转绿）」与 v0.6.11 的
+13 项 Windows 跨平台兼容性修复不变，其中最关键的一项是**双 ASR 校正在
+Windows 上静默失效**，已修复。不改变付费 / 会员 / DRM 内容的授权边界。
 详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证

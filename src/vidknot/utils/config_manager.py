@@ -136,6 +136,12 @@ class ConfigManager:
                 "output_dir": "./notes",
                 "stt_preference": "local",  # local / siliconflow
                 "default_destination": "obsidian",
+                "enable_correction": True,
+                "correction_version": "v4",
+                # 校正 / 搜证后端（不绑定任何厂商）
+                "correction_backend": "auto",  # auto / provider / mmx / none
+                "search_backend": "mmx",  # mmx / none
+                "correction_model": "",  # 仅 mmx 后端生效
             },
             "network": {
                 # 超时默认值不低于历史硬编码值，避免慢网络下新增超时失败
@@ -195,6 +201,16 @@ class ConfigManager:
                 "default_folder": "视频笔记",
                 "auto_create": True,
             },
+            "notion": {
+                "token": None,
+                "page_id": None,
+                "database_id": None,
+            },
+            "yuque": {
+                "token": None,
+                "login": None,
+                "default_path": "VidkNot",
+            },
             "douyin": {
                 "enable_third_party": False,
                 "enable_cdp": True,
@@ -244,6 +260,10 @@ class ConfigManager:
             "VIDKNOT_MAX_TOKENS": ("providers", "openai", "max_tokens"),
             # ASR 提供者
             "VIDKNOT_STT_PREFERENCE": ("settings", "stt_preference"),
+            # 校正 / 搜证后端
+            "VIDKNOT_CORRECTION_BACKEND": ("settings", "correction_backend"),
+            "VIDKNOT_SEARCH_BACKEND": ("settings", "search_backend"),
+            "VIDKNOT_CORRECTION_MODEL": ("settings", "correction_model"),
             # 硅基流动
             "SILICONFLOW_API_KEY": ("providers", "siliconflow", "api_key"),
             # 抖音

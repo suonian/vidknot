@@ -56,6 +56,8 @@ def main():
   CLI 模式:   python -m vidknot <url> [--destination feishu|yuque|notion|obsidian|both|none]
   MCP 模式:   python -m vidknot --mcp
   API 模式:   uvicorn vidknot.api:app --reload
+  素材包模式: python -m vidknot <url> --material      (只采集，不调 LLM/搜索)
+  保存模式:   python -m vidknot <url> --save-note note.md  (落库，不调 LLM)
 
 示例:
   # 生成笔记并保存到 Obsidian (默认)
@@ -66,6 +68,12 @@ def main():
 
   # 仅返回笔记内容，不保存
   python -m vidknot https://youtube.com/watch?v=xxx --destination none
+
+  # 采集素材包（Agent 两段式契约第一段）→ 交给智能体搜证/纠错
+  python -m vidknot https://youtube.com/watch?v=xxx --material -o material.json
+
+  # 智能体成稿后回存（Agent 两段式契约第二段）
+  python -m vidknot https://youtube.com/watch?v=xxx --save-note note.md
 
   # 启动 MCP Server (用于 OpenClaw / Claude Desktop)
   python -m vidknot --mcp
@@ -112,6 +120,24 @@ def main():
     parser.add_argument("--notify", action="store_true", default=True,
                         help="处理完成后发送通知 (通过 OpenClaw 消息回复)")
 
+    # ===== Agent 两段式契约 =====
+    parser.add_argument("--material", action="store_true",
+                        help=("素材包模式: 只做确定性采集(下载/转写/双ASR差异/待搜证词)，"
+                              "输出 JSON 到 stdout 或 -o 文件。不调 LLM、不联网搜索"))
+    parser.add_argument("--save-note",
+                        help=("保存模式: 把已写好的 Markdown 落库(不调 LLM)。"
+                              "值为文件路径，'-' 表示从 stdin 读取"))
+    parser.add_argument("--note-title",
+                        help="保存模式的笔记标题 (默认取文件名)")
+    parser.add_argument("--note-author",
+                        help="保存模式的作者")
+    parser.add_argument("--note-platform",
+                        help="保存模式的来源平台 (如 bilibili)")
+    parser.add_argument("--max-candidates", type=int, default=12,
+                        help="素材包模式的待搜证词上限 (默认 12)")
+    parser.add_argument("--no-diff", action="store_true",
+                        help="素材包模式: 跳过 faster-whisper 对照, 不产出差异清单")
+
     # Dual-ASR 校正参数
     parser.add_argument("--correct", action="store_true", default=None,
                         help="启用双 ASR 校正（默认从 config.yaml 读 enable_correction）")
@@ -151,6 +177,14 @@ def main():
         # Demo 模式: 不调任何 API，用 mock 输出展示完整 pipeline
         run_demo(args)
 
+    elif args.material:
+        # 素材包模式（Agent 两段式契约 · 第一段）：确定性采集，不调 LLM/搜索
+        run_with_error_handling(run_material_cli, args)
+
+    elif args.save_note:
+        # 保存模式（Agent 两段式契约 · 第二段）：落库，不调 LLM
+        run_with_error_handling(run_save_note_cli, args)
+
     elif args.batch or args.batch_dir:
         # 批量处理模式
         run_batch_cli(args)
@@ -171,12 +205,12 @@ def main():
         sys.exit(1)
 
 
-def run_cli(args):
-    """CLI 模式入口：顶层捕获 VidkNotError，输出带修正建议的友好错误"""
+def run_with_error_handling(func, args):
+    """顶层捕获 VidkNotError，输出带修正建议的友好错误"""
     from .utils.exceptions import VidkNotError
 
     try:
-        _run_cli_impl(args)
+        func(args)
     except VidkNotError as e:
         logger.error(f"处理失败: {e.message}")
         print(f"\n❌ 错误: {e.message}", file=sys.stderr)
@@ -185,6 +219,113 @@ def run_cli(args):
         if e.hint:
             print(f"💡 建议: {e.hint}", file=sys.stderr)
         sys.exit(1)
+
+
+def run_cli(args):
+    """CLI 模式入口：顶层捕获 VidkNotError，输出带修正建议的友好错误"""
+    run_with_error_handling(_run_cli_impl, args)
+
+
+def run_material_cli(args):
+    """素材包模式（Agent 两段式契约 · 第一段）。
+
+    只做确定性采集：下载 → 字幕/ASR 转写 → 双 ASR 差异 → 待搜证词。
+    **不调用任何大模型、不发起任何联网搜索** —— 搜证与校正交给宿主智能体
+    用它自己的搜索工具与模型完成。
+
+    输出 JSON（schema: vidknot.material/1）到 stdout 或 -o 指定的文件。
+    """
+    import json
+
+    from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+    from .utils.env_check import check_all_requirements
+
+    if not args.url:
+        print("❌ --material 模式需要提供视频 URL", file=sys.stderr)
+        sys.exit(2)
+
+    # 采集需要下载与音频提取，依赖 yt-dlp / FFmpeg
+    all_ok, messages = check_all_requirements()
+    if not all_ok:
+        for msg in messages:
+            if "❌" in msg:
+                logger.error(msg)
+        logger.error("请安装缺失的依赖后重试")
+        sys.exit(1)
+
+    logger.info(f"采集素材包: {args.url}")
+    pipeline = VideoKnowledgePipeline(
+        destination="none",
+        format="raw",
+        language=args.language,
+    )
+    bundle = pipeline.collect_material(
+        args.url,
+        with_diff=not args.no_diff,
+        max_candidates=args.max_candidates,
+    )
+    payload = json.dumps(bundle, ensure_ascii=False, indent=2)
+
+    if args.output:
+        out_path = Path(args.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(payload, encoding="utf-8")
+        logger.info(f"素材包已保存: {out_path}")
+    else:
+        print(payload)
+
+
+def run_save_note_cli(args):
+    """保存模式（Agent 两段式契约 · 第二段）。
+
+    把宿主智能体用自己的模型写好的 Markdown 回存到目的地。
+    本模式**不调用任何大模型**，也不重新下载/转写视频。
+    """
+    from .pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+
+    source = args.save_note
+    if source == "-":
+        markdown = sys.stdin.read()
+        default_title = "视频笔记"
+    else:
+        note_path = Path(source)
+        if not note_path.exists():
+            print(f"❌ 笔记文件不存在: {note_path}", file=sys.stderr)
+            sys.exit(2)
+        markdown = note_path.read_text(encoding="utf-8")
+        default_title = note_path.stem
+
+    if not (markdown or "").strip():
+        print("❌ 笔记内容为空，未执行保存", file=sys.stderr)
+        sys.exit(2)
+
+    title = args.note_title or default_title
+    logger.info(f"保存笔记: {title} → {args.destination}")
+
+    pipeline = VideoKnowledgePipeline(
+        destination=args.destination,
+        format="structured",
+        language=args.language,
+    )
+    saved = pipeline.save_markdown(
+        args.url or "",
+        markdown,
+        metadata={
+            "title": title,
+            "author": args.note_author or "",
+            "duration": 0,
+            "source_url": args.url or "",
+            "source_platform": args.note_platform or "",
+        },
+        options={
+            "tags": args.obsidian_tags,
+            "feishu_folder": args.feishu_folder,
+        },
+    )
+
+    print("\n" + "=" * 60)
+    print(f"✅ 已保存: {saved}")
+    print("=" * 60)
 
 
 def _run_cli_impl(args):
@@ -231,27 +372,9 @@ def _run_cli_impl(args):
         result = process_video(url, mode, args.language, args=args)
 
     # 根据目的地路由(issue #8 fix: fw/fw_file/none 都是"不保存"语义,跳过 pipeline)
+    # 注：保存动作放在笔记输出之后 —— 保存失败不应让已生成的笔记丢失
     save_destinations = {"feishu", "yuque", "notion", "obsidian", "both"}
-    if destination in save_destinations:
-        # 从环境变量构建飞书配置
-        feishu_config = None
-        if destination in ("feishu", "both"):
-            feishu_config = {}
-            folder_token = os.getenv("FEISHU_FOLDER_TOKEN") or os.getenv("FEISHU_FOLDER")
-            if folder_token:
-                feishu_config["default_folder"] = folder_token
-
-        pipeline = VideoKnowledgePipeline(
-            destination=destination,
-            format=mode,
-            language=args.language,
-            feishu_config=feishu_config,
-        )
-        saved = pipeline.save(result, {
-            "feishu_folder": args.feishu_folder or os.getenv("FEISHU_FOLDER_TOKEN") or os.getenv("FEISHU_FOLDER"),
-            "obsidian_tags": args.obsidian_tags,
-        })
-        logger.info(f"已保存到: {saved}")
+    save_later = destination in save_destinations
 
     # 输出结果
     # 选择主输出内容
@@ -299,6 +422,41 @@ def _run_cli_impl(args):
         print("\n" + "=" * 60)
         print(output)
         print("=" * 60)
+
+    # === 保存（放在笔记输出之后）===
+    if save_later:
+        from .utils.exceptions import StorageError
+
+        # 从环境变量构建飞书配置
+        feishu_config = None
+        if destination in ("feishu", "both"):
+            feishu_config = {}
+            folder_token = os.getenv("FEISHU_FOLDER_TOKEN") or os.getenv("FEISHU_FOLDER")
+            if folder_token:
+                feishu_config["default_folder"] = folder_token
+
+        pipeline = VideoKnowledgePipeline(
+            destination=destination,
+            format=mode,
+            language=args.language,
+            feishu_config=feishu_config,
+        )
+        try:
+            saved = pipeline.save(result, {
+                "feishu_folder": args.feishu_folder or os.getenv("FEISHU_FOLDER_TOKEN") or os.getenv("FEISHU_FOLDER"),
+                "obsidian_tags": args.obsidian_tags,
+            })
+        except StorageError as e:
+            # 笔记已生成并输出，这里只报告保存失败
+            logger.error(f"保存失败: {e.message}")
+            print(f"\n❌ 保存失败: {e.message}", file=sys.stderr)
+            if e.details:
+                print(f"🔍 详情: {e.details}", file=sys.stderr)
+            if e.hint:
+                print(f"💡 建议: {e.hint}", file=sys.stderr)
+            sys.exit(1)
+        logger.info(f"已保存到: {saved}")
+        print(f"\n✅ 已保存到: {saved}")
 
 
 def run_demo(args):

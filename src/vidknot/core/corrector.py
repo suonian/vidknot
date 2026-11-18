@@ -7,8 +7,20 @@ VidkNot 双 ASR 校正模块
 
 处理流程：
   1. SequenceMatcher 找出所有差异
-  2. mmx search query 搜证疑似专有名词
-  3. mmx text chat (MiniMax-M3) 校正
+  2. 搜证疑似专有名词（搜索后端可插拔）
+  3. LLM 校正（校正后端可插拔）
+
+后端可插拔（v0.6.13 起）：
+  校正后端 `settings.correction_backend`
+    - provider : 复用 providers.default_provider 配的 OpenAI 兼容端点
+                  （MiniMax / DeepSeek / 豆包 / 通义 / 本地 Ollama 均可，
+                   不绑定任何厂商；默认与笔记生成用同一个模型）
+    - mmx      : MiniMax 官方 CLI（`mmx text chat`），仅此路径限定 MiniMax 模型
+    - none     : 不做校正
+    - auto     : 按 provider -> mmx -> none 顺序自动选第一个可用的
+  搜证后端 `settings.search_backend`
+    - mmx      : MiniMax 官方 CLI 的联网搜索
+    - none     : 不搜证（由调用方——例如宿主智能体——自行搜证）
 
 支持版本：
   - v4 (默认): 保守原则——只改搜证确认/明显成语/明显错字
@@ -74,6 +86,127 @@ def _mmx_command() -> list[str] | None:
     return [resolved]
 
 
+# ========== 后端解析（不绑定任何厂商） ==========
+
+_CORRECTION_BACKENDS = ("auto", "provider", "mmx", "none")
+_SEARCH_BACKENDS = ("auto", "mmx", "none")
+
+
+def _placeholder(value: str | None) -> bool:
+    """判断配置值是否只是占位符（config.yaml 里的 YOUR_XXX）"""
+    if not value:
+        return True
+    v = str(value).strip()
+    return not v or v.startswith("YOUR_")
+
+
+def _provider_api_key(provider: str | None = None) -> str:
+    """取当前 LLM provider 的可用 Key（没有则返回空串）"""
+    from ..utils.config_manager import ConfigManager
+
+    config = ConfigManager()
+    provider = provider or config.get("providers", "default_provider") or "openai"
+    provider_config = config.get_provider(provider) or {}
+
+    env_names = {
+        "openai": ("OPENAI_API_KEY",),
+        "openai-compatible": ("LLM_API_KEY",),
+        "zhipuai": ("ZHIPUAI_API_KEY",),
+    }
+    candidates = [provider_config.get("api_key")]
+    candidates.extend(os.getenv(name) for name in env_names.get(provider, ()))
+
+    for cand in candidates:
+        if cand and not _placeholder(str(cand)):
+            return str(cand).strip()
+    return ""
+
+
+def _provider_available() -> bool:
+    """当前 LLM provider 是否具备可用凭证"""
+    try:
+        return bool(_provider_api_key())
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"检查 provider 可用性失败: {e}")
+        return False
+
+
+def _resolve_correction_backend() -> str:
+    """解析校正后端: provider / mmx / none
+
+    `auto` 时按 provider -> mmx -> none 顺序选第一个可用的：
+      - provider 可用 → 用配置的 OpenAI 兼容端点（不绑定厂商）
+      - 否则 mmx 已安装 → 用 mmx CLI
+      - 否则 → 跳过校正（由调用方决定是否降级）
+    """
+    from ..utils.config_manager import ConfigManager
+
+    backend = ConfigManager().get("settings", "correction_backend", default="auto") or "auto"
+    backend = str(backend).strip().lower()
+    if backend not in _CORRECTION_BACKENDS:
+        logger.warning(f"未知的 correction_backend: {backend}，回退 auto")
+        backend = "auto"
+
+    if backend != "auto":
+        return backend
+
+    if _provider_available():
+        return "provider"
+    if _mmx_command() is not None:
+        return "mmx"
+    return "none"
+
+
+def _resolve_search_backend() -> str:
+    """解析搜证后端: mmx / none"""
+    from ..utils.config_manager import ConfigManager
+
+    backend = ConfigManager().get("settings", "search_backend", default="mmx") or "mmx"
+    backend = str(backend).strip().lower()
+    if backend not in _SEARCH_BACKENDS:
+        logger.warning(f"未知的 search_backend: {backend}，回退 mmx")
+        backend = "mmx"
+    return backend
+
+
+def _correction_model() -> str:
+    """mmx 后端使用的模型 ID（仅 mmx CLI 支持 MiniMax 模型）"""
+    from ..utils.config_manager import ConfigManager
+
+    return (ConfigManager().get("settings", "correction_model", default="") or "").strip()
+
+
+def _chat_via_provider(message: str, max_tokens: int = 32000) -> str:
+    """通过配置的 OpenAI 兼容 provider 调用 LLM（不绑定厂商）"""
+    from .processor import ContentProcessor
+
+    processor = ContentProcessor(max_tokens=max_tokens)
+    return processor.chat(message)
+
+
+def _correction_chat(message: str, max_tokens: int = 32000, timeout: int = 600) -> str:
+    """按配置的后端调用 LLM 做校正"""
+    backend = _resolve_correction_backend()
+    if backend == "provider":
+        return _chat_via_provider(message, max_tokens)
+    if backend == "mmx":
+        return _mmx_chat(message, max_tokens=max_tokens, timeout=timeout)
+    raise LLMError(
+        "双 ASR 校正已禁用",
+        hint="未找到可用的校正后端。请配置 LLM_API_KEY（配合 LLM_BASE_URL）"
+        "启用 provider 后端，或安装 mmx CLI 启用 mmx 后端，"
+        "或设置 settings.correction_backend=none 显式关闭。",
+    )
+
+
+def _search_web(query: str, limit: int = 3) -> str:
+    """按配置的后端联网搜证"""
+    backend = _resolve_search_backend()
+    if backend == "mmx":
+        return _mmx_search(query, limit)
+    return "（已禁用搜证）"
+
+
 def _mmx_search(query: str, limit: int = 3) -> str:
     """mmx search query - 返回简洁摘要"""
     cmd = _mmx_command()
@@ -109,7 +242,10 @@ def _mmx_search(query: str, limit: int = 3) -> str:
 
 
 def _mmx_chat(message: str, max_tokens: int = 32000, timeout: int = 600) -> str:
-    """mmx text chat - 调用 MiniMax-M3
+    """mmx text chat - 调用 mmx CLI（MiniMax 官方 CLI）
+
+    模型 ID 取 `settings.correction_model`（仅 mmx 后端生效）；留空则用
+    mmx CLI 自身的默认模型。
 
     多行 prompt 通过 `--messages-file` 传递：Windows 的 cmd.exe 会把命令行
     参数中的换行当作命令分隔符，`--message` 只有第一行能送达模型
@@ -125,6 +261,9 @@ def _mmx_chat(message: str, max_tokens: int = 32000, timeout: int = 600) -> str:
     if cmd is None:
         raise LLMError("mmx CLI 未安装")
 
+    model = _correction_model()
+    model_args = ["--model", model] if model else []
+
     messages_file = None
     try:
         try:
@@ -135,7 +274,7 @@ def _mmx_chat(message: str, max_tokens: int = 32000, timeout: int = 600) -> str:
             r = subprocess.run(
                 cmd + [
                     "text", "chat",
-                    "--model", "MiniMax-M3",
+                    *model_args,
                     "--max-tokens", str(max_tokens),
                     "--messages-file", messages_file,
                     "--output", "json",
@@ -151,7 +290,7 @@ def _mmx_chat(message: str, max_tokens: int = 32000, timeout: int = 600) -> str:
                 r = subprocess.run(
                     cmd + [
                         "text", "chat",
-                        "--model", "MiniMax-M3",
+                        *model_args,
                         "--max-tokens", str(max_tokens),
                         "--message", message,
                         "--output", "json",
@@ -396,7 +535,11 @@ class DualASRCorrector:
             }
 
         # Step 2: 让 LLM 识别需要搜证的关键项
-        logger.info("[Corrector] 让 LLM 识别搜证项...")
+        backend = _resolve_correction_backend()
+        search_backend = _resolve_search_backend()
+        logger.info(
+            f"[Corrector] 后端: 校正={backend}, 搜证={search_backend}"
+        )
         evidence_prompt = (
             f"你是中文 ASR 错别字校正专家。从以下 diff 清单（{n_diffs} 条）中"
             f"识别需要搜证的关键专有名词（公司名/产品名/人名/英文术语），只输出搜证清单：\n\n"
@@ -408,7 +551,7 @@ class DualASRCorrector:
             "2. 搜证 ...\n"
             f"（最多 {max_searches} 条）"
         )
-        evidence_output = _mmx_chat(evidence_prompt, max_tokens=4000, timeout=120)
+        evidence_output = _correction_chat(evidence_prompt, max_tokens=4000, timeout=120)
 
         # 解析搜证项
         searches = []
@@ -423,7 +566,7 @@ class DualASRCorrector:
         search_results = {}
         for query, label in searches:
             logger.info(f"[Corrector] 🔍 搜证: {query[:50]}")
-            search_results[label] = _mmx_search(query)
+            search_results[label] = _search_web(query)
 
         search_summary = "\n".join(
             f"### {k}\n{v}\n" for k, v in search_results.items()
@@ -440,8 +583,8 @@ class DualASRCorrector:
             sf_text=sf_text,
         )
 
-        logger.info(f"[Corrector] 调用 mmx LLM 校正（{self.version}）...")
-        llm_output = _mmx_chat(prompt, max_tokens=32000, timeout=600)
+        logger.info(f"[Corrector] 调用 LLM 校正（{self.version}, backend={backend}）...")
+        llm_output = _correction_chat(prompt, max_tokens=32000, timeout=600)
 
         # 抽取校正结果
         corrected_text = _extract_corrected_transcript(llm_output)

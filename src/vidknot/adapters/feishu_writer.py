@@ -73,7 +73,7 @@ class FeishuWriter:
                 )
         return self._client
 
-    async def create_document(
+    def create_document(
         self,
         title: str,
         markdown_content: str,
@@ -83,6 +83,11 @@ class FeishuWriter:
     ) -> str:
         """
         创建飞书文档
+
+        注意（v0.6.13 修复）：本方法此前被声明为 ``async def``，但函数体内部
+        全部是同步调用（FeishuDocx / FeishuClient 的 create 均为同步 API）。
+        同步调用方拿到的只是一个从未被 await 的协程对象 —— 文档实际上
+        从未创建。现改为同步方法。
 
         Args:
             title: 文档标题
@@ -127,6 +132,14 @@ class FeishuWriter:
                 logger.warning(f"知识库节点创建失败（非阻塞）: {e}")
 
         return doc_url
+
+    async def create_document_async(self, *args, **kwargs) -> str:
+        """``create_document`` 的异步包装（兼容此前 await 调用方的写法）。
+
+        v0.6.13 起 ``create_document`` 已改为同步方法；本包装保留给
+        仍在使用 ``await writer.create_document_async(...)`` 的代码。
+        """
+        return self.create_document(*args, **kwargs)
 
     def markdown_to_lark_blocks(self, md: str) -> list[dict]:
         """
