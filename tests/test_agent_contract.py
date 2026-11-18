@@ -1,5 +1,5 @@
 """
-v0.6.13 回归测试：两段式 Agent 契约 + 保存链路修复
+v0.6.13 / v0.6.14 回归测试：两段式 Agent 契约 + 保存链路修复 + 模型解析修正
 
 覆盖：
 - agent_material：待搜证词提取（纯算法）+ 素材包组装
@@ -8,6 +8,8 @@ v0.6.13 回归测试：两段式 Agent 契约 + 保存链路修复
 - MCP 新工具 video_material / save_note（自研 JSON-RPC 入口）
 - CLI 新参数 --material / --save-note
 - 校正 / 搜证后端可插拔（不绑定厂商）
+- ASR 语音模型解析（v0.6.14：语音/文本模型分离）
+- 对照转写状态 diff_status（v0.6.14：区分未执行/失败/完成）
 """
 
 import json
@@ -615,3 +617,171 @@ class TestPluggableCorrectionBackend:
         ).read_text(encoding="utf-8")
         assert '"MiniMax-M3"' not in source
         assert "'MiniMax-M3'" not in source
+
+
+# ============================================================
+# ASR 语音模型解析（v0.6.14）
+# ============================================================
+
+
+@pytest.fixture
+def isolated_config(tmp_path):
+    """隔离 ConfigManager 单例：注入临时配置，结束后恢复原实例。
+
+    ConfigManager 是单例，测试里换配置必须整体还原，否则会污染后续用例。
+    """
+    from vidknot.utils.config_manager import ConfigManager
+
+    original = ConfigManager._instance
+    cfg_path = tmp_path / "config.yaml"
+
+    def _make(yaml_text: str):
+        cfg_path.write_text(yaml_text, encoding="utf-8")
+        ConfigManager._instance = None
+        return ConfigManager(config_path=str(cfg_path))
+
+    try:
+        yield _make
+    finally:
+        ConfigManager._instance = original
+
+
+class TestAsrModelResolution:
+    """语音模型与文本模型必须分离（v0.6.14）"""
+
+    def test_empty_config_uses_asr_default(self, isolated_config):
+        """空配置必须回落到语音模型默认值，而不是文本模型"""
+        from vidknot.core.transcriber import SiliconFlowASR
+
+        isolated_config("{}")
+        resolved = SiliconFlowASR()._resolve_model()
+        assert resolved == SiliconFlowASR.DEFAULT_MODEL
+        assert "DeepSeek" not in resolved
+
+    def test_toplevel_siliconflow_model_used(self, isolated_config):
+        """顶层 siliconflow.model 应被采用"""
+        from vidknot.core.transcriber import SiliconFlowASR
+
+        isolated_config("siliconflow:\n  model: MyASRModel\n")
+        assert SiliconFlowASR()._resolve_model() == "MyASRModel"
+
+    def test_dedicated_asr_key_wins(self, isolated_config):
+        """ASR 专属键 siliconflow_asr.model 优先级最高"""
+        from vidknot.core.transcriber import SiliconFlowASR
+
+        isolated_config(
+            "siliconflow:\n  model: TopLevelModel\n"
+            "siliconflow_asr:\n  model: DedicatedAsrModel\n"
+        )
+        assert SiliconFlowASR()._resolve_model() == "DedicatedAsrModel"
+
+    def test_providers_model_used_when_explicit(self, isolated_config):
+        """用户显式设置 providers.siliconflow.model 时仍可采用"""
+        from vidknot.core.transcriber import SiliconFlowASR
+
+        isolated_config("providers:\n  siliconflow:\n    model: ExplicitModel\n")
+        assert SiliconFlowASR()._resolve_model() == "ExplicitModel"
+
+    def test_constructor_arg_wins(self, isolated_config):
+        """构造参数优先级最高"""
+        from vidknot.core.transcriber import SiliconFlowASR
+
+        isolated_config("siliconflow:\n  model: TopLevelModel\n")
+        assert SiliconFlowASR(model="ExplicitArg")._resolve_model() == "ExplicitArg"
+
+    def test_placeholder_skipped(self, isolated_config):
+        """YOUR_ 占位符不应被当成模型名"""
+        from vidknot.core.transcriber import SiliconFlowASR
+
+        isolated_config("siliconflow:\n  model: YOUR_MODEL\n")
+        assert SiliconFlowASR()._resolve_model() == SiliconFlowASR.DEFAULT_MODEL
+
+    def test_builtin_default_has_no_text_model(self, isolated_config):
+        """内置默认配置里不应再出现文本模型名"""
+        config = isolated_config("{}")
+        assert not config.get("providers", "siliconflow", "model")
+
+
+# ============================================================
+# 对照转写状态 diff_status（v0.6.14）
+# ============================================================
+
+
+class TestDiffStatus:
+    """对照转写失败必须可被智能体识别，不能与「无差异」混淆"""
+
+    def _pipeline(self):
+        """字幕优先路径：第一次拿字幕（无音频），第二次补下载音频。"""
+        from vidknot.pipeline.video_knowledge_pipeline import VideoKnowledgePipeline
+
+        pipeline = VideoKnowledgePipeline(destination="none", format="raw", use_cache=False)
+        pipeline.downloader = MagicMock()
+        pipeline.downloader.download_audio_with_metadata = MagicMock(
+            side_effect=[
+                (None, {"title": "T", "subtitle_text": "字幕全文", "duration": 30}),
+                ("/tmp/audio.mp3", {"title": "T", "duration": 30}),
+            ]
+        )
+        return pipeline
+
+    def test_skipped_when_diff_not_requested(self):
+        """with_diff=False 时状态为 skipped"""
+        bundle = self._pipeline().collect_material(
+            "https://example.com/v/1", with_diff=False
+        )
+        assert bundle["diff_status"] == "skipped"
+        assert bundle["diff_reason"]
+
+    def test_ok_when_cross_check_succeeds(self):
+        """对照成功时状态为 ok"""
+        pipeline = self._pipeline()
+        with patch(
+            "vidknot.core.transcriber.FasterWhisperASR.transcribe",
+            return_value="[  0.0s -    3.4s] 字幕全文",
+        ):
+            bundle = pipeline.collect_material("https://example.com/v/1", with_diff=True)
+        assert bundle["diff_status"] == "ok"
+        assert bundle["diff_count"] == 0  # 两份一致
+
+    def test_failed_when_cross_check_raises(self):
+        """对照失败时状态为 failed，且带失败原因"""
+        pipeline = self._pipeline()
+        with patch(
+            "vidknot.core.transcriber.FasterWhisperASR.transcribe",
+            side_effect=RuntimeError("本地模型加载失败"),
+        ):
+            bundle = pipeline.collect_material("https://example.com/v/1", with_diff=True)
+        assert bundle["diff_status"] == "failed"
+        assert "本地模型加载失败" in bundle["diff_reason"]
+        assert bundle["diff_count"] == 0
+
+    def test_failed_when_cross_check_empty(self):
+        """对照转写为空也视为 failed（否则会被读成「无差异」）"""
+        pipeline = self._pipeline()
+        with patch(
+            "vidknot.core.transcriber.FasterWhisperASR.transcribe",
+            return_value="",
+        ):
+            bundle = pipeline.collect_material("https://example.com/v/1", with_diff=True)
+        assert bundle["diff_status"] == "failed"
+        assert bundle["diff_reason"]
+
+    def test_failed_when_audio_download_fails(self):
+        """补下载音频失败时状态为 failed"""
+        pipeline = self._pipeline()
+        pipeline.downloader.download_audio_with_metadata = MagicMock(
+            side_effect=[
+                (None, {"title": "T", "subtitle_text": "字幕全文", "duration": 30}),
+                RuntimeError("下载失败"),
+            ]
+        )
+        bundle = pipeline.collect_material("https://example.com/v/1", with_diff=True)
+        assert bundle["diff_status"] == "failed"
+        assert "下载失败" in bundle["diff_reason"]
+
+    def test_notes_explain_diff_status(self):
+        """notes 里要点明 diff_status 的语义"""
+        bundle = self._pipeline().collect_material(
+            "https://example.com/v/1", with_diff=False
+        )
+        assert "diff_status" in bundle["notes"]

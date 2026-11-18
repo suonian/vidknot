@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.14] - 2026-11-18
+
+### 修复：语音模型与文本模型分离
+
+外部智能体审查发现、并已实测确认的两个 P2 问题 —— v0.6.13 让 ASR 模型配置
+真正生效时遗留的顺序问题。
+
+- **默认 ASR 模型可能选错**（P2）。`providers.siliconflow.model` 的**内置默认值**
+  是**文本**模型 `deepseek-ai/DeepSeek-V3`，而 v0.6.13 的解析链把它排在第一位。
+  实测三种场景都会解析出文本模型：
+
+  | 配置 | v0.6.13 解析结果 | v0.6.14 解析结果 |
+  | --- | --- | --- |
+  | 空配置 | `deepseek-ai/DeepSeek-V3` | `FunAudioLLM/SenseVoiceSmall` |
+  | 仅设顶层 `siliconflow.model` | `deepseek-ai/DeepSeek-V3`（用户配置被忽略）| `FunAudioLLM/SenseVoiceSmall` |
+  | 仅设 `siliconflow_asr.model` | `deepseek-ai/DeepSeek-V3`（专属键被忽略）| `FunAudioLLM/SenseVoiceSmall` |
+
+  完整配置（含 `config.yaml`）不受影响，但新安装会踩到。现已把两者分离：
+
+  - 语音模型解析顺序改为 **构造参数 → `siliconflow_asr.model` →
+    `siliconflow.model` → `providers.siliconflow.model`（仅用户显式设置时）
+    → `FunAudioLLM/SenseVoiceSmall`**；
+  - `providers.siliconflow.model` 内置默认值由 `deepseek-ai/DeepSeek-V3` 改为
+    留空，回归「SiliconFlow 作为**文本** LLM provider 时的模型」语义
+    （processor 当前并不支持 siliconflow 作为 LLM provider，该段只复用
+    api_key / base_url）；
+  - `siliconflow_asr.model` 内置默认值由写死的 SenseVoiceSmall 改为留空，
+    不再抢在用户显式配置之前命中；
+  - `config.yaml` 删掉 `providers.siliconflow.model` 一行 —— 语音模型只保留
+    顶层 `siliconflow.model` 一处，`siliconflow_asr` 作为可选覆盖以注释给出。
+
+### 修复：本地复核失败缺少明确状态
+
+- **对照转写失败时素材包无法与「无差异」区分**（P2）。faster-whisper 对照失败
+  （模型加载失败、音频无语音内容、补下载音频失败等）时，素材包仍返回
+  `diff_count=0`、`diffs=[]`、`fw_segments=""`，与「两份转写确实一致」完全
+  一样 —— 智能体可能误读成「没有差异」，从而跳过本该做的搜证与纠错。
+
+  素材包新增两个字段：
+
+  | 字段 | 取值 | 含义 |
+  | --- | --- | --- |
+  | `diff_status` | `ok` / `failed` / `skipped` | 对照完成 / 对照失败（无法判断是否存在差异）/ 未请求对照 |
+  | `diff_reason` | 一行文本 | 失败原因、未执行原因，或差异数量 |
+
+  `diff_count == 0` 只有在 `diff_status == "ok"` 时才表示「两份转写确实
+  一致」；`notes` 字段也点明了这一语义。
+
+### Tests
+
+- 全量测试 **557 → 570 passed**（新增 13 项：语音模型解析 7 项、对照状态 6 项）；
+  Ruff 检查通过。
+- **验证矩阵**：常规环境 **570 passed**；模拟 CI 环境（PATH 移除 npm 目录使
+  `shutil.which("mmx")` 返回 `None`，同时移除 FFmpeg 目录）**570 passed**。
+
+### Changed
+
+- 同步版本位点至 `v0.6.14`（`pyproject.toml` / `_version.py` / `install.sh` /
+  `install.ps1` / `SECURITY.md` / issue 模板 / README 双语 / `SKILL.md` /
+  `INSTALL.md` / `docs/BEST_PRACTICES.md`）。
+- `docs/CONFIG.md` 新增「ASR (speech) model and endpoint」与「Material bundle
+  cross-check status」两节；`SKILL.md` 与 README 双语的素材包字段说明补上
+  `diff_status` 语义。
+
 ## [0.6.13] - 2026-11-18
 
 ### 解绑厂商绑定：两段式 Agent 契约

@@ -68,12 +68,42 @@ and web evidence lookup. None of them binds you to a specific vendor.
 > is handed to your agent, which does the searching and drafting with its own
 > tools. These settings then have no effect.
 
-## ASR model and endpoint
+## ASR (speech) model and endpoint
+
+The **speech** model and the **text-LLM** model are two different things and are
+configured separately since v0.6.14.
 
 | Setting | Meaning |
 | ------- | ------- |
-| `providers.siliconflow.model` | The ASR model actually sent to SiliconFlow (e.g. `FunAudioLLM/SenseVoiceSmall`). This key was a dead configuration before v0.6.13 — it now really reaches the request. |
+| `siliconflow_asr.model` | Dedicated speech-model key. Leave it unset to fall through. |
+| `siliconflow.model` | The speech model actually sent to SiliconFlow (e.g. `FunAudioLLM/SenseVoiceSmall`). This is the key `config.yaml` uses. |
+| `providers.siliconflow.model` | Semantics: the model to use **when SiliconFlow acts as a text-LLM provider**. It is **not** a speech model and is no longer consulted first for ASR. Defaults to unset. |
+| `providers.siliconflow.api_key` | SiliconFlow key — shared by the ASR and text paths. |
 | `providers.siliconflow.base_url` | Overrides the SiliconFlow API base URL. |
+
+Resolution order for the speech model:
+
+1. the `model=` constructor argument
+2. `siliconflow_asr.model`
+3. `siliconflow.model`
+4. `providers.siliconflow.model` (only when you set it explicitly)
+5. `FunAudioLLM/SenseVoiceSmall`
+
+> Before v0.6.14 the built-in default for `providers.siliconflow.model` was the
+> **text** model `deepseek-ai/DeepSeek-V3` and it sat first in this order, so an
+> empty config asked a text model to transcribe audio. The two roles are now
+> separate.
+
+## Material bundle cross-check status
+
+The material bundle returned by `video_material` / `--material` carries the
+cross-check state explicitly:
+
+| Field | Values | Meaning |
+| ----- | ------ | ------- |
+| `diff_status` | `ok` / `failed` / `skipped` | `ok` = the faster-whisper cross-check ran; `failed` = it was attempted but failed (so differences could **not** be determined); `skipped` = it was not requested. |
+| `diff_reason` | free text | Why, in one line. Empty only when `diff_status` is `ok` and no difference was found. |
+| `diff_count` | int | Number of differences. `diff_count == 0` only means "the transcripts agree" **when** `diff_status == "ok"`. |
 
 ## Secret isolation
 

@@ -160,7 +160,10 @@ class ConfigManager:
                 "compute_type": "int8",
             },
             "siliconflow_asr": {
-                "model": "FunAudioLLM/SenseVoiceSmall",
+                # ASR（语音）模型专属键。留空表示「未显式指定」，
+                # 此时按 siliconflow.model -> DEFAULT_MODEL 依次回退。
+                # 此前这里写死 SenseVoiceSmall，会抢在用户显式配置之前命中。
+                "model": None,
             },
             "providers": {
                 "default_provider": "openai",
@@ -185,7 +188,11 @@ class ConfigManager:
                 "siliconflow": {
                     "api_key": None,
                     "base_url": "https://api.siliconflow.cn/v1",
-                    "model": "deepseek-ai/DeepSeek-V3",
+                    # 该 model 的语义是「SiliconFlow 作为**文本** LLM provider
+                    # 时的模型」，不是语音模型 —— ASR 不取它（v0.6.14 分离）。
+                    # 留空表示未显式指定；processor 当前也不支持 siliconflow
+                    # 作为 LLM provider，此处仅为 api_key / base_url 复用。
+                    "model": None,
                     "max_tokens": 4000,
                 },
             },

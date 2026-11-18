@@ -26,7 +26,12 @@ cache:
   max_age_days: 30        # 本地缓存过期天数，过期条目在读取时自动清理
 siliconflow:
   api_key: YOUR_SILICONFLOW_KEY
+  # 语音（ASR）模型。语音模型与文本模型是两回事，此处只管语音。
+  # 若要单独覆盖，可启用下面的 siliconflow_asr 段（优先级更高）。
   model: FunAudioLLM/SenseVoiceSmall
+# ASR 模型专属覆盖（可选；优先级高于上面的 siliconflow.model）
+# siliconflow_asr:
+#   model: FunAudioLLM/SenseVoiceSmall
 faster_whisper:
   model: small
   device: cpu
@@ -67,9 +72,9 @@ providers:
     model: glm-4-flash
     max_tokens: 4000
   siliconflow:
+    # 这里只复用凭证与端点；语音模型请用顶层 siliconflow.model
+    # （providers.*.model 的语义是「文本 LLM 模型」，不是语音模型）
     api_key: YOUR_SILICONFLOW_KEY
-    # ASR 模型（v0.6.13 起真正生效；此前该键为死配置）
-    model: FunAudioLLM/SenseVoiceSmall
     base_url: https://api.siliconflow.cn/v1
 feishu:
   app_id: YOUR_FEISHU_APP_ID

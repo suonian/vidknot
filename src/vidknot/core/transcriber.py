@@ -69,17 +69,32 @@ class SiliconFlowASR:
         self.base_url = base_url
 
     def _resolve_model(self) -> str:
-        """解析实际使用的 ASR 模型
+        """解析实际使用的 ASR（语音）模型。
 
-        优先 providers.siliconflow.model，其次顶层 siliconflow.model，
-        最后用默认值。v0.6.13 之前这两个配置项从未被读取（死配置）。
+        **语音模型与文本模型是两回事**，解析顺序：
+
+          1. 构造参数 model=
+          2. siliconflow_asr.model    —— ASR 专属键（可选覆盖，默认留空）
+          3. siliconflow.model       —— 顶层历史键（config.yaml 用的就是它）
+          4. providers.siliconflow.model —— 仅当用户**显式**把它设成语音
+             模型时才采用。该键的语义是「SiliconFlow 作为**文本** LLM
+             provider 时的模型」，默认留空。
+          5. DEFAULT_MODEL = FunAudioLLM/SenseVoiceSmall
+
+        v0.6.13 之前这几个键从未被读取（死配置）；v0.6.13 起真正生效，但
+        优先级把内置的**文本**模型默认值排在了最前 —— 空配置会拿
+        deepseek-ai/DeepSeek-V3 去请求语音接口。v0.6.14 起两者分离。
         """
         if self.model:
             return self.model
         from ..utils.config_manager import ConfigManager
 
         config = ConfigManager()
-        for path in (("providers", "siliconflow", "model"), ("siliconflow", "model")):
+        for path in (
+            ("siliconflow_asr", "model"),
+            ("siliconflow", "model"),
+            ("providers", "siliconflow", "model"),
+        ):
             value = config.get(*path)
             if value and not str(value).startswith("YOUR_"):
                 return str(value).strip()

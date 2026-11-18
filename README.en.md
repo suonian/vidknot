@@ -5,14 +5,35 @@ VidkNot is a **general research platform framework** (v0.6.13) that extracts kno
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-557%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-570%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | [中文](README.md) | English |
 
-## What's new in v0.6.13
+## What's new in v0.6.14
 
-**No vendor lock-in: search with your own agent's search tools, correct and
-write with your own agent's model.**
+**Two P2 fixes: separate the speech model from the text model, and make the
+cross-check status explicit.**
+
+- **The default ASR model could be wrong.** The built-in default of
+  `providers.siliconflow.model` was the **text** model `deepseek-ai/DeepSeek-V3`,
+  and it sat first in the ASR model resolution order — so an empty config, or
+  one that only set the top-level `siliconflow.model` or `siliconflow_asr.model`,
+  asked a text model to transcribe audio. The **speech** and **text** models are
+  now separate: the speech model resolves as
+  `constructor arg -> siliconflow_asr.model -> siliconflow.model ->
+  providers.siliconflow.model (only when explicitly set) -> SenseVoiceSmall`,
+  and `providers.siliconflow.model` returns to its "text LLM model" meaning
+  with no default.
+- **A failed local cross-check had no explicit status.** When faster-whisper
+  failed, the material bundle still reported `diff_count=0` — indistinguishable
+  from "the two transcripts agree", which an agent could misread as "no
+  differences". The bundle now carries `diff_status`
+  (`ok` / `failed` / `skipped`) plus `diff_reason`.
+
+### v0.6.13: no vendor lock-in
+
+**Search with your own agent's search tools, correct and write with your own
+agent's model.**
 
 Adds a **two-stage agent contract** that separates the deterministic work from
 the judgment work:
@@ -30,7 +51,7 @@ algorithm. You search those candidates with **your own search tool**, correct
 and draft the note with **your own model**, then save it through stage 2.
 VidkNot no longer decides which vendor to use for you.
 
-Three defects found during a hands-on audit are also fixed:
+v0.6.13 also fixed three defects found during a hands-on audit:
 
 - **The save path never actually worked.** Writers were only instantiated when
   a *non-empty* config dict was passed (the CLI passes an empty dict, MCP
@@ -43,7 +64,8 @@ Three defects found during a hands-on audit are also fixed:
   (`auto`/`provider`/`mmx`/`none`), where `auto` picks provider → mmx → skip
   without binding any vendor.
 - **`siliconflow.model` was a dead key** — it never reached the ASR request.
-  It now does.
+  v0.6.13 made it reach the request; v0.6.14 separates it from the text model
+  (see above).
 
 Content authorization boundaries and the free-first policy are unchanged.
 
@@ -65,7 +87,7 @@ Content authorization boundaries and the free-first policy are unchanged.
 | Twitter / X | Short video | ✅ Stable via yt-dlp |
 | Instagram (Reels) | Short video | ✅ Stable via yt-dlp |
 | WeChat Channels (视频号) | Short video | ⚠️ Reserved (closed WeChat ecosystem; export via packet-capture tools, then use local batch mode) |
-| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.13) |
+| Xiaohongshu (Image notes) | Image gallery | ✅ 4 bugs fixed in v0.3.3 (still active in v0.6.14) |
 | Xiaohongshu (Video notes) | Short video | ✅ Direct-link extraction from `__INITIAL_STATE__` |
 | Kuaishou, Weibo | Short video | ⚠️ Framework ready, depends on yt-dlp support |
 | Any yt-dlp-supported site | Mixed | ✅ GenericPlatform fallback |
@@ -90,14 +112,14 @@ See [docs/PLATFORMS.md](docs/PLATFORMS.md) for the full capability matrix
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **Don't want a system FFmpeg?** Use the bundled static build (binary ships in the wheel, works offline):
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.13"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.14"`
 >
 > Environment self-check: `python -m vidknot --check-env` (prints install commands for anything missing)
 
-The current GitHub release is `v0.6.13`. Install from GitHub:
+The current GitHub release is `v0.6.14`. Install from GitHub:
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.14"
 ```
 
 > 🇨🇳 **Mainland China note**: if GitHub is slow, point pip at a domestic
@@ -106,7 +128,7 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.14"
 > ```
 >
 > The Tsinghua mirror also covers overseas dependencies such as yt-dlp and

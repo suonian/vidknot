@@ -2,7 +2,7 @@
 name: vidknot
 displayName: VidkNot（影音笔记舱）
 slug: vidknot
-version: 0.6.13
+version: 0.6.14
 description: >
   一键提取视频文案和知识笔记：把一个视频链接丢进来，VidkNot 自动听懂内容、
   转成完整文字稿，并整理出内容摘要与重点，还能一键保存到
@@ -77,12 +77,19 @@ bundle = call_tool(
 #  "transcription": "字幕/ASR 完整转写",
 #  "fw_segments": "[00:00.0 - 00:07.2] faster-whisper 时间戳段",
 #  "diffs": ["[0] replace: SF='...' ↔ FW='...' | ctx: ..."],
+#  "diff_status": "ok",      # ok=对照完成 / failed=对照失败 / skipped=未执行
+#  "diff_reason": "对照转写完成，共 12 处差异",
 #  "search_candidates": ["ByteDance", "字节跳动"], ...}
 #
 # search_candidates 是**原文词级**差异里提取的待搜证词：
 #   拉丁词须含大写字母或数字（ByteDance / iPhone / GPT-4 / 2024），
 #   中文取差异位置前后 2-4 个汉字的词块；
 #   英文句首大写的常见词与标点碎片已被过滤，不会拿噪声去搜。
+#
+# ⚠️ 先看 diff_status 再看 diff_count：
+#   diff_status=ok       -> diff_count=0 表示两份转写确实一致
+#   diff_status=failed   -> 无法判断是否存在差异（diff_count 不可信）
+#   diff_status=skipped -> 未做对照转写
 
 # ← 这里用你自己的搜索工具搜证，用你自己的模型成稿 → markdown
 
@@ -431,7 +438,23 @@ Agent 拿到本技能后，应查找：
 - MINOR：向后兼容的新功能
 - PATCH：缺陷修复
 
-最新版：**0.6.13** — 解绑厂商绑定，改为「两段式 Agent 契约」。
+最新版：**0.6.14** — 修复 ASR 模型解析与本地复核状态标注。
+
+- **修复默认 ASR 模型可能选错**：语音模型与文本模型配置彻底分离。
+  此前 `providers.siliconflow.model` 的内置默认值（文本模型
+  `deepseek-ai/DeepSeek-V3`）在解析链中排在首位，导致空配置或仅设置
+  顶层语音模型时都解析成文本模型；而 `siliconflow_asr.model` 反而是
+  从未被读取的死配置。现改为依次按「构造参数 →
+  `siliconflow_asr.model` → `siliconflow.model` → 显式
+  `providers.siliconflow.model` → 内置默认 `FunAudioLLM/SenseVoiceSmall`」
+  解析，避免文本模型被当作语音模型。
+- **修复本地复核失败缺少明确状态**：素材包新增 `diff_status`
+  （`ok` / `failed` / `skipped`）与 `diff_reason` 字段。此前 faster-whisper 对照
+  失败时仍返回 `diff_count=0`，容易被误读为「两份转写没有差异」。
+  现在请**先看 `diff_status` 再看 `diff_count`**；只有 `diff_status=ok` 时
+  `diff_count=0` 才意味着「确实一致」。
+
+v0.6.13 的「解绑厂商绑定，改为『两段式 Agent 契约』」要点：
 
 - **不再强制 MiniMax、不再强制某类大模型**：新增 `video_material` +
   `save_note` 两个 MCP 工具与 `--material` / `--save-note` 两个 CLI 模式。

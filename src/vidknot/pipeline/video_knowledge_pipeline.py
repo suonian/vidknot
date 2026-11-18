@@ -167,7 +167,13 @@ class VideoKnowledgePipeline:
 
         fw_segments = ""
         diff_lines: list[str] = []
+        # 对照转写状态：ok(完成) / failed(失败) / skipped(未执行)。
+        # 必须区分「两份转写确实一致」(ok 且 diff_count=0) 与「对照失败、
+        # 无法判断」(failed) —— 否则智能体会把失败误读成「没有差异」。
+        diff_status = "skipped"
+        diff_reason = "未请求对照转写（with_diff=false）"
         if with_diff:
+            diff_reason = ""
             if audio_path is None:
                 # 字幕优先路径拿不到音频（平台已给官方字幕），而 FW 对照必须
                 # 有音频 —— 补一次纯音频下载。转写仍用字幕（质量更高且免 ASR）。
@@ -183,7 +189,9 @@ class VideoKnowledgePipeline:
                             metadata[key] = audio_metadata[key]
                 except Exception as e:
                     logger.warning(f"FW 对照需要音频但下载失败，跳过 diff: {e}")
-            if audio_path is not None:
+                    diff_status = "failed"
+                    diff_reason = f"对照转写所需的音频下载失败：{e}"
+            if diff_status != "failed" and audio_path is not None:
                 try:
                     fw_transcriber = FasterWhisperASR()
                     fw_segments = fw_transcriber.transcribe(
@@ -191,8 +199,21 @@ class VideoKnowledgePipeline:
                     )
                     if fw_segments and transcription:
                         diff_lines, _, _ = _make_diff(fw_segments, transcription)
+                        diff_status = "ok"
+                        diff_reason = f"对照转写完成，共 {len(diff_lines)} 处差异"
+                    elif not fw_segments:
+                        diff_status = "failed"
+                        diff_reason = "对照转写结果为空（可能音频无语音内容）"
+                    else:
+                        diff_status = "failed"
+                        diff_reason = "主转写为空，无法与对照转写比较"
                 except Exception as e:
                     logger.warning(f"FW 对照转录失败，跳过 diff: {e}")
+                    diff_status = "failed"
+                    diff_reason = f"对照转录失败：{e}"
+            elif diff_status != "failed":
+                diff_status = "failed"
+                diff_reason = "未获取到音频，无法进行对照转写"
 
         return build_material_bundle(
             url=url,
@@ -201,6 +222,8 @@ class VideoKnowledgePipeline:
             fw_segments=fw_segments,
             diff_lines=diff_lines,
             max_candidates=max_candidates,
+            diff_status=diff_status,
+            diff_reason=diff_reason,
         )
 
     def save_markdown(

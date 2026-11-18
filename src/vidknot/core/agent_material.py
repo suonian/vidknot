@@ -242,6 +242,8 @@ def build_material_bundle(
     diff_lines: list[str] | None = None,
     search_candidates: list[str] | None = None,
     max_candidates: int = 12,
+    diff_status: str = "skipped",
+    diff_reason: str = "",
 ) -> dict[str, Any]:
     """组装素材包（不调用任何 LLM / 搜索）。
 
@@ -253,6 +255,8 @@ def build_material_bundle(
         diff_lines: 双 ASR 差异清单（可为空）
         search_candidates: 显式指定候选词；留空则从两份转写的差异里提取
         max_candidates: 候选词上限
+        diff_status: 对照转写状态 —— ok(完成) / failed(失败) / skipped(未执行)
+        diff_reason: 对照转写的说明或失败原因
 
     Returns:
         素材包字典
@@ -280,10 +284,15 @@ def build_material_bundle(
         "fw_segments": fw_segments or "",
         "diff_count": len(diff_lines),
         "diffs": diff_lines,
+        "diff_status": diff_status,
+        "diff_reason": diff_reason,
         "search_candidates": search_candidates,
         "notes": (
             "本素材包只含确定性产物（下载 / ASR / 双 ASR diff / 待搜证词），"
             "不含任何 LLM 调用结果与联网搜索结果。"
+            "diff_status 标明对照转写状态：ok=已完成（此时 diff_count=0 表示"
+            "两份转写确实一致）、failed=对照失败（无法判断是否存在差异）、"
+            "skipped=未执行对照。"
             "请用你自己的搜索工具对 search_candidates 搜证，"
             "并用你自己的模型完成纠错与结构化成稿；"
             "成稿写好后调用 save_note 落库。"

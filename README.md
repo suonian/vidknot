@@ -5,13 +5,29 @@
 [![GitHub Release](https://img.shields.io/github/v/release/suonian/vidknot)](https://github.com/suonian/vidknot/releases)
 [![License](https://img.shields.io/github/license/suonian/vidknot.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-557%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
+[![Tests](https://img.shields.io/badge/tests-570%20passed-brightgreen)](https://github.com/suonian/vidknot/actions)
 
 | 中文 | [English](README.en.md) |
 
-## 本次更新（v0.6.13）
+## 本次更新（v0.6.14）
 
-**解绑厂商绑定：搜证用智能体自己的搜索工具，纠错与成稿用它自己的模型。**
+**修两个 P2：语音模型与文本模型分离；对照转写状态显式化。**
+
+- **默认 ASR 模型可能选错**：`providers.siliconflow.model` 的内置默认值是
+  **文本**模型 `deepseek-ai/DeepSeek-V3`，而它在 ASR 模型解析链里排在最前 ——
+  空配置、只设了顶层 `siliconflow.model` 或只设了 `siliconflow_asr.model`
+  时，都会拿文本模型去请求语音接口。现已把**语音模型与文本模型分离**：
+  语音模型按 `构造参数 → siliconflow_asr.model → siliconflow.model →
+  providers.siliconflow.model（仅显式设置时）→ 默认 SenseVoiceSmall` 解析，
+  `providers.siliconflow.model` 回归「文本 LLM 模型」语义且默认留空。
+- **本地复核失败缺少明确状态**：faster-whisper 对照失败时素材包仍返回
+  `diff_count=0`，与「两份转写确实一致」无法区分，智能体可能误读成「没有差异」。
+  现新增 `diff_status`（`ok` / `failed` / `skipped`）与 `diff_reason`，
+  失败时明确给出原因。
+
+### v0.6.13：解绑厂商绑定
+
+**搜证用智能体自己的搜索工具，纠错与成稿用它自己的模型。**
 
 新增**两段式 Agent 契约**，把「确定性的部分」和「需要判断的部分」拆开：
 
@@ -26,7 +42,7 @@
 提取的待搜证词。你用**自己的搜索工具**对候选词搜证，用**自己的模型**完成
 纠错与成稿，再通过第二段落库。VidkNot 不再替你决定用哪家厂商。
 
-同时修复了三个实测发现的缺陷：
+v0.6.13 同时修复了三个实测发现的缺陷：
 
 - **保存链路实际从未生效**：写入器只在传入**非空** config 时才实例化
   （CLI 传的空 dict 与 MCP 完全不传都会让它变成 `None`），`save()` 静默
@@ -35,7 +51,8 @@
 - **双 ASR 校正硬绑定 MiniMax**：写死 `--model MiniMax-M3`。现改为可插拔
   后端 `settings.correction_backend`（`auto`/`provider`/`mmx`/`none`），
   `auto` 按 provider → mmx → 跳过自动选，不绑定厂商。
-- **`siliconflow.model` 是死键**：从未生效，现已真正透传给 ASR 请求。
+- **`siliconflow.model` 是死键**：从未生效，v0.6.13 起真正透传给 ASR 请求
+  （v0.6.14 进一步把它与文本模型分离，见上方「本次更新」）。
 
 授权边界与「免费优先」策略不变。
 
@@ -57,7 +74,7 @@
 | Twitter / X | 短视频 | ✅ yt-dlp 稳定支持 |
 | Instagram | Reels | ✅ yt-dlp 稳定支持 |
 | 微信视频号 | 短视频 | ⚠️ 预留接口（微信封闭生态，需抓包工具导出后走本地批处理） |
-| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.6.12 仍生效）|
+| 小红书（图片笔记） | 图集 | ✅ v0.3.3 修复 4 个 Bug（v0.6.14 仍生效）|
 | 小红书（视频笔记） | 短视频 | ✅ 从 `__INITIAL_STATE__` 拿无水印直链 |
 | 快手、微博 | 短视频 | ⚠️ 框架已就位，依赖 yt-dlp |
 | 任何 yt-dlp 支持的站点 | 混合 | ✅ GenericPlatform 兜底 |
@@ -82,14 +99,14 @@
 > macOS: `brew install ffmpeg` | Ubuntu: `sudo apt install ffmpeg` | Windows: `winget install Gyan.FFmpeg`
 >
 > **不想装系统 FFmpeg？** 使用内置静态版本（wheel 自带二进制，离线可用）：
-> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.13"`
+> `pip install "vidknot[bundled-ffmpeg] @ git+https://github.com/suonian/vidknot.git@v0.6.14"`
 >
 > 环境自检：`python -m vidknot --check-env`（会给出缺失项的安装命令）
 
-当前 GitHub 版本为 `v0.6.13`。从 GitHub 安装：
+当前 GitHub 版本为 `v0.6.14`。从 GitHub 安装：
 
 ```bash
-pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
+pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.14"
 ```
 
 > 🇨🇳 **大陆网络提示**：如访问 GitHub 缓慢，可给 pip 指定国内镜像加速依赖下载
@@ -97,7 +114,7 @@ pip install "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
 >
 > ```bash
 > pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
->   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.13"
+>   "vidknot @ git+https://github.com/suonian/vidknot.git@v0.6.14"
 > ```
 >
 > 清华镜像同样覆盖 yt-dlp、faster-whisper 等海外依赖，无需逐个找源。
